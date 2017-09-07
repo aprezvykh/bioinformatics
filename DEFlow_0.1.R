@@ -111,12 +111,15 @@ resadj$name =   mapIds(org.Mm.eg.db,
                        keytype="ENSEMBL",
                        multiVals="first")
 
+
+### BaseMean Filtering
 resOrdered <- resadj[order(resadj$padj),]
-resOrderedBM <- resOrdered[order(resOrdered$baseMean),]
+resOrderedBM <- resOrdered[order(rev(resOrdered$baseMean)),]
 resOrderedBM <- resOrderedBM[,colSums(is.na(resOrderedBM))<nrow(resOrderedBM)]
 resOrderedBM <- resOrderedBM[complete.cases(resOrderedBM), ]
+bmcount <- sum(resOrderedBM$baseMean > 100, na.rm=TRUE)
+resOrderedBM <- head(resOrderedBM, bmcount)
 write.xlsx(resOrderedBM, file = "DEG.xlsx", sheetName = "DEG padj <0.05")
-resdf <- as.data.frame(resOrderedBM)
 
 ### GO ###
 
@@ -189,7 +192,8 @@ heatmap.2(mat, Rowv=as.dendrogram(hc),
 dev.off()
 
 
-## REACTOME
+## REACTOME ## 
+
 require(clusterProfiler)
 require(reactome.db)
 print(resOrderedBM)
