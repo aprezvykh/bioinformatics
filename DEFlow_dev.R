@@ -109,8 +109,9 @@ resadj$name =   mapIds(org.Mm.eg.db,
 
 resOrdered <- resadj[order(resadj$padj),]
 resOrderedBM <- resOrdered[order(resOrdered$baseMean),]
-write.csv(as.data.frame(resOrderedBM), file = "1_result_DEG_annotated.csv")
-
+write.csv(as.data.frame(resOrderedBM), file = "result_DEG_annotated.csv")
+lapply(resOrderedBM, head)
+resOrderedBM <- resOrderedBM[complete.cases(resOrderedBM),]
 
 ### GO ###
 data(go.sets.mm)
@@ -119,20 +120,20 @@ gomfsets = go.sets.mm[go.subs.mm$MF]
 gomfres = gage(foldchanges, gsets=gomfsets, same.dir=TRUE)
 lapply(gomfres, head)
 gomfres <- gomfres[complete.cases(gomfres), ]
-write.csv(gomfres, file = "6_MF.csv")
+write.csv(gomfres, file = "MF.csv")
 
 
 gobpsets = go.sets.mm[go.subs.mm$BP]
 gobpres = gage(foldchanges, gsets=gobpsets, same.dir=TRUE)
 lapply(gobpres, head)
 gobpres <- gobpres[complete.cases(gobpres), ]
-write.csv(gobpres, file = "6_BP.csv")
+write.csv(gobpres, file = "BP.csv")
 
 goccsets = go.sets.mm[go.subs.mm$CC]
 goccres = gage(foldchanges, gsets=goccsets, same.dir=TRUE)
 lapply(goccres, head)
 goccres <- goccres[complete.cases(goccres), ]
-write.csv(goccres, file = "6_CC.csv")
+write.csv(goccres, file = "CC.csv")
 
 
 

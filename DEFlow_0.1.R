@@ -30,6 +30,7 @@ biocLite("org.Mm.eg.db")
 biocLite("IRanges")
 install.packages("IRanges")
 install.packages("ggplot2")
+install.packages("reticulate")
 library("rJava")
 library("pathview")
 library("gage")
@@ -56,11 +57,13 @@ library("EGSEA")
 library("ggplot2")
 library(reshape2)
 library(clusterProfiler)
+library("reticulate")
+library(topGO)
 ### Statistical analysis (add 1 tg_mid)
-directory <- 'C://Users/alexander/Dropbox/ALS-mice project/counts_trimmed_geo/counts_ens/5_ctrl_late_vs_ctrl_early//'
+directory <- 'C://Users/rezvykh/Dropbox/ALS-mice project/counts_trimmed_geo/counts_ens/2_late_tg_vs_ctrl_tg//'
 sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
-sampleCondition <- c('early', 'early', 'early', 'early', 'early',  
-                     'late', 'late', 'late', 'late', 'late')
+sampleCondition <- c('control', 'control', 'control', 'control', 'control', 
+                     'tg', 'tg', 'tg')
 
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
@@ -82,8 +85,7 @@ logfcup <- sum(resadj$log2FoldChange > 1, na.rm=TRUE)
 header <- c('padj<0,05', 'genes with logfcup', 'genes with logfcdown')
 meaning <- c(print(allpadj), print(logfcup), print(logfcdown))
 df <- data.frame(header, meaning)
-write.csv(df, file = "result_stattests.csv")
-
+write.xlsx(df, file = "report.xlsx", sheetName = "Common info")
 ### Annotation ###
 columns(org.Mm.eg.db)
 resadj$symbol <- mapIds(org.Mm.eg.db, 
@@ -106,30 +108,35 @@ resadj$name =   mapIds(org.Mm.eg.db,
 
 resOrdered <- resadj[order(resadj$padj),]
 resOrderedBM <- resOrdered[order(resOrdered$baseMean),]
+resOrderedBM <- resOrderedBM[,colSums(is.na(resOrderedBM))<nrow(resOrderedBM)]
 resOrderedBM <- resOrderedBM[complete.cases(resOrderedBM), ]
-write.csv(as.data.frame(resOrderedBM), file = "result_DEG_annotated.csv")
+write.xlsx(resOrderedBM, file = "DEG.xlsx", sheetName = "DEG padj <0.05")
+resdf <- as.data.frame(resOrderedBM)
 
 ### GO ###
 data(go.sets.mm)
 data(go.subs.mm)
+foldchanges = resdf$log2FoldChange
+names(foldchanges) = resdf$entrez
+
 gomfsets = go.sets.mm[go.subs.mm$MF]
-gomfres = gage(foldchanges, gsets=gomfsets, same.dir=TRUE)
+gomfres = gage(foldchanges, gsets=gomfsets, same.dir=TRUE,set.size = c(10, 100), rank.test = TRUE)
 lapply(gomfres, head)
 gomfres <- gomfres[complete.cases(gomfres), ]
-write.csv(gomfres, file = "MF.csv")
-
+write.xlsx(gomfres, file = "GO_MF.xlsx", sheetName = "GO_MF")
 
 gobpsets = go.sets.mm[go.subs.mm$BP]
 gobpres = gage(foldchanges, gsets=gobpsets, same.dir=TRUE)
 lapply(gobpres, head)
 gobpres <- gobpres[complete.cases(gobpres), ]
-write.csv(gobpres, file = "BP.csv")
+write.xlsx(gobpres, file = "GO_BP.xlsx", sheetName = "GO_BP")
 
 goccsets = go.sets.mm[go.subs.mm$CC]
 goccres = gage(foldchanges, gsets=goccsets, same.dir=TRUE)
 lapply(goccres, head)
 goccres <- goccres[complete.cases(goccres), ]
-write.csv(goccres, file = "CC.csv")
+
+write.xlsx(goccres, file = "GO_CC.xlsx", sheetName = "GO_CC")
 
 ## TRANSFORM ### 
 rld<- rlogTransformation(dds, blind=TRUE)
@@ -176,19 +183,17 @@ dev.off()
 require(clusterProfiler)
 require(reactome.db)
 print(resOrderedBM)
-typeof(resOrderedBM)
 dfa <- as.character(resOrderedBM$entrez)
-print(dfa)
-summary(dfa)
-class(dfa)
-x = enrichPathway(gene=dfa, organism = "mouse", minGSSize=15, readable = TRUE )
+x <- enrichPathway(gene=dfa, organism = "mouse", minGSSize=15, readable = TRUE )
 head(as.data.frame(x))
 dev.off()
 par(mar=c(1,1,1,1))
-dotplot(x, showCategory=5)
+dotplot(x, showCategory=30,  font.size = 8)
 dev.copy(png, 'dotplot.png')
 dev.off()
-enrichMap(x, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7 )
+enrichMap(x, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7, n = 30, font.size = 8)
 dev.copy(png, 'enrichmap.png')
 dev.off()
-cnetplot(x, showCategory = "10", foldChange = foldchanges, categorySize="pvalue")
+cnetplot(x, foldChange = foldchanges, categorySize="pvalue", showCategory = 2)
+dev.copy(png, 'cnetplot.png')
+dev.off()

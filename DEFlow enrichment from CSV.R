@@ -1,13 +1,12 @@
 library("gage")
 library("gageData")
-df <- read.table(file = "C:/Users/rezvykh/Dropbox/ALS-mice project/counts_trimmed_geo/deg_bm_100_fc_1.5/csv/3_mid_tg_vs_ctrl_tg.csv", sep = ",", header= TRUE)
+df <- read.table(file = "C:/Users/rezvykh/Dropbox/ALS-mice project/counts_trimmed_geo/deg_bm_100_fc_1.5/csv/2_late_tg_vs_ctrl_tg.csv", sep = ",", header= TRUE)
 df <- df[,colSums(is.na(df))<nrow(df)]
 foldchanges = df$log2FoldChange
 names(foldchanges) = df$entrez
 ### GO ###
 data(go.sets.mm)
 data(go.subs.mm)
-
 gomfsets = go.sets.mm[go.subs.mm$MF]
 gomfres = gage(foldchanges, gsets=gomfsets, same.dir=TRUE)
 lapply(gomfres, head)
