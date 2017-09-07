@@ -13,6 +13,8 @@ biocLite("pathview")
 biocLite("ReactomePA")
 biocLite("reactome.db")
 biocLite("EGSEA")
+biocLite("org.Mm.eg.db")
+biocLite("IRanges")
 install.packages("checkmate")
 install.packages("ggplot2")
 install.packages("gplots")
@@ -26,8 +28,6 @@ install.packages("xlsx")
 install.packages("functional")
 install.packages("rJava")
 install.packages("psych")
-biocLite("org.Mm.eg.db")
-biocLite("IRanges")
 install.packages("IRanges")
 install.packages("ggplot2")
 install.packages("reticulate")
@@ -55,11 +55,13 @@ library("functional")
 library("DOSE")
 library("EGSEA")
 library("ggplot2")
-library(reshape2)
-library(clusterProfiler)
+library("reshape2")
+library("clusterProfiler")
 library("reticulate")
-library(topGO)
-### Statistical analysis (add 1 tg_mid)
+library("topGO")
+
+### Statistical analysis
+
 directory <- 'C://Users/rezvykh/Dropbox/ALS-mice project/counts_trimmed_geo/counts_ens/2_late_tg_vs_ctrl_tg//'
 sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
 sampleCondition <- c('control', 'control', 'control', 'control', 'control', 
@@ -70,6 +72,7 @@ ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=director
 dds<-DESeq(ddsHTSeq)
 
 ## Simple tests ##
+
 res<-results(dds)
 allpadj <- sum(res$padj < 0.05, na.rm=TRUE)
 padjcount <- sum(res$padj < 0.05, na.rm=TRUE)
@@ -86,7 +89,9 @@ header <- c('padj<0,05', 'genes with logfcup', 'genes with logfcdown')
 meaning <- c(print(allpadj), print(logfcup), print(logfcdown))
 df <- data.frame(header, meaning)
 write.xlsx(df, file = "report.xlsx", sheetName = "Common info")
+
 ### Annotation ###
+
 columns(org.Mm.eg.db)
 resadj$symbol <- mapIds(org.Mm.eg.db, 
                         keys=row.names(resadj), 
@@ -114,6 +119,7 @@ write.xlsx(resOrderedBM, file = "DEG.xlsx", sheetName = "DEG padj <0.05")
 resdf <- as.data.frame(resOrderedBM)
 
 ### GO ###
+
 data(go.sets.mm)
 data(go.subs.mm)
 foldchanges = resdf$log2FoldChange
@@ -139,31 +145,36 @@ goccres <- goccres[complete.cases(goccres), ]
 write.xlsx(goccres, file = "GO_CC.xlsx", sheetName = "GO_CC")
 
 ## TRANSFORM ### 
+
 rld<- rlogTransformation(dds, blind=TRUE)
+pdf(file = "pacplot.pdf", width = 12, height = 17, family = "Helvetica")
 print(plotPCA(rld, intgroup=c('condition')))
-dev.copy(png, 'pcaplot.png')
 dev.off()
+pdf(file = "MAplot.pdf", width = 12, height = 17, family = "Helvetica")
 plotMA(dds,ylim=c(-10,10),main='DESeq2')
-dev.copy(png, 'maplot.png')
 dev.off()
+
 ### Genes clustering
 
+pdf(file = "topvargenes.pdf", width = 12, height = 17, family = "Helvetica")
 topVarGenes <- head(order(rowVars(assay(rld)), decreasing=TRUE ),50)
 pheatmap( assay(rld)[topVarGenes,], scale="row",
           trace="column", dendrogram="column",
           col = colorRampPalette( rev(brewer.pal(9, "RdBu")) )(255), fontsize = 9
 )
-dev.copy(png, 'topvargenes.png')
 dev.off()
+
+## Estimate & sparsity
+
+pdf(file = "dispestimate.pdf", width = 12, height = 17, family = "Helvetica")
 plotDispEsts(dds)
-dev.copy(png, 'dispestimate.png')
 dev.off()
+pdf(file = "sparsity.pdf", width = 12, height = 17, family = "Helvetica")
 plotSparsity(dds)
-dev.copy(png, 'sparcity.png')
 dev.off()
 
 ## MATRIX ### 
-dev.off()
+pdf(file = "matrix.pdf", width = 12, height = 17, family = "Helvetica")
 hmcol<- colorRampPalette(brewer.pal(11, 'RdYlBu'))(50)
 distsRL <- dist(t(assay(rld)))
 mat<- as.matrix(distsRL)
@@ -175,7 +186,6 @@ heatmap.2(mat, Rowv=as.dendrogram(hc),
           symm=TRUE, trace='none',
           col = rev(hmcol), margin=c(13, 13))
 
-dev.copy(png, 'distmatrix.png')
 dev.off()
 
 
@@ -187,13 +197,18 @@ dfa <- as.character(resOrderedBM$entrez)
 x <- enrichPathway(gene=dfa, organism = "mouse", minGSSize=15, readable = TRUE )
 head(as.data.frame(x))
 dev.off()
+
+
 par(mar=c(1,1,1,1))
-dotplot(x, showCategory=30,  font.size = 8)
-dev.copy(png, 'dotplot.png')
+pdf(file = "dotplot.pdf", width = 12, height = 17, family = "Helvetica")
+dotplot(x, showCategory=30,  font.size = 9)
 dev.off()
-enrichMap(x, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7, n = 30, font.size = 8)
-dev.copy(png, 'enrichmap.png')
+
+pdf(file = "enrichmap.pdf", width = 12, height = 17, family = "Helvetica")
+enrichMap(x, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7, n = 15, font.size = 20)
 dev.off()
+
+pdf(file = "cnetplot.pdf", width = 12, height = 17, family = "Helvetica")
 cnetplot(x, foldChange = foldchanges, categorySize="pvalue", showCategory = 2)
-dev.copy(png, 'cnetplot.png')
 dev.off()
+
