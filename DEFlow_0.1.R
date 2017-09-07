@@ -72,7 +72,6 @@ ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=director
 dds<-DESeq(ddsHTSeq)
 
 ## Simple tests ##
-
 res<-results(dds)
 allpadj <- sum(res$padj < 0.05, na.rm=TRUE)
 padjcount <- sum(res$padj < 0.05, na.rm=TRUE)
@@ -113,20 +112,34 @@ resadj$name =   mapIds(org.Mm.eg.db,
 
 
 ### BaseMean Filtering
-resOrdered <- resadj[order(resadj$padj),]
-resOrderedBM <- resOrdered[order(rev(resOrdered$baseMean)),]
+
+resOrderedBM <- resadj[order(resadj$padj),]
 resOrderedBM <- resOrderedBM[,colSums(is.na(resOrderedBM))<nrow(resOrderedBM)]
 resOrderedBM <- resOrderedBM[complete.cases(resOrderedBM), ]
 bmcount <- sum(resOrderedBM$baseMean > 100, na.rm=TRUE)
+bmcount
+resOrderedBM <- resOrderedBM[order(rev(resOrderedBM$baseMean)),]
 resOrderedBM <- head(resOrderedBM, bmcount)
-write.xlsx(resOrderedBM, file = "DEG.xlsx", sheetName = "DEG padj <0.05")
 
-### GO ###
+
+### Fold Change Filtering
+resOrderedBM <- resOrderedBM[order(resOrderedBM$log2FoldChange),]
+resOrderedBMinv <- resOrderedBM[order(resOrderedBM$log2FoldChange),]
+fcup <- sum(resOrderedBMinv$log2FoldChange > 1, na.rm=TRUE)
+fcdown <- sum(resOrderedBM$log2FoldChange < -1, na.rm=TRUE)
+resOrderedBMup <- head(resOrderedBM, fcup)
+resOrderedBMdown <- head(resOrderedBMinv, fcdown)
+
+write.xlsx(resOrderedBM, file = "deg_all.xlsx", sheetName = "DEG padj <0.05")
+write.xlsx(resOrderedBMup, file = "deg_logfcup.xlsx", sheetName = "DEG padj <0.05")
+write.xlsx(resOrderedBMdown, file = "deg_logfcdown.xlsx", sheetName = "DEG padj <0.05")
+
+## GO ###
 
 data(go.sets.mm)
 data(go.subs.mm)
-foldchanges = resdf$log2FoldChange
-names(foldchanges) = resdf$entrez
+foldchanges = resOrderedBM$log2FoldChange
+names(foldchanges) = resOrderedBM$entrez
 
 gomfsets = go.sets.mm[go.subs.mm$MF]
 gomfres = gage(foldchanges, gsets=gomfsets, same.dir=TRUE,set.size = c(10, 100), rank.test = TRUE)
@@ -150,23 +163,24 @@ write.xlsx(goccres, file = "GO_CC.xlsx", sheetName = "GO_CC")
 ## TRANSFORM ### 
 
 rld<- rlogTransformation(dds, blind=TRUE)
-pdf(file = "pacplot.pdf", width = 12, height = 17, family = "Helvetica")
+pdf(file = "pcaplot.pdf", width = 12, height = 17, family = "Helvetica")
 print(plotPCA(rld, intgroup=c('condition')))
 dev.off()
 pdf(file = "MAplot.pdf", width = 12, height = 17, family = "Helvetica")
 plotMA(dds,ylim=c(-10,10),main='DESeq2')
 dev.off()
 
-### Genes clustering
+### Genes clustering BY rld
 
 pdf(file = "topvargenes.pdf", width = 12, height = 17, family = "Helvetica")
-topVarGenes <- head(order(rowVars(assay(rld)), decreasing=TRUE ),50)
+topVarGenes <- head(order(rowVars(assay(rld)), decreasing=TRUE ),5000)
 pheatmap( assay(rld)[topVarGenes,], scale="row",
           trace="column", dendrogram="column",
           col = colorRampPalette( rev(brewer.pal(9, "RdBu")) )(255), fontsize = 9
 )
-dev.off()
 
+write.xlsx(topVarGenes, file = "TVG.xlsx", sheetName = "TVG")
+dev.off()
 ## Estimate & sparsity
 
 pdf(file = "dispestimate.pdf", width = 12, height = 17, family = "Helvetica")
@@ -216,3 +230,4 @@ pdf(file = "cnetplot.pdf", width = 12, height = 17, family = "Helvetica")
 cnetplot(x, foldChange = foldchanges, categorySize="pvalue", showCategory = 2)
 dev.off()
 
+### Significant genes heatmap (padj<0.05, baseMean>100, |logFC2|>1,5)
