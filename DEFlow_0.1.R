@@ -62,11 +62,18 @@ library("reticulate")
 library("topGO")
 library(xlsx)
 
+### Parameters
+pval_cutoff <- 0.1
+base_mean_cutoff <- 100 
+logfcup_cutoff <- 1
+logfcdown_cutoff <- -1
+gs_size <- 15
+
 ### Statistical analysis
 directory <- 'C://Users//alexander/Dropbox//ALS-mice project//counts_trimmed_geo//counts_ens//2_late_tg_vs_ctrl_tg//'
 sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
 sampleCondition <- c('control', 'control', 'control', 'control', 'control', 
-                     'tg', 'tg', 'tg')
+                     'late', 'late', 'late')
 
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
@@ -74,19 +81,20 @@ dds<-DESeq(ddsHTSeq)
 
 ## Simple tests ##
 res<-results(dds)
-allpadj <- sum(res$padj < 0.05, na.rm=TRUE)
-padjcount <- sum(res$padj < 0.05, na.rm=TRUE)
+allpadj <- sum(res$padj < pval_cutoff, na.rm=TRUE)
+padjcount <- sum(res$padj < pval_cutoff, na.rm=TRUE)
 res<-res[order(res$padj),]
 resadj <- head(res, print(padjcount))
 print(resadj)
 head(res, print(padjcount))
 mcols(res,use.names=TRUE)
-# write.csv(as.data.frame(res),file='results.csv')
 resadj <- resadj[order(resadj$log2FoldChange),]
-logfcdown <- sum(resadj$log2FoldChange < -1, na.rm=TRUE)
-logfcup <- sum(resadj$log2FoldChange > 1, na.rm=TRUE)
-header <- c('padj<0,05', 'genes with logfcup', 'genes with logfcdown')
-meaning <- c(print(allpadj), print(logfcup), print(logfcdown))
+ddsh <- estimateSizeFactors(dds)
+allgenes <- nrow(dds)
+logfcdown <- sum(resadj$log2FoldChange < logfcdown_cutoff, na.rm=TRUE)
+logfcup <- sum(resadj$log2FoldChange > logfcup_cutoff, na.rm=TRUE)
+header <- c('all genes','padj<0,05', 'genes with logfcup', 'genes with logfcdown')
+meaning <- c(print(allgenes), print(allpadj), print(logfcup), print(logfcdown))
 df <- data.frame(header, meaning)
 write.xlsx(df, file = "report.xlsx", sheetName = "Common info")
 
@@ -117,18 +125,14 @@ resadj$name =   mapIds(org.Mm.eg.db,
 resOrderedBM <- resadj[order(resadj$padj),]
 resOrderedBM <- resOrderedBM[,colSums(is.na(resOrderedBM))<nrow(resOrderedBM)]
 resOrderedBM <- resOrderedBM[complete.cases(resOrderedBM), ]
-bmcount <- sum(resOrderedBM$baseMean > 100, na.rm=TRUE)
-bmcount
-resOrderedBM <- resOrderedBM[order(rev(resOrderedBM$baseMean)),]
-resOrderedBM <- head(resOrderedBM, bmcount)
 
 
 ### Fold Change & BaseMean filtering
 resOrderedBM <- resOrderedBM[order(resOrderedBM$log2FoldChange),]
 write.xlsx(resOrderedBM, file = "DEG_all.xlsx", sheetName = "DEG padj <0.05")
 dfx <- as.data.frame(resOrderedBM)
-dfx <- as.data.frame(subset(resOrderedBM, baseMean > 100))
-dfx <- as.data.frame(subset(dfx, log2FoldChange > 1.5 | log2FoldChange < -1.5))
+dfx <- as.data.frame(subset(resOrderedBM, baseMean > base_mean_cutoff))
+dfx <- as.data.frame(subset(dfx, log2FoldChange > logfcup_cutoff | log2FoldChange < logfcdown_cutoff))
 write.xlsx(dfx, file = "DEG_filtered.xlsx", sheetName = "DEG padj <0.05 filtered")
 resOrderedBM <- dfx
 ## GO ###
@@ -212,7 +216,7 @@ require(clusterProfiler)
 require(reactome.db)
 print(resOrderedBM)
 dfa <- as.character(resOrderedBM$entrez)
-x <- enrichPathway(gene=dfa, organism = "mouse", minGSSize=15, readable = TRUE )
+x <- enrichPathway(gene=dfa, organism = "mouse", minGSSize=gs_size, readable = TRUE )
 head(as.data.frame(x))
 dev.off()
 
@@ -230,4 +234,16 @@ pdf(file = "cnetplot.pdf", width = 12, height = 17, family = "Helvetica")
 cnetplot(x, foldChange = foldchanges, categorySize="pvalue", showCategory = 2)
 dev.off()
 
-### Significant genes heatmap (padj<0.05, baseMean>100, |logFC2|>1,5)
+### KEGG ### 
+
+data(kegg.sets.mm)
+data(sigmet.idx.mm)
+kegg.sets.mm = kegg.sets.mm[sigmet.idx.mm]
+keggres = gage(foldchanges, gsets=kegg.sets.mm, same.dir=TRUE)
+keggres <- as.data.frame(keggres)
+keggres <- keggres[complete.cases(keggres), ]
+write.xlsx(keggres, file = "KEGG.xlsx", sheetName = "KEGG")
+
+
+### Heatmap by significant genes
+

@@ -255,7 +255,6 @@ keggrespathways
 keggresids = substr(keggrespathways, start=1, stop=8)
 keggresids
 
-plot_pathway = function(pid) pathview(gene.data=foldchanges, pathway.id=pid, species="mmu", new.signature=FALSE)
 
 tmp = sapply(keggresids, function(pid) pathview(gene.data=foldchanges, pathway.id=pid, species="mmu"))
 
@@ -275,3 +274,6 @@ write.csv(x, file = "GSEA.csv")
 head(as.data.frame(x))
 dotplot(x, showCategory=12)
 enrichMap(x, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7 )
+
+
+
