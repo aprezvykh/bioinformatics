@@ -15,6 +15,7 @@ biocLite("reactome.db")
 biocLite("EGSEA")
 biocLite("org.Mm.eg.db")
 biocLite("IRanges")
+install.packages("xlsx")
 install.packages("checkmate")
 install.packages("ggplot2")
 install.packages("gplots")
@@ -59,10 +60,10 @@ library("reshape2")
 library("clusterProfiler")
 library("reticulate")
 library("topGO")
+library(xlsx)
 
 ### Statistical analysis
-
-directory <- 'C://Users/rezvykh/Dropbox/ALS-mice project/counts_trimmed_geo/counts_ens/2_late_tg_vs_ctrl_tg//'
+directory <- 'C://Users//alexander/Dropbox//ALS-mice project//counts_trimmed_geo//counts_ens//2_late_tg_vs_ctrl_tg//'
 sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
 sampleCondition <- c('control', 'control', 'control', 'control', 'control', 
                      'tg', 'tg', 'tg')
@@ -122,18 +123,14 @@ resOrderedBM <- resOrderedBM[order(rev(resOrderedBM$baseMean)),]
 resOrderedBM <- head(resOrderedBM, bmcount)
 
 
-### Fold Change Filtering
+### Fold Change & BaseMean filtering
 resOrderedBM <- resOrderedBM[order(resOrderedBM$log2FoldChange),]
-resOrderedBMinv <- resOrderedBM[order(resOrderedBM$log2FoldChange),]
-fcup <- sum(resOrderedBMinv$log2FoldChange > 1, na.rm=TRUE)
-fcdown <- sum(resOrderedBM$log2FoldChange < -1, na.rm=TRUE)
-resOrderedBMup <- head(resOrderedBM, fcup)
-resOrderedBMdown <- head(resOrderedBMinv, fcdown)
-
-write.xlsx(resOrderedBM, file = "deg_all.xlsx", sheetName = "DEG padj <0.05")
-write.xlsx(resOrderedBMup, file = "deg_logfcup.xlsx", sheetName = "DEG padj <0.05")
-write.xlsx(resOrderedBMdown, file = "deg_logfcdown.xlsx", sheetName = "DEG padj <0.05")
-
+write.xlsx(resOrderedBM, file = "DEG_all.xlsx", sheetName = "DEG padj <0.05")
+dfx <- as.data.frame(resOrderedBM)
+dfx <- as.data.frame(subset(resOrderedBM, baseMean > 100))
+dfx <- as.data.frame(subset(dfx, log2FoldChange > 1.5 | log2FoldChange < -1.5))
+write.xlsx(dfx, file = "DEG_filtered.xlsx", sheetName = "DEG padj <0.05 filtered")
+resOrderedBM <- dfx
 ## GO ###
 
 data(go.sets.mm)
@@ -144,18 +141,21 @@ names(foldchanges) = resOrderedBM$entrez
 gomfsets = go.sets.mm[go.subs.mm$MF]
 gomfres = gage(foldchanges, gsets=gomfsets, same.dir=TRUE,set.size = c(10, 100), rank.test = TRUE)
 lapply(gomfres, head)
+gomfres <- as.data.frame(gomfres)
 gomfres <- gomfres[complete.cases(gomfres), ]
 write.xlsx(gomfres, file = "GO_MF.xlsx", sheetName = "GO_MF")
 
 gobpsets = go.sets.mm[go.subs.mm$BP]
 gobpres = gage(foldchanges, gsets=gobpsets, same.dir=TRUE)
 lapply(gobpres, head)
+gobpres <- as.data.frame(gobpres)
 gobpres <- gobpres[complete.cases(gobpres), ]
 write.xlsx(gobpres, file = "GO_BP.xlsx", sheetName = "GO_BP")
 
 goccsets = go.sets.mm[go.subs.mm$CC]
 goccres = gage(foldchanges, gsets=goccsets, same.dir=TRUE)
 lapply(goccres, head)
+goccres <- as.data.frame(goccres)
 goccres <- goccres[complete.cases(goccres), ]
 
 write.xlsx(goccres, file = "GO_CC.xlsx", sheetName = "GO_CC")
@@ -170,16 +170,16 @@ pdf(file = "MAplot.pdf", width = 12, height = 17, family = "Helvetica")
 plotMA(dds,ylim=c(-10,10),main='DESeq2')
 dev.off()
 
-### Genes clustering BY rld
+### Genes clustering BY rld (not commited to logfc, basemean and pvalue filtration!
+### Use to your own risk of unsignificant and low-expressed genes
 
 pdf(file = "topvargenes.pdf", width = 12, height = 17, family = "Helvetica")
-topVarGenes <- head(order(rowVars(assay(rld)), decreasing=TRUE ),5000)
+topVarGenes <- head(order(rowVars(assay(rld)), decreasing=TRUE ),20)
 pheatmap( assay(rld)[topVarGenes,], scale="row",
           trace="column", dendrogram="column",
           col = colorRampPalette( rev(brewer.pal(9, "RdBu")) )(255), fontsize = 9
 )
 
-write.xlsx(topVarGenes, file = "TVG.xlsx", sheetName = "TVG")
 dev.off()
 ## Estimate & sparsity
 
