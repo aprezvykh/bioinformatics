@@ -70,10 +70,10 @@ logfcdown_cutoff <- -1
 gs_size <- 15
 
 ### Statistical analysis
-directory <- 'C://Users//alexander/Dropbox//ALS-mice project//counts_trimmed_geo//counts_ens//2_late_tg_vs_ctrl_tg//'
+directory <- 'C://Users//alexander/Dropbox//ALS-mice project//counts_trimmed_geo//counts_ens//5_ctrl_late_vs_ctrl_early///'
 sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
 sampleCondition <- c('control', 'control', 'control', 'control', 'control', 
-                     'late', 'late', 'late')
+                     'late', 'late', 'late', 'late', 'late')
 
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
@@ -223,16 +223,17 @@ dev.off()
 
 par(mar=c(1,1,1,1))
 pdf(file = "dotplot.pdf", width = 12, height = 17, family = "Helvetica")
-dotplot(x, showCategory=30,  font.size = 9)
+barplot(x, showCategory=30,  font.size = 9)
 dev.off()
 
 pdf(file = "enrichmap.pdf", width = 12, height = 17, family = "Helvetica")
-enrichMap(x, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7, n = 15, font.size = 20)
+enrichMap(x, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7, n = 20, font.size = 20)
 dev.off()
 
 pdf(file = "cnetplot.pdf", width = 12, height = 17, family = "Helvetica")
-cnetplot(x, foldChange = foldchanges, categorySize="pvalue", showCategory = 2)
+cnetplot(x, foldChange = foldchanges, categorySize="pvalue", showCategory = 10)
 dev.off()
+
 
 ### KEGG ### 
 
@@ -246,4 +247,3 @@ write.xlsx(keggres, file = "KEGG.xlsx", sheetName = "KEGG")
 
 
 ### Heatmap by significant genes
-
