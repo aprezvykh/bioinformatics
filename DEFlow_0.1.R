@@ -63,38 +63,39 @@ library("topGO")
 library(xlsx)
 
 ### Parameters
-pval_cutoff <- 0.1
+pval_cutoff <- 0.05
 base_mean_cutoff <- 100 
 logfcup_cutoff <- 1
 logfcdown_cutoff <- -1
 gs_size <- 15
 
+
 ### Statistical analysis
-directory <- 'C://Users//alexander/Dropbox//ALS-mice project//counts_trimmed_geo//counts_ens//5_ctrl_late_vs_ctrl_early///'
+directory <- '~/counts_ens/2_late_tg_vs_ctrl_tg///'
+setwd(directory)
 sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
 sampleCondition <- c('control', 'control', 'control', 'control', 'control', 
-                     'late', 'late', 'late', 'late', 'late')
+                     'late', 'late', 'late')
 
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
 
 ## Simple tests ##
-res<-results(dds)
+res <- results(dds)
 allpadj <- sum(res$padj < pval_cutoff, na.rm=TRUE)
-padjcount <- sum(res$padj < pval_cutoff, na.rm=TRUE)
-res<-res[order(res$padj),]
-resadj <- head(res, print(padjcount))
-print(resadj)
-head(res, print(padjcount))
+res <- res[order(res$padj),]
+resadj <- head(res, print(allpadj))
 mcols(res,use.names=TRUE)
-resadj <- resadj[order(resadj$log2FoldChange),]
 ddsh <- estimateSizeFactors(dds)
 allgenes <- nrow(dds)
+obm <- sum(res$baseMean)/allgenes
 logfcdown <- sum(resadj$log2FoldChange < logfcdown_cutoff, na.rm=TRUE)
 logfcup <- sum(resadj$log2FoldChange > logfcup_cutoff, na.rm=TRUE)
-header <- c('all genes','padj<0,05', 'genes with logfcup', 'genes with logfcdown')
-meaning <- c(print(allgenes), print(allpadj), print(logfcup), print(logfcdown))
+obm <- sum(res$baseMean)/allgenes
+
+header <- c('all genes', 'mean of overall baseMean', 'padj<0,05', 'genes with logfcup', 'genes with logfcdown')
+meaning <- c(print(allgenes), print(obm), print(allpadj), print(logfcup), print(logfcdown))
 df <- data.frame(header, meaning)
 write.xlsx(df, file = "report.xlsx", sheetName = "Common info")
 
@@ -125,7 +126,10 @@ resadj$name =   mapIds(org.Mm.eg.db,
 resOrderedBM <- resadj[order(resadj$padj),]
 resOrderedBM <- resOrderedBM[,colSums(is.na(resOrderedBM))<nrow(resOrderedBM)]
 resOrderedBM <- resOrderedBM[complete.cases(resOrderedBM), ]
-
+resHBM <- resOrderedBM
+upper_bm_cutoff <- obm*5
+resHBM <- as.data.frame(subset(resHBM, baseMean > upper_bm_cutoff))
+write.xlsx(resHBM, file = "Top_basemean.xlsx", sheetName = "Top basemean padj <0.05")
 
 ### Fold Change & BaseMean filtering
 resOrderedBM <- resOrderedBM[order(resOrderedBM$log2FoldChange),]
@@ -195,6 +199,7 @@ plotSparsity(dds)
 dev.off()
 
 ## MATRIX ### 
+par(mar=c(1,1,1,1))
 pdf(file = "matrix.pdf", width = 12, height = 17, family = "Helvetica")
 hmcol<- colorRampPalette(brewer.pal(11, 'RdYlBu'))(50)
 distsRL <- dist(t(assay(rld)))
@@ -222,7 +227,7 @@ dev.off()
 
 
 par(mar=c(1,1,1,1))
-pdf(file = "dotplot.pdf", width = 12, height = 17, family = "Helvetica")
+pdf(file = "barplot.pdf", width = 12, height = 17, family = "Helvetica")
 barplot(x, showCategory=30,  font.size = 9)
 dev.off()
 
@@ -233,6 +238,28 @@ dev.off()
 pdf(file = "cnetplot.pdf", width = 12, height = 17, family = "Helvetica")
 cnetplot(x, foldChange = foldchanges, categorySize="pvalue", showCategory = 10)
 dev.off()
+
+## high expressed genes expression profile
+foldchanges2 = resHBM$log2FoldChange
+dfb <- as.character(resHBM$entrez)
+y <- enrichPathway(gene=dfb, organism = "mouse", minGSSize=gs_size, readable = TRUE )
+head(as.data.frame(x))
+dev.off()
+
+
+par(mar=c(1,1,1,1))
+pdf(file = "barplot_GEP.pdf", width = 12, height = 17, family = "Helvetica")
+barplot(y, showCategory=30,  font.size = 9)
+dev.off()
+
+pdf(file = "enrichmap_GEP.pdf", width = 12, height = 17, family = "Helvetica")
+enrichMap(y, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7, n = 20, font.size = 20)
+dev.off()
+
+pdf(file = "cnetplot_GEP.pdf", width = 12, height = 17, family = "Helvetica")
+cnetplot(x, foldChange = foldchanges2, categorySize="pvalue", showCategory = 10)
+dev.off()
+
 
 
 ### KEGG ### 
@@ -247,3 +274,9 @@ write.xlsx(keggres, file = "KEGG.xlsx", sheetName = "KEGG")
 
 
 ### Heatmap by significant genes
+hres <- resOrderedBM
+u <- assay(rld)
+u <- as.data.frame(u)
+
+
+
