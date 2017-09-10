@@ -212,9 +212,11 @@ rownames(mat) <- colnames(mat) <- with(colData(dds),
                                        paste(condition,sampleFiles , sep=' : '))
 
 hc <- hclust(distsRL)
-heatmap.2(mat, Rowv=as.dendrogram(hc),
-          symm=TRUE, trace='none',
-          col = rev(hmcol), margin=c(13, 13))
+par(mar=c(1,1,1,1))
+# heatmap.2(mat, Rowv=as.dendrogram(hc),
+#          symm=TRUE, trace='none',
+#          col = rev(hmcol), margin=c(13, 13))
+pheatmap(mat)
 
 dev.off()
 
@@ -223,7 +225,6 @@ dev.off()
 
 require(clusterProfiler)
 require(reactome.db)
-print(resOrderedBM)
 dfa <- as.character(resOrderedBM$entrez)
 x <- enrichPathway(gene=dfa, organism = "mouse", minGSSize=gs_size, readable = TRUE )
 head(as.data.frame(x))
@@ -248,7 +249,6 @@ dev.off()
 foldchanges2 = resHBM$log2FoldChange
 dfb <- as.character(resHBM$entrez)
 y <- enrichPathway(gene=dfb, organism = "mouse", minGSSize=gs_size, readable = TRUE )
-head(as.data.frame(x))
 dev.off()
 
 par(mar=c(1,1,1,1))
@@ -277,3 +277,8 @@ write.xlsx(keggres, file = "KEGG.xlsx", sheetName = "KEGG")
 
 kk <- enrichKEGG(gene = dfa, organism = "mmu", pvalueCutoff = 0.05)
 write.xlsx(kk, file = "KEGG_DEP.xlsx", sheetName = "KEGG")
+pdf(file = "KEGG_enrichment_dotplot.pdf", width = 12, height = 17, family = "Helvetica")
+dotplot(kk)
+dev.off()
+
+
