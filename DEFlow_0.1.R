@@ -72,7 +72,7 @@ gs_size <- 15
 
 ### Statistical analysis
 directory <- '~/counts_ens/2_late_tg_vs_ctrl_tg///'
-setwd(directory)
+setwd('~/diffexp_reports/')
 sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
 sampleCondition <- c('control', 'control', 'control', 'control', 'control', 
                      'late', 'late', 'late')
@@ -260,8 +260,6 @@ pdf(file = "cnetplot_GEP.pdf", width = 12, height = 17, family = "Helvetica")
 cnetplot(x, foldChange = foldchanges2, categorySize="pvalue", showCategory = 10)
 dev.off()
 
-
-
 ### KEGG ### 
 
 data(kegg.sets.mm)
@@ -274,9 +272,22 @@ write.xlsx(keggres, file = "KEGG.xlsx", sheetName = "KEGG")
 
 
 ### Heatmap by significant genes
-hres <- resOrderedBM
-u <- assay(rld)
-u <- as.data.frame(u)
+resmap <- data.frame(rownames(hres))
+hres <- as.data.frame(resOrderedBM)
+tvg <- (assay(rld))
+ass <- rownames(tvg)
+typeof(ass)
+num <- grep("ENSMUSG00000022860", ass)
+mun <- tvg[num,]
+resmap <- rbind(mun, resmap)
 
 
+for(i in 1:nrow(hres)) {
+  row <- hres[i,]
+  num <- grep("b\\rownames(tvg)\\b", ass)
+  mun <- tvg[num,]
+  mun
+  # do stuff with row
+}
 
+sss
