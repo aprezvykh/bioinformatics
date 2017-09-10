@@ -71,7 +71,7 @@ gs_size <- 15
 
 
 ### Statistical analysis
-directory <- '~/counts_ens/2_late_tg_vs_ctrl_tg///'
+directory <- '~/counts_ens/2_late_tg_vs_ctrl_tg/'
 setwd('~/diffexp_reports/')
 sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
 sampleCondition <- c('control', 'control', 'control', 'control', 'control', 
@@ -178,15 +178,18 @@ pdf(file = "MAplot.pdf", width = 12, height = 17, family = "Helvetica")
 plotMA(dds,ylim=c(-10,10),main='DESeq2')
 dev.off()
 
-### Genes clustering BY rld (not commited to logfc, basemean and pvalue filtration!
-### Use to your own risk of unsignificant and low-expressed genes
+### Genes heatmap
 
+select <- order((resOrderedBM$log2FoldChange), decreasing=FALSE)[1:50]
+hmcol<- colorRampPalette(brewer.pal(11, 'RdYlBu'))(50)
 pdf(file = "topvargenes.pdf", width = 12, height = 17, family = "Helvetica")
-topVarGenes <- head(order(rowVars(assay(rld)), decreasing=TRUE ),20)
-pheatmap( assay(rld)[topVarGenes,], scale="row",
-          trace="column", dendrogram="column",
-          col = colorRampPalette( rev(brewer.pal(9, "RdBu")) )(255), fontsize = 9
-)
+
+pheatmap(assay(dds, normalized = TRUE)[select,],
+        cellwidth = 40, scale="row", fontsize = 10,
+         clustering_distance_rows = 'euclidean',
+         cluster_rows=F, cluster_cols=F,
+         legend = TRUE, main = "Transcripts differential expression, p <0,05",
+         clustering_method = "complete", show_rownames = T)
 
 dev.off()
 ## Estimate & sparsity
@@ -260,34 +263,6 @@ pdf(file = "cnetplot_GEP.pdf", width = 12, height = 17, family = "Helvetica")
 cnetplot(x, foldChange = foldchanges2, categorySize="pvalue", showCategory = 10)
 dev.off()
 
-### KEGG ### 
-
-data(kegg.sets.mm)
-data(sigmet.idx.mm)
-kegg.sets.mm = kegg.sets.mm[sigmet.idx.mm]
-keggres = gage(foldchanges, gsets=kegg.sets.mm, same.dir=TRUE)
-keggres <- as.data.frame(keggres)
-keggres <- keggres[complete.cases(keggres), ]
-write.xlsx(keggres, file = "KEGG.xlsx", sheetName = "KEGG")
 
 
-### Heatmap by significant genes
-resmap <- data.frame(rownames(hres))
-hres <- as.data.frame(resOrderedBM)
-tvg <- (assay(rld))
-ass <- rownames(tvg)
-typeof(ass)
-num <- grep("ENSMUSG00000022860", ass)
-mun <- tvg[num,]
-resmap <- rbind(mun, resmap)
 
-
-for(i in 1:nrow(hres)) {
-  row <- hres[i,]
-  num <- grep("b\\rownames(tvg)\\b", ass)
-  mun <- tvg[num,]
-  mun
-  # do stuff with row
-}
-
-sss

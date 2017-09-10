@@ -212,7 +212,6 @@ resOrderedBM <- as.data.frame(resOrderedBM$log2FoldChange)
 
 
 ### Genes clustering
-
 topVarGenes <- head(order(rowVars(assay(rld)), decreasing=TRUE ),50)
 pheatmap( assay(rld)[topVarGenes,], scale="row",
           trace="column", dendrogram="column",
