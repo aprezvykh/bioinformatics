@@ -68,7 +68,7 @@ base_mean_cutoff <- 100
 logfcup_cutoff <- 1
 logfcdown_cutoff <- -1
 gs_size <- 15
-
+base_mean_cutoff_value <- 5
 
 ### Statistical analysis
 directory <- '~/counts_ens/2_late_tg_vs_ctrl_tg/'
@@ -127,7 +127,7 @@ resOrderedBM <- resadj[order(resadj$padj),]
 resOrderedBM <- resOrderedBM[,colSums(is.na(resOrderedBM))<nrow(resOrderedBM)]
 resOrderedBM <- resOrderedBM[complete.cases(resOrderedBM), ]
 resHBM <- resOrderedBM
-upper_bm_cutoff <- obm*5
+upper_bm_cutoff <- obm*base_mean_cutoff_value
 resHBM <- as.data.frame(subset(resHBM, baseMean > upper_bm_cutoff))
 write.xlsx(resHBM, file = "Top_basemean.xlsx", sheetName = "Top basemean padj <0.05")
 
@@ -228,7 +228,6 @@ x <- enrichPathway(gene=dfa, organism = "mouse", minGSSize=gs_size, readable = T
 head(as.data.frame(x))
 dev.off()
 
-
 par(mar=c(1,1,1,1))
 pdf(file = "barplot.pdf", width = 12, height = 17, family = "Helvetica")
 barplot(x, showCategory=30,  font.size = 9)
@@ -242,13 +241,14 @@ pdf(file = "cnetplot.pdf", width = 12, height = 17, family = "Helvetica")
 cnetplot(x, foldChange = foldchanges, categorySize="pvalue", showCategory = 10)
 dev.off()
 
-## high expressed genes expression profile
+## high expressed genes expression profile - reactome profiling
+## of genes with baseMean = avg(baseMean)*base_mean_cutoff_value
+
 foldchanges2 = resHBM$log2FoldChange
 dfb <- as.character(resHBM$entrez)
 y <- enrichPathway(gene=dfb, organism = "mouse", minGSSize=gs_size, readable = TRUE )
 head(as.data.frame(x))
 dev.off()
-
 
 par(mar=c(1,1,1,1))
 pdf(file = "barplot_GEP.pdf", width = 12, height = 17, family = "Helvetica")
@@ -263,6 +263,19 @@ pdf(file = "cnetplot_GEP.pdf", width = 12, height = 17, family = "Helvetica")
 cnetplot(x, foldChange = foldchanges2, categorySize="pvalue", showCategory = 10)
 dev.off()
 
+### KEGG ###  
+data(kegg.sets.mm)
+data(sigmet.idx.mm)
+kegg.sets.mm = kegg.sets.mm[sigmet.idx.mm]
+keggres = gage(foldchanges, gsets=kegg.sets.mm, same.dir=TRUE)
+keggres <- as.data.frame(keggres)
+keggres <- keggres[complete.cases(keggres), ]
+write.xlsx(keggres, file = "KEGG.xlsx", sheetName = "KEGG")
+
+###KEGG expression profile (without lfc, but with generatio)
+
+kk <- enrichKEGG(gene = dfa, organism = "mmu", pvalueCutoff = 0.05)
+write.xlsx(kk, file = "KEGG_DEP.xlsx", sheetName = "KEGG")
 
 
-
+### GSEA
