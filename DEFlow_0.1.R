@@ -98,7 +98,7 @@ header <- c('all genes', 'mean of overall baseMean', 'padj<0,05', 'genes with lo
 meaning <- c(print(allgenes), print(obm), print(allpadj), print(logfcup), print(logfcdown))
 df <- data.frame(header, meaning)
 write.xlsx(df, file = "report.xlsx", sheetName = "Common info")
-
+sumres <- summary(res)
 ### Annotation ###
 
 columns(org.Mm.eg.db)
@@ -139,6 +139,7 @@ dfx <- as.data.frame(subset(resOrderedBM, baseMean > base_mean_cutoff))
 dfx <- as.data.frame(subset(dfx, log2FoldChange > logfcup_cutoff | log2FoldChange < logfcdown_cutoff))
 write.xlsx(dfx, file = "DEG_filtered.xlsx", sheetName = "DEG padj <0.05 filtered")
 resOrderedBM <- dfx
+
 ## GO ###
 
 data(go.sets.mm)
@@ -276,6 +277,3 @@ write.xlsx(keggres, file = "KEGG.xlsx", sheetName = "KEGG")
 
 kk <- enrichKEGG(gene = dfa, organism = "mmu", pvalueCutoff = 0.05)
 write.xlsx(kk, file = "KEGG_DEP.xlsx", sheetName = "KEGG")
-
-
-### GSEA
