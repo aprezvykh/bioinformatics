@@ -63,6 +63,7 @@ library("reticulate")
 library("topGO")
 library(xlsx)
 library("calibrate")
+library("foreach")
 
 ### Parameters.
 pval_cutoff <- 0.05
@@ -294,21 +295,31 @@ g = ggplot(data=resadj, aes(x=log2FoldChange, y=-log10(padj), colour=threshold))
 g
 dev.off()
 
-### Counts plot. Enter Refseq gene ID!
-gene_name = "Kdm6b"
+### Counts plot. Enter Refseq ID in "gene_name" variable!
 resc <- as.data.frame(resadj)
+
+
+gene_name <- "Sprr1a"
+
 ens <- rownames(resc[grep(gene_name, resc$symbol, ignore.case=TRUE),])
 m <- match(ens, rownames(resc))
 m <- as.data.frame(m)
-typeof(m)
+
+if(nrow(m)=0){
+
+  print("Gene not found, change your query!")
+  stop()
+}
+
 if(nrow(m)>1){
   
   print("Too much overlap, try another gene ID!")
-  
+  stop()
+
 } else {
+  pdf(file = paste(gene_name, ".pdf", sep=""), width = 12, height = 17, family = "Helvetica")
+  plotCounts(dds, gene = ens, main = gene_name, transform = FALSE)
+  dev.off()
   
-  pdf(file = "Gene_expression.pdf", width = 12, height = 17, family = "Helvetica")
-        plotCounts(dds, gene = ens, main = gene_name, transform = TRUE)
-        dev.off()
 }
 
