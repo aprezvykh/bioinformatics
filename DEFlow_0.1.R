@@ -32,6 +32,7 @@ install.packages("psych")
 install.packages("IRanges")
 install.packages("ggplot2")
 install.packages("reticulate")
+install.packages("calibrate")
 library("rJava")
 library("pathview")
 library("gage")
@@ -61,8 +62,9 @@ library("clusterProfiler")
 library("reticulate")
 library("topGO")
 library(xlsx)
+library("calibrate")
 
-### Parameters
+### Parameters.
 pval_cutoff <- 0.05
 base_mean_cutoff <- 100 
 logfcup_cutoff <- 1
@@ -71,18 +73,17 @@ gs_size <- 15
 base_mean_cutoff_value <- 5
 
 ### Statistical analysis
-directory <- '~/counts_ens/2_late_tg_vs_ctrl_tg/'
+directory <- '~/counts_ens/5_ctrl_late_vs_ctrl_early//'
 setwd('~/diffexp_reports/')
 sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
-sampleCondition <- c('control', 'control', 'control', 'control', 'control', 
-                     'late', 'late', 'late')
-
+sampleCondition <- c('control', 'control', 'control', 'control', 'control',
+                     'tg', 'tg', 'tg', 'tg', 'tg')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
 
 ## Simple tests ##
-res <- results(dds)
+res <- results(dds, tidy = FALSE )
 allpadj <- sum(res$padj < pval_cutoff, na.rm=TRUE)
 res <- res[order(res$padj),]
 resadj <- head(res, print(allpadj))
@@ -281,4 +282,14 @@ pdf(file = "KEGG_enrichment_dotplot.pdf", width = 12, height = 17, family = "Hel
 dotplot(kk)
 dev.off()
 
-
+### Volcano Plot
+resadj <- as.data.frame(resadj)
+resadj$threshold = as.factor(abs(resadj$log2FoldChange) > 2 & resadj$padj < 0.05/allgenes)
+pdf(file = "Volcano plot_late_vs_early.pdf", width = 12, height = 17, family = "Helvetica")
+g = ggplot(data=resadj, aes(x=log2FoldChange, y=-log10(padj), colour=threshold)) +
+  geom_point(alpha=1, size=1) +
+  labs(legend.position = "none") +
+  xlim(c(-6, 6)) + ylim(c(1.30103, 30)) +
+  xlab("log2 fold change") + ylab("-log10 p-value")
+g
+dev.off()
