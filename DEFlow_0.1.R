@@ -1,3 +1,8 @@
+### USE THIS ON YOUR OWN RISK!! ###
+###### WITH BEST REGARDS #########
+### ALEXANDER P. REZVYKH ##########
+######## EIMB RAS #################
+
 ### Installing required packages ###
 source('http://bioconductor.org/biocLite.R')
 biocLite('DESeq2')
@@ -66,13 +71,26 @@ library(xlsx)
 library("calibrate")
 library("foreach")
 library("ggthemes")
-### Parameters.
+
+
+### Parameters manual###
+# pval_cutoff - cutoffs your pvalue. default is 0.05
+# base_mean_cutoff - cutoffs low-expressed genes. default is 100
+# logfcup/down - cutoffs genes without diffexpression default is 1/-1
+# gs_size - minimal size of according to one reactome cluster genes. default is 15
+# base_mean_cutoff_value - coefficient by which the average value multiplies average BaseMean
+# it is required to the genes expression profile vizualization (GEP). default is 5
+# gene_list - put in it genes RefSeq name, and output will be a diffexpression plot
+# like PlotCounts DESeq2 functions.
+
+### Parameters
 pval_cutoff <- 0.05
 base_mean_cutoff <- 100 
 logfcup_cutoff <- 1
 logfcdown_cutoff <- -1
 gs_size <- 15
 base_mean_cutoff_value <- 5
+gene_list <- list("Actn1", "Actn4", "Nkiras1", "Nrip3", "Itpripl2")
 
 ### Statistical analysis
 directory <- '~/counts_ens/5_ctrl_late_vs_ctrl_early//'
@@ -216,9 +234,6 @@ rownames(mat) <- colnames(mat) <- with(colData(dds),
 
 hc <- hclust(distsRL)
 par(mar=c(1,1,1,1))
-# heatmap.2(mat, Rowv=as.dendrogram(hc),
-#          symm=TRUE, trace='none',
-#          col = rev(hmcol), margin=c(13, 13))
 pheatmap(mat)
 
 dev.off()
@@ -287,7 +302,7 @@ dev.off()
 ### Volcano Plot
 resadj <- as.data.frame(resadj)
 resadj$threshold = as.factor(abs(resadj$log2FoldChange) > 2 & resadj$padj < 0.05/allgenes)
-pdf(file = "Volcano plot_late_vs_early.pdf", width = 12, height = 17, family = "Helvetica")
+pdf(file = "Volcano plot.pdf", width = 12, height = 17, family = "Helvetica")
 g = ggplot(data=resadj, aes(x=log2FoldChange, y=-log10(padj), colour=threshold)) +
   geom_point(alpha=1, size=1) +
   labs(legend.position = "none") +
@@ -296,40 +311,21 @@ g = ggplot(data=resadj, aes(x=log2FoldChange, y=-log10(padj), colour=threshold))
 g
 dev.off()
 
-### Counts plot. Enter Refseq ID in "gene_name" variable!
+#function - gets raw counts by gene name
 
-resc <- as.data.frame(resadj)
-
-
-gene_name <- "Sprr1a"
-
-ens <- rownames(resc[grep(gene_name, resc$symbol, ignore.case=TRUE),])
-m <- match(ens, rownames(resc))
-m <- as.data.frame(m)
-
-if(nrow(m)=0){
-
-  print("Gene not found, change your query!")
-  stop()
+cfds <- function(gene_name){
+  ens <- rownames(resc[grep(gene_name, resc$symbol, ignore.case=TRUE),])
+  m <- match(ens, rownames(resc))
+  m <- as.data.frame(m)
+  return(plotCounts(dds, gene = ens, main = gene_name, transform = FALSE, returnData = TRUE, normalized = TRUE))
 }
 
-if(nrow(m)>1){
-  
-  print("Too much overlap, try another gene ID!")
-  stop()
 
-} else {
-  pdf(file = paste(gene_name, ".pdf", sep=""), width = 12, height = 17, family = "Helvetica")
-  plotCounts(dds, gene = ens, main = gene_name, transform = FALSE, returnData = FALSE)
+for (i in gene_list){
+  u <- cfds(i)
+  png(file = paste(i, ".png", sep=""))
+  u <- as.data.frame(u)
+  plot(x = u$condition, y = u$count, type = "p", main = paste(i), col = "blue", lwd = 2)
   dev.off()
-}
-
-b <- as.data.frame(plotCounts(dds, gene = ens, main = gene_name, transform = FALSE, returnData = TRUE))
-pdf(file = paste(gene_name, ".pdf", sep=""), width = 12, height = 17, family = "Helvetica")
-g <- ggplot(b, aes(x = b$condition, y = b$count)) +
-  geom_boxplot(colour = "black", fill = "#56B4E9") +  scale_y_continuous(name = "Normalized counts") +
-  scale_x_discrete(name = "Condition"))
-g
-dev.off()
-
+  }
 
