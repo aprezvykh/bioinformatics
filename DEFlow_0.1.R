@@ -293,3 +293,22 @@ g = ggplot(data=resadj, aes(x=log2FoldChange, y=-log10(padj), colour=threshold))
   xlab("log2 fold change") + ylab("-log10 p-value")
 g
 dev.off()
+
+### Counts plot. Enter Refseq gene ID!
+gene_name = "Kdm6b"
+resc <- as.data.frame(resadj)
+ens <- rownames(resc[grep(gene_name, resc$symbol, ignore.case=TRUE),])
+m <- match(ens, rownames(resc))
+m <- as.data.frame(m)
+typeof(m)
+if(nrow(m)>1){
+  
+  print("Too much overlap, try another gene ID!")
+  
+} else {
+  
+  pdf(file = "Gene_expression.pdf", width = 12, height = 17, family = "Helvetica")
+        plotCounts(dds, gene = ens, main = gene_name, transform = TRUE)
+        dev.off()
+}
+
