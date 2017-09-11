@@ -33,6 +33,7 @@ install.packages("IRanges")
 install.packages("ggplot2")
 install.packages("reticulate")
 install.packages("calibrate")
+install.packages("ggthemes")
 library("rJava")
 library("pathview")
 library("gage")
@@ -64,7 +65,7 @@ library("topGO")
 library(xlsx)
 library("calibrate")
 library("foreach")
-
+library("ggthemes")
 ### Parameters.
 pval_cutoff <- 0.05
 base_mean_cutoff <- 100 
@@ -296,6 +297,7 @@ g
 dev.off()
 
 ### Counts plot. Enter Refseq ID in "gene_name" variable!
+
 resc <- as.data.frame(resadj)
 
 
@@ -318,8 +320,16 @@ if(nrow(m)>1){
 
 } else {
   pdf(file = paste(gene_name, ".pdf", sep=""), width = 12, height = 17, family = "Helvetica")
-  plotCounts(dds, gene = ens, main = gene_name, transform = FALSE)
+  plotCounts(dds, gene = ens, main = gene_name, transform = FALSE, returnData = FALSE)
   dev.off()
-  
 }
+
+b <- as.data.frame(plotCounts(dds, gene = ens, main = gene_name, transform = FALSE, returnData = TRUE))
+pdf(file = paste(gene_name, ".pdf", sep=""), width = 12, height = 17, family = "Helvetica")
+g <- ggplot(b, aes(x = b$condition, y = b$count)) +
+  geom_boxplot(colour = "black", fill = "#56B4E9") +  scale_y_continuous(name = "Normalized counts") +
+  scale_x_discrete(name = "Condition"))
+g
+dev.off()
+
 
