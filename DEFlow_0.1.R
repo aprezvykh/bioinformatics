@@ -39,6 +39,8 @@ install.packages("ggplot2")
 install.packages("reticulate")
 install.packages("calibrate")
 install.packages("ggthemes")
+install.packages("calibrate")
+install.packages("ggthemes")
 library("rJava")
 library("pathview")
 library("gage")
@@ -90,14 +92,14 @@ logfcup_cutoff <- 1
 logfcdown_cutoff <- -1
 gs_size <- 15
 base_mean_cutoff_value <- 5
-gene_list <- list("Actn1", "Actn4", "Nkiras1", "Nrip3", "Itpripl2")
+hm_genes_count <- 50
 
 ### Statistical analysis
-directory <- '~/counts_ens/5_ctrl_late_vs_ctrl_early//'
+directory <- '~/counts_ens/2_late_tg_vs_ctrl_tg/'
 setwd('~/diffexp_reports/')
 sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
 sampleCondition <- c('control', 'control', 'control', 'control', 'control',
-                     'tg', 'tg', 'tg', 'tg', 'tg')
+                     'tg', 'tg', 'tg')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
@@ -201,12 +203,18 @@ plotMA(dds,ylim=c(-10,10),main='DESeq2')
 dev.off()
 
 ### Genes heatmap
-
-select <- order((resOrderedBM$log2FoldChange), decreasing=FALSE)[1:50]
-hmcol<- colorRampPalette(brewer.pal(11, 'RdYlBu'))(50)
+hm <- as.data.frame(resOrderedBM)
+select <- order((hm$log2FoldChange), decreasing=FALSE)[1:hm_genes_count]
+hmcol<- colorRampPalette(brewer.pal(11, 'RdYlBu'))(hm_genes_count)
 pdf(file = "topvargenes.pdf", width = 12, height = 17, family = "Helvetica")
+ass <-as.data.frame(assay(rld, normalized = TRUE)[select,])
 
-pheatmap(assay(dds, normalized = TRUE)[select,],
+hdf <- hm[1:hm_genes_count,]
+rownames(ass) <- NULL
+rownames(hdf) <- hdf$symbol
+rownames(ass) <- rownames(hdf)
+
+pheatmap(ass,
         cellwidth = 40, scale="row", fontsize = 10,
          clustering_distance_rows = 'euclidean',
          cluster_rows=F, cluster_cols=F,
@@ -312,6 +320,8 @@ g
 dev.off()
 
 #function - gets raw counts by gene name
+resc <- as.data.frame(resadj)
+gene_list = list("Als2cl", "Cd300c2", "Apold1", "Cep162")
 
 cfds <- function(gene_name){
   ens <- rownames(resc[grep(gene_name, resc$symbol, ignore.case=TRUE),])
@@ -320,12 +330,26 @@ cfds <- function(gene_name){
   return(plotCounts(dds, gene = ens, main = gene_name, transform = FALSE, returnData = TRUE, normalized = TRUE))
 }
 
-
 for (i in gene_list){
   u <- cfds(i)
-  png(file = paste(i, ".png", sep=""))
   u <- as.data.frame(u)
-  plot(x = u$condition, y = u$count, type = "p", main = paste(i), col = "blue", lwd = 2)
+  png(file = paste(i, ".png", sep=""))
+  plot(x = u$condition, y = u$count, type = "p", main = paste(i), xlab = "Normalized counts", ylab = "Experimental group",
+       col = "blue", lwd = 2, bg = "white",  lwd = 5, yline( 0, lwd=2, col=4))
+  grid( col = "lightgray", lty = "dotted",
+       lwd = par("lwd"), equilogs = TRUE)
   dev.off()
+}
+
+
+ens_id <- as.list(rownames(resOrderedBM))
+
+rownames(hm) <- hm$symbol
+
+for (i in ens_id){
+  m <- match(i, rownames(resOrderedBM))
+  a <- as.data.frame(resOrderedBM[i,])
+  t <- print(a$symbol)
+  
   }
 
