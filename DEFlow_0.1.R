@@ -84,6 +84,7 @@ library("ggthemes")
 # it is required to the genes expression profile vizualization (GEP). default is 5
 # gene_list - put in it genes RefSeq name, and output will be a diffexpression plot
 # like PlotCounts DESeq2 functions.
+# hm_genes_count - genes, that will be on a diffexpression heatmap
 
 ### Parameters
 pval_cutoff <- 0.05
@@ -92,7 +93,7 @@ logfcup_cutoff <- 1
 logfcdown_cutoff <- -1
 gs_size <- 15
 base_mean_cutoff_value <- 5
-hm_genes_count <- 50
+hm_genes_count <- 100
 
 ### Statistical analysis
 directory <- '~/counts_ens/2_late_tg_vs_ctrl_tg/'
@@ -152,7 +153,6 @@ resOrderedBM <- resOrderedBM[complete.cases(resOrderedBM), ]
 resHBM <- resOrderedBM
 upper_bm_cutoff <- obm*base_mean_cutoff_value
 resHBM <- as.data.frame(subset(resHBM, baseMean > upper_bm_cutoff))
-write.xlsx(resHBM, file = "Top_basemean.xlsx", sheetName = "Top basemean padj <0.05")
 
 ### Fold Change & BaseMean filtering
 resOrderedBM <- resOrderedBM[order(resOrderedBM$log2FoldChange),]
@@ -204,7 +204,7 @@ dev.off()
 
 ### Genes heatmap
 hm <- as.data.frame(resOrderedBM)
-select <- order((hm$log2FoldChange), decreasing=FALSE)[1:hm_genes_count]
+select <- order((hm$baseMean), decreasing=TRUE)[1:hm_genes_count]
 hmcol<- colorRampPalette(brewer.pal(11, 'RdYlBu'))(hm_genes_count)
 pdf(file = "topvargenes.pdf", width = 12, height = 17, family = "Helvetica")
 ass <-as.data.frame(assay(rld, normalized = TRUE)[select,])
@@ -320,9 +320,6 @@ g
 dev.off()
 
 #function - gets raw counts by gene name
-resc <- as.data.frame(resadj)
-gene_list = list("Als2cl", "Cd300c2", "Apold1", "Cep162")
-
 cfds <- function(gene_name){
   ens <- rownames(resc[grep(gene_name, resc$symbol, ignore.case=TRUE),])
   m <- match(ens, rownames(resc))
@@ -330,26 +327,21 @@ cfds <- function(gene_name){
   return(plotCounts(dds, gene = ens, main = gene_name, transform = FALSE, returnData = TRUE, normalized = TRUE))
 }
 
+resc <- as.data.frame(resadj)
+
+gene_list = list("Sod2",
+                 "Sod3",
+                 "Tardbp",
+                 "Fus")
+
 for (i in gene_list){
   u <- cfds(i)
   u <- as.data.frame(u)
   png(file = paste(i, ".png", sep=""))
-  plot(x = u$condition, y = u$count, type = "p", main = paste(i), xlab = "Normalized counts", ylab = "Experimental group",
+  plot(x = u$condition, y = u$count, type = "a", main = paste(i), xlab = "Experimental group", ylab = "Normalized counts",
        col = "blue", lwd = 2, bg = "white",  lwd = 5, yline( 0, lwd=2, col=4))
   grid( col = "lightgray", lty = "dotted",
        lwd = par("lwd"), equilogs = TRUE)
   dev.off()
 }
-
-
-ens_id <- as.list(rownames(resOrderedBM))
-
-rownames(hm) <- hm$symbol
-
-for (i in ens_id){
-  m <- match(i, rownames(resOrderedBM))
-  a <- as.data.frame(resOrderedBM[i,])
-  t <- print(a$symbol)
-  
-  }
-
+dev.off()
