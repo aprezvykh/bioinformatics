@@ -96,11 +96,10 @@ base_mean_cutoff_value <- 5
 hm_genes_count <- 100
 
 ### Statistical analysis
-directory <- '~/counts_ens/2_late_tg_vs_ctrl_tg/'
+directory <- '~/motoneurons compare/Microglia/'
 setwd('~/diffexp_reports/')
 sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
-sampleCondition <- c('control', 'control', 'control', 'control', 'control',
-                     'tg', 'tg', 'tg')
+sampleCondition <- c('1', '2', '3')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
@@ -121,7 +120,7 @@ obm <- sum(res$baseMean)/allgenes
 header <- c('all genes', 'mean of overall baseMean', 'padj<0,05', 'genes with logfcup', 'genes with logfcdown')
 meaning <- c(print(allgenes), print(obm), print(allpadj), print(logfcup), print(logfcdown))
 df <- data.frame(header, meaning)
-write.xlsx(df, file = "report.xlsx", sheetName = "Common info")
+write.xlsx(res, file = "res.xlsx", sheetName = "Common info")
 sumres <- summary(res)
 ### Annotation ###
 

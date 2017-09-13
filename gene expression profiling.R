@@ -4,14 +4,13 @@ library("AnnotationDbi")
 library("org.Mm.eg.db")
 
 pval_cutoff <- 0.05
-base_mean_cutoff_value <- 1000
+base_mean_cutoff_value <- 5
 
 ### Statistical analysis
-directory <- '~/motoneurons compare/Microglia/'
+directory <- '~/counts_ens/5_ctrl_late_vs_ctrl_early/'
 setwd('~/diffexp_reports/')
 sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
-sampleCondition <- c('control', 'control', 'control',
-                     'late', 'late', 'late')
+sampleCondition <- c('1', '1', '1', '1', '1', '2', '2', '2', '2', '2')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
@@ -32,7 +31,7 @@ res$symbol <- mapIds(org.Mm.eg.db,
                         keytype="ENSEMBL",
                         multiVals="first")
 
-resj$entrez <- mapIds(org.Mm.eg.db, 
+res$entrez <- mapIds(org.Mm.eg.db, 
                         keys=row.names(res), 
                         column="ENTREZID", 
                         keytype="ENSEMBL",
@@ -48,4 +47,8 @@ res <- res[,colSums(is.na(res))<nrow(res)]
 res <- res[complete.cases(res), ]
 upper_bm_cutoff <- obm*base_mean_cutoff_value
 resHBM <- as.data.frame(subset(res, baseMean > upper_bm_cutoff))
-df <- as.data.frame(resHBM)
+
+motoneurons <- as.data.frame(resHBM)
+
+
+m <- merge(experimental$symbol, motoneurons$symbol)
