@@ -20,6 +20,7 @@ biocLite("reactome.db")
 biocLite("EGSEA")
 biocLite("org.Mm.eg.db")
 biocLite("IRanges")
+biocLite("S4Vectors")
 install.packages("xlsx")
 install.packages("checkmate")
 install.packages("ggplot2")
@@ -41,6 +42,8 @@ install.packages("calibrate")
 install.packages("ggthemes")
 install.packages("calibrate")
 install.packages("ggthemes")
+install.packages("tibble")
+library("tibble")
 library("rJava")
 library("pathview")
 library("gage")
@@ -69,7 +72,7 @@ library("reshape2")
 library("clusterProfiler")
 library("reticulate")
 library("topGO")
-library(xlsx)
+library("xlsx")
 library("calibrate")
 library("foreach")
 library("ggthemes")
@@ -96,10 +99,11 @@ base_mean_cutoff_value <- 5
 hm_genes_count <- 100
 
 ### Statistical analysis
-directory <- '~/motoneurons compare/Microglia/'
+directory <- '~/counts_ens/2_late_tg_vs_ctrl_tg/'
 setwd('~/diffexp_reports/')
 sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
-sampleCondition <- c('1', '2', '3')
+sampleCondition <- c('control', 'control', 'control', 'control', 'control', 
+                     'tg', 'tg', 'tg')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
@@ -111,16 +115,16 @@ res <- res[order(res$padj),]
 resadj <- head(res, print(allpadj))
 mcols(res,use.names=TRUE)
 ddsh <- estimateSizeFactors(dds)
-allgenes <- nrow(dds)
+allgenes <- nrow(dds)  
 obm <- sum(res$baseMean)/allgenes
 logfcdown <- sum(resadj$log2FoldChange < logfcdown_cutoff, na.rm=TRUE)
 logfcup <- sum(resadj$log2FoldChange > logfcup_cutoff, na.rm=TRUE)
 obm <- sum(res$baseMean)/allgenes
-
 header <- c('all genes', 'mean of overall baseMean', 'padj<0,05', 'genes with logfcup', 'genes with logfcdown')
 meaning <- c(print(allgenes), print(obm), print(allpadj), print(logfcup), print(logfcdown))
 df <- data.frame(header, meaning)
-write.xlsx(res, file = "res.xlsx", sheetName = "Common info")
+write.xlsx(df, file = "Results all.xlsx", sheetName = "Common info", append = TRUE)
+# write.xlsx(res, file = "Results all.xlsx", sheetName = "All DEG no filter")
 sumres <- summary(res)
 ### Annotation ###
 
@@ -155,11 +159,11 @@ resHBM <- as.data.frame(subset(resHBM, baseMean > upper_bm_cutoff))
 
 ### Fold Change & BaseMean filtering
 resOrderedBM <- resOrderedBM[order(resOrderedBM$log2FoldChange),]
-write.xlsx(resOrderedBM, file = "DEG_all.xlsx", sheetName = "DEG padj <0.05")
+write.xlsx(resOrderedBM, file = "Results all.xlsx", sheetName = "DEG padj <0.05", append = TRUE)
 dfx <- as.data.frame(resOrderedBM)
 dfx <- as.data.frame(subset(resOrderedBM, baseMean > base_mean_cutoff))
 dfx <- as.data.frame(subset(dfx, log2FoldChange > logfcup_cutoff | log2FoldChange < logfcdown_cutoff))
-write.xlsx(dfx, file = "DEG_filtered.xlsx", sheetName = "DEG padj <0.05 filtered")
+write.xlsx(resHBM, file = "Results all.xlsx", sheetName = "genes of GEP", append = TRUE)
 resOrderedBM <- dfx
 
 ## GO ###
@@ -174,14 +178,14 @@ gomfres = gage(foldchanges, gsets=gomfsets, same.dir=TRUE,set.size = c(10, 100),
 lapply(gomfres, head)
 gomfres <- as.data.frame(gomfres)
 gomfres <- gomfres[complete.cases(gomfres), ]
-write.xlsx(gomfres, file = "GO_MF.xlsx", sheetName = "GO_MF")
+write.xlsx(gomfres, file = "Results all.xlsx", sheetName = "GO_MF", append = TRUE)
 
 gobpsets = go.sets.mm[go.subs.mm$BP]
 gobpres = gage(foldchanges, gsets=gobpsets, same.dir=TRUE)
 lapply(gobpres, head)
 gobpres <- as.data.frame(gobpres)
 gobpres <- gobpres[complete.cases(gobpres), ]
-write.xlsx(gobpres, file = "GO_BP.xlsx", sheetName = "GO_BP")
+write.xlsx(gobpres, file = "Results all.xlsx", sheetName = "GO_BP", append = TRUE)
 
 goccsets = go.sets.mm[go.subs.mm$CC]
 goccres = gage(foldchanges, gsets=goccsets, same.dir=TRUE)
@@ -189,7 +193,7 @@ lapply(goccres, head)
 goccres <- as.data.frame(goccres)
 goccres <- goccres[complete.cases(goccres), ]
 
-write.xlsx(goccres, file = "GO_CC.xlsx", sheetName = "GO_CC")
+write.xlsx(goccres, file = "Results all.xlsx", sheetName = "GO_CC", append = TRUE)
 
 ## TRANSFORM ### 
 
@@ -296,12 +300,12 @@ kegg.sets.mm = kegg.sets.mm[sigmet.idx.mm]
 keggres = gage(foldchanges, gsets=kegg.sets.mm, same.dir=TRUE)
 keggres <- as.data.frame(keggres)
 keggres <- keggres[complete.cases(keggres), ]
-write.xlsx(keggres, file = "KEGG.xlsx", sheetName = "KEGG")
+write.xlsx(keggres, file = "Results all.xlsx", sheetName = "KEGG", append = TRUE)
 
 ###KEGG expression profile (without lfc, but with generatio)
 
 kk <- enrichKEGG(gene = dfa, organism = "mmu", pvalueCutoff = 0.05)
-write.xlsx(kk, file = "KEGG_DEP.xlsx", sheetName = "KEGG")
+write.xlsx(kk, file = "Results all.xlsx", sheetName = "KEGG GEP", append = TRUE)
 pdf(file = "KEGG_enrichment_dotplot.pdf", width = 12, height = 17, family = "Helvetica")
 dotplot(kk)
 dev.off()
