@@ -18,7 +18,7 @@ biocLite("pathview")
 biocLite("ReactomePA")
 biocLite("reactome.db")
 biocLite("EGSEA")
-biocLite("org.Mm.eg.db")
+biocLite("org.Dm.eg.db")
 biocLite("IRanges")
 biocLite("S4Vectors")
 install.packages("xlsx")
@@ -61,7 +61,7 @@ library("pheatmap")
 library('vsn')
 library( "genefilter" )
 library("AnnotationDbi")
-library("org.Mm.eg.db")
+library("org.Dm.eg.db")
 library("xlsx")
 library("ReactomePA")
 library("functional")
@@ -99,11 +99,10 @@ base_mean_cutoff_value <- 5
 hm_genes_count <- 100
 
 ### Statistical analysis
-directory <- '~/counts_ens/2_late_tg_vs_ctrl_tg/'
+directory <- 'C:/Users/rezvykh/Dropbox/Fly memory project/3_K_vs_F24/'
 setwd('~/diffexp_reports/')
-sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
-sampleCondition <- c('control', 'control', 'control', 'control', 'control', 
-                     'tg', 'tg', 'tg')
+sampleFiles <- grep('fly',list.files(directory),value=TRUE)
+sampleCondition <- c('stress', 'stress', 'control', 'control')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
@@ -124,24 +123,23 @@ header <- c('all genes', 'mean of overall baseMean', 'padj<0,05', 'genes with lo
 meaning <- c(print(allgenes), print(obm), print(allpadj), print(logfcup), print(logfcdown))
 df <- data.frame(header, meaning)
 write.xlsx(df, file = "Results all.xlsx", sheetName = "Common info", append = TRUE)
-# write.xlsx(res, file = "Results all.xlsx", sheetName = "All DEG no filter")
+write.xlsx(res, file = "Results all.xlsx", sheetName = "All DEG no filter")
 sumres <- summary(res)
 ### Annotation ###
-
-columns(org.Mm.eg.db)
-resadj$symbol <- mapIds(org.Mm.eg.db, 
+columns(org.Dm.eg.db)
+resadj$symbol <- mapIds(org.Dm.eg.db, 
                         keys=row.names(resadj), 
                         column="SYMBOL", 
                         keytype="ENSEMBL",
                         multiVals="first")
 
-resadj$entrez <- mapIds(org.Mm.eg.db, 
+resadj$entrez <- mapIds(org.Dm.eg.db, 
                         keys=row.names(resadj), 
                         column="ENTREZID", 
                         keytype="ENSEMBL",
                         multiVals="first")
 
-resadj$name =   mapIds(org.Mm.eg.db,
+resadj$name =   mapIds(org.Dm.eg.db,
                        keys=row.names(resadj), 
                        column="GENENAME",
                        keytype="ENSEMBL",
@@ -149,7 +147,7 @@ resadj$name =   mapIds(org.Mm.eg.db,
 
 
 ### BaseMean Filtering
-
+aaa <- as.data.frame(res)
 resOrderedBM <- resadj[order(resadj$padj),]
 resOrderedBM <- resOrderedBM[,colSums(is.na(resOrderedBM))<nrow(resOrderedBM)]
 resOrderedBM <- resOrderedBM[complete.cases(resOrderedBM), ]
@@ -166,34 +164,6 @@ dfx <- as.data.frame(subset(dfx, log2FoldChange > logfcup_cutoff | log2FoldChang
 write.xlsx(resHBM, file = "Results all.xlsx", sheetName = "genes with Bm>base_mean_cutoff ", append = TRUE)
 resOrderedBM <- dfx
 
-## GO ###
-
-data(go.sets.mm)
-data(go.subs.mm)
-foldchanges = resOrderedBM$log2FoldChange
-names(foldchanges) = resOrderedBM$entrez
-
-gomfsets = go.sets.mm[go.subs.mm$MF]
-gomfres = gage(foldchanges, gsets=gomfsets, same.dir=TRUE,set.size = c(10, 100), rank.test = TRUE)
-lapply(gomfres, head)
-gomfres <- as.data.frame(gomfres)
-gomfres <- gomfres[complete.cases(gomfres), ]
-write.xlsx(gomfres, file = "Results all.xlsx", sheetName = "GO_MF", append = TRUE)
-
-gobpsets = go.sets.mm[go.subs.mm$BP]
-gobpres = gage(foldchanges, gsets=gobpsets, same.dir=TRUE)
-lapply(gobpres, head)
-gobpres <- as.data.frame(gobpres)
-gobpres <- gobpres[complete.cases(gobpres), ]
-write.xlsx(gobpres, file = "Results all.xlsx", sheetName = "GO_BP", append = TRUE)
-
-goccsets = go.sets.mm[go.subs.mm$CC]
-goccres = gage(foldchanges, gsets=goccsets, same.dir=TRUE)
-lapply(goccres, head)
-goccres <- as.data.frame(goccres)
-goccres <- goccres[complete.cases(goccres), ]
-
-write.xlsx(goccres, file = "Results all.xlsx", sheetName = "GO_CC", append = TRUE)
 
 ## TRANSFORM ### 
 
@@ -218,7 +188,7 @@ rownames(hdf) <- hdf$symbol
 rownames(ass) <- rownames(hdf)
 
 pheatmap(ass,
-        cellwidth = 40, scale="row", fontsize = 10,
+         cellwidth = 40, scale="row", fontsize = 10,
          clustering_distance_rows = 'euclidean',
          cluster_rows=F, cluster_cols=F,
          legend = TRUE, main = "Transcripts differential expression, p <0,05",
@@ -249,102 +219,14 @@ pheatmap(mat)
 
 dev.off()
 
-
-## REACTOME ## 
-
-require(clusterProfiler)
-require(reactome.db)
-dfa <- as.character(resOrderedBM$entrez)
-x <- enrichPathway(gene=dfa, organism = "mouse", minGSSize=gs_size, readable = TRUE )
-head(as.data.frame(x))
-dev.off()
-
-par(mar=c(1,1,1,1))
-pdf(file = "barplot.pdf", width = 12, height = 17, family = "Helvetica")
-barplot(x, showCategory=30,  font.size = 9)
-dev.off()
-
-pdf(file = "enrichmap.pdf", width = 12, height = 17, family = "Helvetica")
-enrichMap(x, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7, n = 20, font.size = 20)
-dev.off()
-
-pdf(file = "cnetplot.pdf", width = 12, height = 17, family = "Helvetica")
-cnetplot(x, foldChange = foldchanges, categorySize="pvalue", showCategory = 10)
-dev.off()
-
-## high expressed genes expression profile - reactome profiling
-## of genes with baseMean = avg(baseMean)*base_mean_cutoff_value
-
-foldchanges2 = resHBM$log2FoldChange
-dfb <- as.character(resHBM$entrez)
-y <- enrichPathway(gene=dfb, organism = "mouse", minGSSize=gs_size, readable = TRUE )
-dev.off()
-
-par(mar=c(1,1,1,1))
-pdf(file = "barplot_GEP.pdf", width = 12, height = 17, family = "Helvetica")
-barplot(y, showCategory=30,  font.size = 9)
-dev.off()
-
-pdf(file = "enrichmap_GEP.pdf", width = 12, height = 17, family = "Helvetica")
-enrichMap(y, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7, n = 20, font.size = 20)
-dev.off()
-
-pdf(file = "cnetplot_GEP.pdf", width = 12, height = 17, family = "Helvetica")
-cnetplot(x, foldChange = foldchanges2, categorySize="pvalue", showCategory = 10)
-dev.off()
-
-### KEGG ###  
-data(kegg.sets.mm)
-data(sigmet.idx.mm)
-kegg.sets.mm = kegg.sets.mm[sigmet.idx.mm]
-keggres = gage(foldchanges, gsets=kegg.sets.mm, same.dir=TRUE)
-keggres <- as.data.frame(keggres)
-keggres <- keggres[complete.cases(keggres), ]
-write.xlsx(keggres, file = "Results all.xlsx", sheetName = "KEGG", append = TRUE)
-
-###KEGG expression profile (without lfc, but with generatio)
-
-kk <- enrichKEGG(gene = dfa, organism = "mmu", pvalueCutoff = 0.05)
-write.xlsx(kk, file = "Results all.xlsx", sheetName = "KEGG GEP", append = TRUE)
-pdf(file = "KEGG_enrichment_dotplot.pdf", width = 12, height = 17, family = "Helvetica")
-dotplot(kk)
-dev.off()
-
 ### Volcano Plot
-resadj <- as.data.frame(resadj)
-resadj$threshold = as.factor(abs(resadj$log2FoldChange) > 2 & resadj$padj < 0.05/allgenes)
+res <- as.data.frame(res)
+res$threshold = as.factor(abs(res$log2FoldChange) > 2 & res$padj < 0.05/allgenes)
 pdf(file = "Volcano plot.pdf", width = 12, height = 17, family = "Helvetica")
-g = ggplot(data=resadj, aes(x=log2FoldChange, y=-log10(padj), colour=threshold)) +
+g = ggplot(data=res, aes(x=log2FoldChange, y=-log10(padj), colour=threshold)) +
   geom_point(alpha=1, size=1) +
   labs(legend.position = "none") +
   xlim(c(-6, 6)) + ylim(c(1.30103, 30)) +
   xlab("log2 fold change") + ylab("-log10 p-value")
 g
-dev.off()
-
-#function - gets raw counts by gene name
-cfds <- function(gene_name){
-  ens <- rownames(resc[grep(gene_name, resc$symbol, ignore.case=TRUE),])
-  m <- match(ens, rownames(resc))
-  m <- as.data.frame(m)
-  return(plotCounts(dds, gene = ens, main = gene_name, transform = FALSE, returnData = TRUE, normalized = TRUE))
-}
-
-resc <- as.data.frame(resadj)
-
-gene_list = list("Sod2",
-                 "Sod3",
-                 "Tardbp",
-                 "Fus")
-
-for (i in gene_list){
-  u <- cfds(i)
-  u <- as.data.frame(u)
-  png(file = paste(i, ".png", sep=""))
-  plot(x = u$condition, y = u$count, type = "a", main = paste(i), xlab = "Experimental group", ylab = "Normalized counts",
-       col = "blue", lwd = 2, bg = "white",  lwd = 5, yline( 0, lwd=2, col=4))
-  grid( col = "lightgray", lty = "dotted",
-       lwd = par("lwd"), equilogs = TRUE)
-  dev.off()
-}
 dev.off()
