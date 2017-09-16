@@ -21,6 +21,7 @@ biocLite("EGSEA")
 biocLite("org.Dm.eg.db")
 biocLite("IRanges")
 biocLite("S4Vectors")
+biocLite("GenomicRanges")
 install.packages("xlsx")
 install.packages("checkmate")
 install.packages("ggplot2")
@@ -43,6 +44,7 @@ install.packages("ggthemes")
 install.packages("calibrate")
 install.packages("ggthemes")
 install.packages("tibble")
+library("GenomicRanges")
 library("tibble")
 library("rJava")
 library("pathview")
@@ -54,6 +56,7 @@ library("plyr")
 library("IRanges")
 library("checkmate")
 library("dplyr")
+library("S4Vectors")
 library("DESeq2")
 library('RColorBrewer')
 library('gplots')
@@ -77,7 +80,6 @@ library("calibrate")
 library("foreach")
 library("ggthemes")
 
-
 ### Parameters manual###
 # pval_cutoff - cutoffs your pvalue. default is 0.05
 # base_mean_cutoff - cutoffs low-expressed genes. default is 100
@@ -99,10 +101,10 @@ base_mean_cutoff_value <- 5
 hm_genes_count <- 100
 
 ### Statistical analysis
-directory <- 'C:/Users/rezvykh/Dropbox/Fly memory project/3_K_vs_F24/'
+directory <- '~/Fly memory project/K_vs_N (controls compare)/'
 setwd('~/diffexp_reports/')
-sampleFiles <- grep('fly',list.files(directory),value=TRUE)
-sampleCondition <- c('stress', 'stress', 'control', 'control')
+sampleFiles <- grep('fly',list.files(directory), value=TRUE)
+sampleCondition <- c('control', 'control', 'opyt', 'opyt')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
@@ -123,31 +125,37 @@ header <- c('all genes', 'mean of overall baseMean', 'padj<0,05', 'genes with lo
 meaning <- c(print(allgenes), print(obm), print(allpadj), print(logfcup), print(logfcdown))
 df <- data.frame(header, meaning)
 write.xlsx(df, file = "Results all.xlsx", sheetName = "Common info", append = TRUE)
-write.xlsx(res, file = "Results all.xlsx", sheetName = "All DEG no filter")
-sumres <- summary(res)
+# write.xlsx(res, file = "Results all.xlsx", sheetName = "All DEG no filter")
+write.csv(res, file = "res_GO.csv")
 ### Annotation ###
+aaa <- NULL
+resadj <- as.data.frame(resadj)
 columns(org.Dm.eg.db)
-resadj$symbol <- mapIds(org.Dm.eg.db, 
-                        keys=row.names(resadj), 
+
+res$symbol <- mapIds(org.Dm.eg.db, 
+                        keys=row.names(res), 
                         column="SYMBOL", 
                         keytype="ENSEMBL",
                         multiVals="first")
 
-resadj$entrez <- mapIds(org.Dm.eg.db, 
-                        keys=row.names(resadj), 
+res$entrez <- mapIds(org.Dm.eg.db, 
+                        keys=row.names(res), 
                         column="ENTREZID", 
                         keytype="ENSEMBL",
                         multiVals="first")
 
-resadj$name =   mapIds(org.Dm.eg.db,
-                       keys=row.names(resadj), 
+res$name =   mapIds(org.Dm.eg.db,
+                       keys=row.names(res), 
                        column="GENENAME",
                        keytype="ENSEMBL",
                        multiVals="first")
+write.csv(res, file = "res_GO.csv")
+
+
 
 
 ### BaseMean Filtering
-aaa <- as.data.frame(res)
+aaa <- as.data.frame(resadj)
 resOrderedBM <- resadj[order(resadj$padj),]
 resOrderedBM <- resOrderedBM[,colSums(is.na(resOrderedBM))<nrow(resOrderedBM)]
 resOrderedBM <- resOrderedBM[complete.cases(resOrderedBM), ]
@@ -229,4 +237,30 @@ g = ggplot(data=res, aes(x=log2FoldChange, y=-log10(padj), colour=threshold)) +
   xlim(c(-6, 6)) + ylim(c(1.30103, 30)) +
   xlab("log2 fold change") + ylab("-log10 p-value")
 g
+dev.off()
+
+
+### PLOTS
+cfds <- function(gene_name){
+  ens <- rownames(resc[grep(gene_name, resc$symbol, ignore.case=TRUE),])
+  m <- match(ens, rownames(resc))
+  m <- as.data.frame(m)
+  return(plotCounts(dds, gene = ens, main = gene_name, transform = FALSE, returnData = TRUE, normalized = TRUE))
+}
+
+resc <- as.data.frame(resadj)
+
+gene_list = list("TotM",
+                 "onecut")
+
+for (i in gene_list){
+  u <- cfds(i)
+  u <- as.data.frame(u)
+  png(file = paste(i, ".png", sep=""))
+  plot(x = u$condition, y = u$count, type = "a", main = paste(i), xlab = "Experimental group", ylab = "Normalized counts",
+       col = "blue", lwd = 2, bg = "white",  lwd = 5, yline( 0, lwd=2, col=4))
+  grid( col = "lightgray", lty = "dotted",
+        lwd = par("lwd"), equilogs = TRUE)
+  dev.off()
+}
 dev.off()
