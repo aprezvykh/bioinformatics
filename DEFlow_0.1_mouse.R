@@ -99,11 +99,14 @@ base_mean_cutoff_value <- 5
 hm_genes_count <- 100
 
 ### Statistical analysis
-directory <- '~/counts_ens/2_late_tg_vs_ctrl_tg/'
+directory <- '~/counts_ens/'
 setwd('~/diffexp_reports/')
 sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
-sampleCondition <- c('control', 'control', 'control', 'control', 'control', 
-                     'tg', 'tg', 'tg')
+sampleCondition <- c('ntg_early', 'ntg_early', 'ntg_early', 'ntg_early', 'ntg_early',
+                     'ntg_late', 'ntg_late', 'ntg_late', 'ntg_late', 'ntg_late', 
+                     'tg_early', 'tg_early', 'tg_early', 'tg_early', 'tg_early', 
+                     'tg_mid', 'tg_mid', 'tg_mid', 'tg_mid', 
+                     'tg_late', 'tg_late', 'tg_late', 'tg_late', 'tg_late')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
@@ -123,7 +126,7 @@ obm <- sum(res$baseMean)/allgenes
 header <- c('all genes', 'mean of overall baseMean', 'padj<0,05', 'genes with logfcup', 'genes with logfcdown')
 meaning <- c(print(allgenes), print(obm), print(allpadj), print(logfcup), print(logfcdown))
 df <- data.frame(header, meaning)
-write.xlsx(df, file = "Results all.xlsx", sheetName = "Common info", append = TRUE)
+write.xlsx(df, file = "Results diffexpression.xlsx", sheetName = "Common info", append = TRUE)
 # write.xlsx(res, file = "Results all.xlsx", sheetName = "All DEG no filter")
 sumres <- summary(res)
 ### Annotation ###
@@ -156,36 +159,36 @@ resOrderedBM <- resOrderedBM[complete.cases(resOrderedBM), ]
 resHBM <- resOrderedBM
 upper_bm_cutoff <- obm*base_mean_cutoff_value
 resHBM <- as.data.frame(subset(resHBM, baseMean > upper_bm_cutoff))
-
+write.xlsx(resOrderedBM, file = "Results diffexpression.xlsx", sheetName = "high expressed genes, logfc not considered", append = TRUE)
 ### Fold Change & BaseMean filtering
 resOrderedBM <- resOrderedBM[order(resOrderedBM$log2FoldChange),]
-write.xlsx(resOrderedBM, file = "Results all.xlsx", sheetName = "DEG padj <0.05", append = TRUE)
+write.xlsx(resOrderedBM, file = "Results diffexpression.xlsx", sheetName = "DEG padj <0.05", append = TRUE)
 dfx <- as.data.frame(resOrderedBM)
 dfx <- as.data.frame(subset(resOrderedBM, baseMean > base_mean_cutoff))
 dfx <- as.data.frame(subset(dfx, log2FoldChange > logfcup_cutoff | log2FoldChange < logfcdown_cutoff))
-write.xlsx(resHBM, file = "Results all.xlsx", sheetName = "genes with Bm>base_mean_cutoff ", append = TRUE)
+write.xlsx(dfx, file = "Results diffexpression.xlsx", sheetName = "genes with Bm > 100 & -1 > log2FC > 1 ", append = TRUE)
 resOrderedBM <- dfx
 
 ## GO ###
 
 data(go.sets.mm)
 data(go.subs.mm)
-foldchanges = resOrderedBM$log2FoldChange
-names(foldchanges) = resOrderedBM$entrez
+foldchanges = dfx$log2FoldChange
+names(foldchanges) = dfx$entrez
 
 gomfsets = go.sets.mm[go.subs.mm$MF]
 gomfres = gage(foldchanges, gsets=gomfsets, same.dir=TRUE,set.size = c(10, 100), rank.test = TRUE)
 lapply(gomfres, head)
 gomfres <- as.data.frame(gomfres)
 gomfres <- gomfres[complete.cases(gomfres), ]
-write.xlsx(gomfres, file = "Results all.xlsx", sheetName = "GO_MF", append = TRUE)
+write.xlsx(gomfres, file = "GO.xlsx", sheetName = "GO_MF", append = TRUE)
 
 gobpsets = go.sets.mm[go.subs.mm$BP]
 gobpres = gage(foldchanges, gsets=gobpsets, same.dir=TRUE)
 lapply(gobpres, head)
 gobpres <- as.data.frame(gobpres)
 gobpres <- gobpres[complete.cases(gobpres), ]
-write.xlsx(gobpres, file = "Results all.xlsx", sheetName = "GO_BP", append = TRUE)
+write.xlsx(gobpres, file = "GO.xlsx", sheetName = "GO_BP", append = TRUE)
 
 goccsets = go.sets.mm[go.subs.mm$CC]
 goccres = gage(foldchanges, gsets=goccsets, same.dir=TRUE)
@@ -193,10 +196,9 @@ lapply(goccres, head)
 goccres <- as.data.frame(goccres)
 goccres <- goccres[complete.cases(goccres), ]
 
-write.xlsx(goccres, file = "Results all.xlsx", sheetName = "GO_CC", append = TRUE)
+write.xlsx(goccres, file = "GO.xlsx", sheetName = "GO_CC", append = TRUE)
 
 ## TRANSFORM ### 
-
 rld<- rlogTransformation(dds, blind=TRUE)
 pdf(file = "pcaplot.pdf", width = 12, height = 17, family = "Helvetica")
 print(plotPCA(rld, intgroup=c('condition')))
@@ -300,12 +302,12 @@ kegg.sets.mm = kegg.sets.mm[sigmet.idx.mm]
 keggres = gage(foldchanges, gsets=kegg.sets.mm, same.dir=TRUE)
 keggres <- as.data.frame(keggres)
 keggres <- keggres[complete.cases(keggres), ]
-write.xlsx(keggres, file = "Results all.xlsx", sheetName = "KEGG", append = TRUE)
+write.xlsx(keggres, file = "KEGG.xlsx", sheetName = "KEGG", append = TRUE)
 
 ###KEGG expression profile (without lfc, but with generatio)
 
 kk <- enrichKEGG(gene = dfa, organism = "mmu", pvalueCutoff = 0.05)
-write.xlsx(kk, file = "Results all.xlsx", sheetName = "KEGG GEP", append = TRUE)
+write.xlsx(kk, file = "KEGG.xlsx", sheetName = "KEGG GEP (logfc not considered)", append = TRUE)
 pdf(file = "KEGG_enrichment_dotplot.pdf", width = 12, height = 17, family = "Helvetica")
 dotplot(kk)
 dev.off()

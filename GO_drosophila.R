@@ -1,17 +1,22 @@
+source('http://bioconductor.org/biocLite.R')
 biocLite("topGO")
 biocLite("AffyLib")
 install.packages("AffyLib")
 library(package = affyLib, character.only = TRUE)
-
 library("topGO")
-df <- read.csv(file = "~/diffexp_reports/res_GO.csv")
+df <- read.csv(file = "~/diffexpr_reports/res_GO.csv")
 df <- df[complete.cases(df), ]
 
-changes <- data.frame(df$X, df$log2FoldChange, df$padj)
-geneList <- as.character(df$X)
+vec <- c(df$padj)
+names(vec) <- as.character(df$X)
+tdg <- topDiffGenes(vec)
 
-GOdata <- new("topGOdata", description = "Simple session",
-                    ontology = "BP", allGenes = geneList,
-                    geneSel = topDiffGenes,
-                    nodeSize = 10, annot = annFUN.db,
-                    affyLib = affyLib)
+dros_BP <- new("topGOdata",
+                    description = "Simple", ontology = "BP",
+                    allGenes = vec, geneSel = tdg,
+                    nodeSize = 100,
+                    annot = annFUN.db,
+                    mapping = "Org.Dm.eg.db")
+data(geneList)
+
+typeof(data)

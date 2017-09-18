@@ -101,10 +101,10 @@ base_mean_cutoff_value <- 5
 hm_genes_count <- 100
 
 ### Statistical analysis
-directory <- '~/Fly memory project/K_vs_N (controls compare)/'
+directory <- '~/Fly memory project/K1_vs_N1/'
 setwd('~/diffexp_reports/')
 sampleFiles <- grep('fly',list.files(directory), value=TRUE)
-sampleCondition <- c('control', 'control', 'opyt', 'opyt')
+sampleCondition <- c('k1', 'n1')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
@@ -126,7 +126,6 @@ meaning <- c(print(allgenes), print(obm), print(allpadj), print(logfcup), print(
 df <- data.frame(header, meaning)
 write.xlsx(df, file = "Results all.xlsx", sheetName = "Common info", append = TRUE)
 # write.xlsx(res, file = "Results all.xlsx", sheetName = "All DEG no filter")
-write.csv(res, file = "res_GO.csv")
 ### Annotation ###
 aaa <- NULL
 resadj <- as.data.frame(resadj)
