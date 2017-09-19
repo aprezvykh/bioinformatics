@@ -1,22 +1,34 @@
+install.packages("statmod")
 library("edgeR")
-myfiles <- c("fly_k_1.counts", "fly_k_2.counts", "fly_k_3.counts", "fly_k_4.counts",
-             "fly_tr_1.counts", "fly_tr_2.counts", "fly_tr_3.counts", "fly_tr_4.counts")
-myclass <- c("cont", "cont", "cont", "cont", "case", "case", "case", "case")
-mylabel <- c("cont1", "cont2", "cont3", "cont4", "case1", "case2", "case3", "case4")
-cbind(myfiles, myclass, mylabels)
-data <- readDGE (files = myfiles, group = myclass, labels = mylabel)
-class (data)
-malos <- grepl ("_", rownames (data$counts), )
-cpms <- cpm(data)
-summary(cpms)
-dgeL <- DGEList (counts = datos, group = datos$samples$group)
-dgeN <-  calcNormFactors (dgeL)
-dgeD <- estimateCommonDisp(object = dgeN, y = dgeN)
-dgeD <- estimateTagwiseDisp(object = dgeN, y = dgeN)
-res <- exactTest (dgeD)
-topTags (res)
-padj <- p.adjust (res$table$PValue, "BH")
-touse <- padj < 0.05
-table (touse)
-res[touse,]$table
-plotMDS (dgeN)
+library("org.Dm.eg.db")
+
+### Experimental design
+setwd("~/Fly memory project/experimental/F_vs_F24(memory)/")
+files <- c("fly_F1.counts", "fly_F2.counts", "fly_F24.counts", "fly_F24_2.counts")
+class <- c("cont", "cont", "case", "case")
+label <- c("cont1", "cont2", "case1", "case2")
+s_table <- cbind(files, class, label)
+data <- readDGE(files = files, group = class, labels = label)
+
+
+
+y <- DGEList (counts = data, group = data$samples$group)
+
+y$tags$Symbol <- mapIds(org.Dm.eg.db, rownames(y),
+                         keytype = "FLYBASE", column = "SYMBOL")
+y <- y[!is.na(y$tags$Symbol), ]
+keep <- rowSums(cpm(y) > 0.5) >= 2
+table(keep)
+
+y <- calcNormFactors(y)
+
+design <- model.matrix(~0+myclass)
+colnames(design) <- levels(myclass)
+y <- estimateDisp(y, design, robust=TRUE)
+
+fit <- glmQLFit(y, design, robust=TRUE)
+
+tr <- glmTreat(fit, lfc=log2(1.5))
+topTags(tr)
+go <- goana(tr, species="Dm")
+topGO(go, n=15)
