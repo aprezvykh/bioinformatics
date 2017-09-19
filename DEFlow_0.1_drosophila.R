@@ -101,16 +101,16 @@ base_mean_cutoff_value <- 5
 hm_genes_count <- 100
 
 ### Statistical analysis
-directory <- '~/Fly memory project/K1_vs_N1/'
+directory <- '~/Fly memory project/experimental/K_vs_F24/'
 setwd('~/diffexp_reports/')
 sampleFiles <- grep('fly',list.files(directory), value=TRUE)
-sampleCondition <- c('k1', 'n1')
+sampleCondition <- c('24', '24', 'k', 'k')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
 
 ## Simple tests ##
-res <- results(dds, tidy = FALSE )
+res <- results(dds, tidy = FALSE, pAdjustMethod = "bonferroni" )
 allpadj <- sum(res$padj < pval_cutoff, na.rm=TRUE)
 res <- res[order(res$padj),]
 resadj <- head(res, print(allpadj))
@@ -131,26 +131,25 @@ aaa <- NULL
 resadj <- as.data.frame(resadj)
 columns(org.Dm.eg.db)
 
-res$symbol <- mapIds(org.Dm.eg.db, 
-                        keys=row.names(res), 
+resadj$symbol <- mapIds(org.Dm.eg.db, 
+                        keys=row.names(resadj), 
                         column="SYMBOL", 
                         keytype="ENSEMBL",
                         multiVals="first")
 
-res$entrez <- mapIds(org.Dm.eg.db, 
-                        keys=row.names(res), 
+resadj$entrez <- mapIds(org.Dm.eg.db, 
+                        keys=row.names(resadj), 
                         column="ENTREZID", 
                         keytype="ENSEMBL",
                         multiVals="first")
 
-res$name =   mapIds(org.Dm.eg.db,
-                       keys=row.names(res), 
+resadj$name =   mapIds(org.Dm.eg.db,
+                       keys=row.names(resadj), 
                        column="GENENAME",
                        keytype="ENSEMBL",
                        multiVals="first")
-write.csv(res, file = "res_GO.csv")
 
-
+res <- as.data.frame(res)
 
 
 ### BaseMean Filtering

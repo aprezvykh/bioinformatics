@@ -1,0 +1,22 @@
+library("edgeR")
+myfiles <- c("fly_k_1.counts", "fly_k_2.counts", "fly_k_3.counts", "fly_k_4.counts",
+             "fly_tr_1.counts", "fly_tr_2.counts", "fly_tr_3.counts", "fly_tr_4.counts")
+myclass <- c("cont", "cont", "cont", "cont", "case", "case", "case", "case")
+mylabel <- c("cont1", "cont2", "cont3", "cont4", "case1", "case2", "case3", "case4")
+cbind(myfiles, myclass, mylabels)
+data <- readDGE (files = myfiles, group = myclass, labels = mylabel)
+class (data)
+malos <- grepl ("_", rownames (data$counts), )
+cpms <- cpm(data)
+summary(cpms)
+dgeL <- DGEList (counts = datos, group = datos$samples$group)
+dgeN <-  calcNormFactors (dgeL)
+dgeD <- estimateCommonDisp(object = dgeN, y = dgeN)
+dgeD <- estimateTagwiseDisp(object = dgeN, y = dgeN)
+res <- exactTest (dgeD)
+topTags (res)
+padj <- p.adjust (res$table$PValue, "BH")
+touse <- padj < 0.05
+table (touse)
+res[touse,]$table
+plotMDS (dgeN)

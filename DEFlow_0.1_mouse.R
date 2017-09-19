@@ -99,7 +99,7 @@ base_mean_cutoff_value <- 5
 hm_genes_count <- 100
 
 ### Statistical analysis
-directory <- '~/counts_ens/'
+directory <- '~/'
 setwd('~/diffexp_reports/')
 sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
 sampleCondition <- c('ntg_early', 'ntg_early', 'ntg_early', 'ntg_early', 'ntg_early',
