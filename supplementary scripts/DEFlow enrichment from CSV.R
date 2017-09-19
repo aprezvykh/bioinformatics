@@ -1,3 +1,6 @@
+## GO & REACTOME ENRICHMENT FROM CSV FILE.
+## NOT WORKING WITH DROSOPHILA
+
 library("gage")
 library("gageData")
 df <- read.table(file = "~/counts_ens/manifestation.csv", sep = ",", header= TRUE)

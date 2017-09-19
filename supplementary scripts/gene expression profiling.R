@@ -1,3 +1,7 @@
+### Output of this script is high expressed genes ,
+## with no considering of FoldChange. Is required for
+## experiment with dirty transcriptome data
+
 library("dplyr")
 library("DESeq2")
 library("AnnotationDbi")
