@@ -8,6 +8,7 @@ library("pheatmap")
 library("biomaRt")
 library("tidyr")
 library("knitr")
+library("ggplot2")
 
 ### Experimental design
 setwd("~/Fly memory project/experimental/K_vs_F24")
@@ -93,7 +94,7 @@ dev.off()
 ### GO
 all_genes <- c(et_annot$logFC)
 names(all_genes) <- rownames(et_annot)
-go_data <- new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = function(p) p < 
+go_data <- new("topGOdata", ontology = "CC", allGenes = all_genes, geneSel = function(p) p < 
                 0.01, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", 
               ID = "Ensembl", nodeSize = 5)
 go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
@@ -103,7 +104,7 @@ go_table <- GenTable(go_data, weightFisher = go_test,
 go_table[grep("neu", go_table$Term), ]
 
 
-go_id_ra <- go_table[grep("sensory perception of pain", go_table$Term), "GO.ID"]
+go_id_ra <- go_table[grep("axon", go_table$Term), "GO.ID"]
 go_genes_ra <- genesInTerm(go_data, go_id_ra)[[1]]
 ensembl <- useMart(host = "sep2015.archive.ensembl.org",
                    biomart = "ENSEMBL_MART_ENSEMBL",
@@ -128,3 +129,11 @@ log_cpm_ra$symbol <- mapIds(org.Dm.eg.db,
                             multiVals="first")
 sel <- rownames(log_cpm_ra)
 pheatmap(scale(log_cpm, scale = FALSE, center = TRUE)[sel,])
+
+rownames(log_cpm_ra) <- log_cpm_ra$symbol 
+
+
+g <- ggplot() + geom_boxplot(data = log_cpm_ra, aes(x = rownames(log_cpm_ra), y = log_cpm_ra$cont1), color = "red") + 
+                geom_boxplot(data = log_cpm_ra, aes(x = rownames(log_cpm_ra), y = log_cpm_ra$case1), color = "blue")
+g
+dev.off()       
