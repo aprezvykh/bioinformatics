@@ -31,6 +31,14 @@ raw_counts <- as.data.frame(y$counts)
 y <- calcNormFactors(y)
 y <- estimateCommonDisp(y)
 y <- estimateTagwiseDisp(y)
+
+plotMDS(y)
+
+plotMD(y, column=1)
+
+abline(h=0, col="red", lty=2, lwd=2)
+
+
 et <- exactTest(y)
 top <- as.data.frame(topTags(et))
 et_annot <- as.data.frame(et$table)
@@ -86,35 +94,41 @@ raw_counts$name <- mapIds(org.Mm.eg.db,
 CountsTable <- CountsTable[rownames(et_annot),]
 
 ### HEATMAP
-select <- et_annot[order(et_annot$logFC),]
-select <- et_annot[1:20,]
+et_annot <- et_annot[order(et_annot$logFC),]
+et_annot_subset <- as.data.frame(subset(et_annot, logFC > 1 | logFC < -1))
+select <- et_annot_subset[1:20,]
 b <- rownames(select)
 z <- cpm(y, log=TRUE, prior.count = 1)
+
 pheatmap(scale(z, center = TRUE)[b,])
 dev.off()
 
 
+
 ### GO
-et_annot_subset <- as.data.frame(subset(et_annot, logFC > 1 | logFC < -1))
-all_genes <- c(et_annot_subset$logFC)
-names(all_genes) <- rownames(et_annot_subset)
+
+
+all_genes <- c(et_annot$logFC)
+names(all_genes) <- rownames(et_annot)
 go_data <- new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = function(p) p < 
                 0.01, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", 
               ID = "Ensembl", nodeSize = 5)
 go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
 go_table <- GenTable(go_data, weightFisher = go_test,
                      orderBy = "weightFisher", ranksOf = "weightFisher",
-                     topNodes = sum(score(go_test) < .1))
+                     topNodes = sum(score(go_test) < .05))
 
 
 # ENTER HERE YOU INTERESTING PATHWAY ID! 
-term <- c("cell maturation")
+
+
+term <- c("fatty acid biosynthetic process")
 
 go_table[grep(paste(term), go_table$Term), ]
-
-
 go_id_ra <- go_table[grep(paste(term), go_table$Term), "GO.ID"]
+
 go_genes_ra <- genesInTerm(go_data, go_id_ra)[[1]]
+
 ensembl <- useMart(host = "sep2015.archive.ensembl.org",
                    biomart = "ENSEMBL_MART_ENSEMBL",
                    dataset = "mmusculus_gene_ensembl")
@@ -125,7 +139,6 @@ gene_info_ra <- getBM(attributes = c("ensembl_gene_id", "chromosome_name",
                       values = go_genes_ra,
                       mart = ensembl)
 stopifnot(go_genes_ra == gene_info_ra$ensembl_gene_id)
-gene_info_ra
 
 log_cpm_ra <- log_cpm[go_genes_ra, ]
 log_cpm_ra <- data.frame(gene = rownames(log_cpm_ra), log_cpm_ra,
@@ -137,7 +150,7 @@ log_cpm_ra$symbol <- mapIds(org.Mm.eg.db,
                             keytype="ENSEMBL",
                             multiVals="first")
 sel <- rownames(log_cpm_ra)
-pheatmap(scale(log_cpm, scale = FALSE, center = TRUE)[sel,])
+pheatmap(scale(z, scale = FALSE, center = TRUE)[sel,])
 
 rownames(log_cpm_ra) <- log_cpm_ra$symbol
 
@@ -145,15 +158,22 @@ log_cpm_ra$cont_avg <- rowSums(log_cpm_ra[,2:6])/5
 log_cpm_ra$case_avg <- rowSums(log_cpm_ra[,7:11])/5
 log_cpm_ra <- transform(log_cpm_ra, SD_control=apply(log_cpm_ra[,2:6],1, sd, na.rm = TRUE))
 log_cpm_ra <- transform(log_cpm_ra, SD_case=apply(log_cpm_ra[,7:11],1, sd, na.rm = TRUE))
-log_cpm_ra$logFC <- log2(log_cpm_ra$case_avg/log_cpm_ra$cont_avg)
 
 for_plot <- data.frame(log_cpm_ra$symbol, log_cpm_ra$cont_avg, log_cpm_ra$case_avg)
+names(for_plot) <- c("gene", "control", "case")
 
+boxplot(for_plot$gene, for_plot$control)
+
+#### GGPLOT
 g <- ggplot() + geom_boxplot(data = log_cpm_ra, aes(x = rownames(log_cpm_ra), y=cont_avg, fill=SD_control), color = "blue", fill = "white") +
       
                 geom_boxplot(data = log_cpm_ra, aes(x = rownames(log_cpm_ra), y = case_avg, fill=SD_control), color = "red", fill = "white")
 g
 
-p10 <- ggplot(for_plot, aes(x = log_cpm_ra.symbol, y = log_cpm_ra.cont_avg)) +
-  geom_boxplot()
-p10
+mut <- melt(for_plot, id.vars = "gene")
+mut_cont <- mut[1:12,]
+mut_case <- mut[13:24,]
+
+mg <- ggplot() + geom_boxplot(data = mut_cont, aes(x=gene, y=value, fill=variable), color = "blue", fill = "white")
+mg
+dev.off()
