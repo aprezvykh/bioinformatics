@@ -58,6 +58,8 @@ et_annot$name <- mapIds(org.Mm.eg.db,
                           keytype="ENSEMBL",
                           multiVals="first")
 
+
+
 et_annot$logFC <- et_annot$logFC*(-1)
 
 et_annot <- as.data.frame(subset(et_annot, PValue < 0.05))
@@ -122,7 +124,7 @@ go_table <- GenTable(go_data, weightFisher = go_test,
 # ENTER HERE YOU INTERESTING PATHWAY ID! 
 
 
-term <- c("fatty acid biosynthetic process")
+term <- c("neuromuscular synaptic transmission")
 
 go_table[grep(paste(term), go_table$Term), ]
 go_id_ra <- go_table[grep(paste(term), go_table$Term), "GO.ID"]
@@ -144,6 +146,7 @@ log_cpm_ra <- log_cpm[go_genes_ra, ]
 log_cpm_ra <- data.frame(gene = rownames(log_cpm_ra), log_cpm_ra,
                          stringsAsFactors = FALSE)
 
+
 log_cpm_ra$symbol <- mapIds(org.Mm.eg.db, 
                             keys=row.names(log_cpm_ra), 
                             column="SYMBOL", 
@@ -156,24 +159,29 @@ rownames(log_cpm_ra) <- log_cpm_ra$symbol
 
 log_cpm_ra$cont_avg <- rowSums(log_cpm_ra[,2:6])/5
 log_cpm_ra$case_avg <- rowSums(log_cpm_ra[,7:11])/5
+write.csv(log_cpm_ra, file = "log_cpm_ra.csv")
 log_cpm_ra <- transform(log_cpm_ra, SD_control=apply(log_cpm_ra[,2:6],1, sd, na.rm = TRUE))
 log_cpm_ra <- transform(log_cpm_ra, SD_case=apply(log_cpm_ra[,7:11],1, sd, na.rm = TRUE))
+write.csv(mut, file = "log_cpm_ra.csv")
 
-for_plot <- data.frame(log_cpm_ra$symbol, log_cpm_ra$cont_avg, log_cpm_ra$case_avg)
-names(for_plot) <- c("gene", "control", "case")
+for_plot <- data.frame(log_cpm_ra$symbol, log_cpm_ra$cont_avg, log_cpm_ra$case_avg, log_cpm_ra$SD_control, log_cpm_ra$SD_case)
+names(for_plot) <- c("gene", "control", "case", "sd_cont", "sd_case")
 
 boxplot(for_plot$gene, for_plot$control)
 
 #### GGPLOT
-g <- ggplot() + geom_boxplot(data = log_cpm_ra, aes(x = rownames(log_cpm_ra), y=cont_avg, fill=SD_control), color = "blue", fill = "white") +
-      
-                geom_boxplot(data = log_cpm_ra, aes(x = rownames(log_cpm_ra), y = case_avg, fill=SD_control), color = "red", fill = "white")
-g
-
-mut <- melt(for_plot, id.vars = "gene")
-mut_cont <- mut[1:12,]
-mut_case <- mut[13:24,]
-
-mg <- ggplot() + geom_boxplot(data = mut_cont, aes(x=gene, y=value, fill=variable), color = "blue", fill = "white")
+mg <- ggplot() + geom_boxplot(data = for_plot, aes(x=gene, y=cont_avg, color=case_avg), color = "blue", fill = "white")
 mg
 dev.off()
+
+
+
+
+
+### Reactome
+ll_genes <- c(et_annot$logFC)
+names(all_genes) <- rownames(et_annot)
+
+
+
+
