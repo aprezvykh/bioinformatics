@@ -18,7 +18,7 @@ biocLite("pathview")
 biocLite("ReactomePA")
 biocLite("reactome.db")
 biocLite("EGSEA")
-biocLite("org.Mm.eg.db")
+biocLite("org.Dm.eg.db")
 biocLite("IRanges")
 biocLite("S4Vectors")
 install.packages("xlsx")
@@ -43,6 +43,8 @@ install.packages("ggthemes")
 install.packages("calibrate")
 install.packages("ggthemes")
 install.packages("tibble")
+install.packages("sqldf")
+install.packages("RH2")
 library("tibble")
 library("rJava")
 library("pathview")
@@ -61,7 +63,7 @@ library("pheatmap")
 library('vsn')
 library( "genefilter" )
 library("AnnotationDbi")
-library("org.Mm.eg.db")
+library("org.Dm.eg.db")
 library("xlsx")
 library("ReactomePA")
 library("functional")
@@ -78,8 +80,9 @@ library("foreach")
 library("ggthemes")
 library(topGO)
 library(edgeR)
-
-
+library("tcltk")
+library("sqldf")
+library("RH2")
 ### Parameters manual###
 # pval_cutoff - cutoffs your pvalue. default is 0.05
 # base_mean_cutoff - cutoffs low-expressed genes. default is 100
@@ -94,19 +97,17 @@ library(edgeR)
 ### Parameters
 pval_cutoff <- 0.05
 base_mean_cutoff <- 20
-logfcup_cutoff <- 1
-logfcdown_cutoff <- -1
+logfcup_cutoff <- 0.3
+logfcdown_cutoff <- -0.3
 gs_size <- 15
 base_mean_cutoff_value <- 5
 hm_genes_count <- 100
 cpm_cutoff <- 1
 
 ### Statistical analysis
-directory <- '~/counts_ens/2_late_tg_vs_ctrl_tg/'
-setwd('~/counts_ens/2_late_tg_vs_ctrl_tg/')
-sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
-sampleCondition <- c('control', 'control', 'control', 'control', 'control', 
-                     'case', 'case', 'case', 'case', 'case')
+directory <- '~/Fly memory project/experimental/NEW CONFIG/K_vs_N//'
+sampleFiles <- grep('fly',list.files(directory),value=TRUE)
+sampleCondition <- c('control', 'control', 'case', 'case')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
@@ -131,23 +132,23 @@ write.xlsx(df, file = "Results diffexpression.xlsx", sheetName = "Common info", 
 sumres <- summary(res)
 ### Annotation ###
 
-columns(org.Mm.eg.db)
-resadj$symbol <- mapIds(org.Mm.eg.db, 
+columns(org.Dm.eg.db)
+resadj$symbol <- mapIds(org.Dm.eg.db, 
                         keys=row.names(resadj), 
                         column="SYMBOL", 
-                        keytype="ENSEMBL",
+                        keytype="FLYBASE",
                         multiVals="first")
 
-resadj$entrez <- mapIds(org.Mm.eg.db, 
+resadj$entrez <- mapIds(org.Dm.eg.db, 
                         keys=row.names(resadj), 
                         column="ENTREZID", 
-                        keytype="ENSEMBL",
+                        keytype="FLYBASE",
                         multiVals="first")
 
-resadj$name =   mapIds(org.Mm.eg.db,
+resadj$name =   mapIds(org.Dm.eg.db,
                        keys=row.names(resadj), 
                        column="GENENAME",
-                       keytype="ENSEMBL",
+                       keytype="FLYBASE",
                        multiVals="first")
 
 
@@ -169,35 +170,6 @@ dfx <- as.data.frame(subset(dfx, log2FoldChange > logfcup_cutoff | log2FoldChang
 write.xlsx(dfx, file = "Results diffexpression.xlsx", sheetName = "genes with Bm > 100 & -1 > log2FC > 1 ", append = TRUE)
 resOrderedBM <- dfx
 
-## GO ###
-
-data(go.sets.mm)
-data(go.subs.mm)
-
-foldchanges = dfx$log2FoldChange
-names(foldchanges) = dfx$entrez
-
-gomfsets = go.sets.mm[go.subs.mm$MF]
-gomfres = gage(foldchanges, gsets=gomfsets, same.dir=TRUE,set.size = c(10, 100), rank.test = TRUE)
-lapply(gomfres, head)
-gomfres <- as.data.frame(gomfres)
-gomfres <- gomfres[complete.cases(gomfres), ]
-write.xlsx(gomfres, file = "GO.xlsx", sheetName = "GO_MF", append = TRUE)
-
-gobpsets = go.sets.mm[go.subs.mm$BP]
-gobpres = gage(foldchanges, gsets=gobpsets, same.dir=TRUE)
-lapply(gobpres, head)
-gobpres <- as.data.frame(gobpres)
-gobpres <- gobpres[complete.cases(gobpres), ]
-write.xlsx(gobpres, file = "GO.xlsx", sheetName = "GO_BP", append = TRUE)
-
-goccsets = go.sets.mm[go.subs.mm$CC]
-goccres = gage(foldchanges, gsets=goccsets, same.dir=TRUE)
-lapply(goccres, head)
-goccres <- as.data.frame(goccres)
-goccres <- goccres[complete.cases(goccres), ]
-write.xlsx(goccres, file = "GO.xlsx", sheetName = "GO_CC", append = TRUE)
-
 
 ### FISHER TEST GO
 resadj <- as.data.frame(resadj)
@@ -205,36 +177,36 @@ resadj <- resadj[complete.cases(resadj), ]
 resadj_high <- as.data.frame(subset(resadj, log2FoldChange > logfcup_cutoff))
 resadj_low <- as.data.frame(subset(resadj, log2FoldChange < logfcdown_cutoff))
 
-GOFisherBP <- function(df, nodes, nrows){
+GOFisherBP <- function(df, nodes, nrows, p){
 all_genes <- c(df$log2FoldChange)
 names(all_genes) <- rownames(df)
 go_data <- new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = function(p) p < 
-                 0.01, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", 
-               ID = "Ensembl", nodeSize = nodes)
+                 p, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", 
+               ID = "FLYBASE", nodeSize = nodes)
 go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
 go_table <- GenTable(go_data, weightFisher = go_test,
                      orderBy = "weightFisher", ranksOf = "weightFisher",
                      topNodes = nrows)
 return(go_table)
 }
-GOFisherMF <- function(df, nodes, nrows){
+GOFisherMF <- function(df, nodes, nrows, p){
   all_genes <- c(df$log2FoldChange)
   names(all_genes) <- rownames(df)
   go_data <- new("topGOdata", ontology = "MF", allGenes = all_genes, geneSel = function(p) p < 
-                   0.01, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", 
-                 ID = "Ensembl", nodeSize = nodes)
+                   p, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", 
+                 ID = "FLYBASE", nodeSize = nodes)
   go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
   go_table <- GenTable(go_data, weightFisher = go_test,
                        orderBy = "weightFisher", ranksOf = "weightFisher",
                        topNodes = nrows)
   return(go_table)
 }
-GOFisherCC <- function(df, nodes, nrows){
+GOFisherCC <- function(df, nodes, nrows, p){
   all_genes <- c(df$log2FoldChange)
   names(all_genes) <- rownames(df)
   go_data <- new("topGOdata", ontology = "CC", allGenes = all_genes, geneSel = function(p) p < 
-                   0.01, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", 
-                 ID = "Ensembl", nodeSize = nodes)
+                   p, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", 
+                 ID = "FLYBASE", nodeSize = nodes)
   go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
   go_table <- GenTable(go_data, weightFisher = go_test,
                        orderBy = "weightFisher", ranksOf = "weightFisher",
@@ -242,9 +214,9 @@ GOFisherCC <- function(df, nodes, nrows){
   return(go_table)
 }
 
-gobp <- GOFisherBP(resadj, 5, 100)
-gomf <- GOFisherMF(resadj, 5, 100)
-gocc <- GOFisherCC(resadj, 5, 100)
+gobp <- GOFisherBP(resadj, 5, 100, 0.05)
+gomf <- GOFisherMF(resadj, 5, 100, 0.05)
+gocc <- GOFisherCC(resadj, 5, 100, 0.05)
 
 write.xlsx(gobp, file = "GO_Fisher.xlsx", sheetName = "BP, top 100", append = TRUE)
 write.xlsx(gobp, file = "GO_Fisher.xlsx", sheetName = "MF, top 100", append = TRUE)
@@ -261,13 +233,14 @@ plotMA(dds,ylim=c(-10,10),main='DESeq2')
 dev.off()
 
 ### Genes heatmap
+gcount <- 50
 hm <- as.data.frame(resOrderedBM)
-select <- order((hm$baseMean), decreasing=TRUE)[1:hm_genes_count]
-hmcol<- colorRampPalette(brewer.pal(11, 'RdYlBu'))(hm_genes_count)
+select <- order((hm$padj), decreasing=TRUE)[1:gcount]
+hmcol<- colorRampPalette(brewer.pal(11, 'RdYlBu'))(gcount)
 pdf(file = "topvargenes.pdf", width = 12, height = 17, family = "Helvetica")
 ass <-as.data.frame(assay(rld, normalized = TRUE)[select,])
 
-hdf <- hm[1:hm_genes_count,]
+hdf <- hm[1:gcount,]
 rownames(ass) <- NULL
 rownames(hdf) <- hdf$symbol
 rownames(ass) <- rownames(hdf)
@@ -275,11 +248,12 @@ rownames(ass) <- rownames(hdf)
 pheatmap(ass,
         cellwidth = 40, scale="row", fontsize = 10,
          clustering_distance_rows = 'euclidean',
-         cluster_rows=F, cluster_cols=F,
+         cluster_rows=T, cluster_cols=F,
          legend = TRUE, main = "Transcripts differential expression, p <0,05",
          clustering_method = "complete", show_rownames = T)
 
 dev.off()
+
 ## Estimate & sparsity
 
 pdf(file = "dispestimate.pdf", width = 12, height = 17, family = "Helvetica")
@@ -305,65 +279,6 @@ pheatmap(mat)
 dev.off()
 
 
-## REACTOME ## 
-
-require(clusterProfiler)
-require(reactome.db)
-dfa <- as.character(resOrderedBM$entrez)
-x <- enrichPathway(gene=dfa, organism = "mouse", minGSSize=gs_size, readable = TRUE )
-head(as.data.frame(x))
-dev.off()
-
-par(mar=c(1,1,1,1))
-pdf(file = "barplot.pdf", width = 12, height = 17, family = "Helvetica")
-barplot(x, showCategory=30,  font.size = 9)
-dev.off()
-
-pdf(file = "enrichmap.pdf", width = 12, height = 17, family = "Helvetica")
-enrichMap(x, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7, n = 20, font.size = 20)
-dev.off()
-
-pdf(file = "cnetplot.pdf", width = 12, height = 17, family = "Helvetica")
-cnetplot(x, foldChange = foldchanges, categorySize="pvalue", showCategory = 10)
-dev.off()
-
-## high expressed genes expression profile - reactome profiling
-## of genes with baseMean = avg(baseMean)*base_mean_cutoff_value
-
-foldchanges2 = resHBM$log2FoldChange
-dfb <- as.character(resHBM$entrez)
-y <- enrichPathway(gene=dfb, organism = "mouse", minGSSize=gs_size, readable = TRUE )
-dev.off()
-
-par(mar=c(1,1,1,1))
-pdf(file = "barplot_GEP.pdf", width = 12, height = 17, family = "Helvetica")
-barplot(y, showCategory=30,  font.size = 9)
-dev.off()
-
-pdf(file = "enrichmap_GEP.pdf", width = 12, height = 17, family = "Helvetica")
-enrichMap(y, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7, n = 20, font.size = 20)
-dev.off()
-
-pdf(file = "cnetplot_GEP.pdf", width = 12, height = 17, family = "Helvetica")
-cnetplot(x, foldChange = foldchanges2, categorySize="pvalue", showCategory = 10)
-dev.off()
-
-### KEGG ###  
-data(kegg.sets.mm)
-data(sigmet.idx.mm)
-kegg.sets.mm = kegg.sets.mm[sigmet.idx.mm]
-keggres = gage(foldchanges, gsets=kegg.sets.mm, same.dir=TRUE)
-keggres <- as.data.frame(keggres)
-keggres <- keggres[complete.cases(keggres), ]
-write.xlsx(keggres, file = "KEGG.xlsx", sheetName = "KEGG", append = TRUE)
-
-###KEGG expression profile (without lfc, but with generatio)
-
-kk <- enrichKEGG(gene = dfa, organism = "mmu", pvalueCutoff = 0.05)
-write.xlsx(kk, file = "KEGG.xlsx", sheetName = "KEGG GEP (logfc not considered)", append = TRUE)
-pdf(file = "KEGG_enrichment_dotplot.pdf", width = 12, height = 17, family = "Helvetica")
-dotplot(kk)
-dev.off()
 
 ### Volcano Plot
 resadj$threshold = as.factor(abs(resadj$log2FoldChange) > 2 & resadj$padj < 0.05/allgenes)
@@ -404,7 +319,7 @@ for (i in gene_list){
 dev.off()
 
 ### EDGER PART!
-
+setwd(directory)
 y <- readDGE(files = sampleFiles, group = sampleCondition, labels = sampleFiles)
 y <- DGEList(y, group=class)
 normalized_lib_sizes <- calcNormFactors(y)
@@ -419,65 +334,61 @@ top <- as.data.frame(topTags(et))
 et_annot <- as.data.frame(et$table)
 et_annot_non_filtered <- as.data.frame(et$table)
 
-plotMD(y, column=3)
-abline(h=0, col="red", lty=2, lwd=2)
 
 ### ANNOTATE LogFC
 
-columns(org.Mm.eg.db)
-et_annot$symbol <- mapIds(org.Mm.eg.db, 
+columns(org.Dm.eg.db)
+et_annot$symbol <- mapIds(org.Dm.eg.db, 
                           keys=row.names(et_annot), 
                           column="SYMBOL", 
-                          keytype="ENSEMBL",
+                          keytype="FLYBASE",
                           multiVals="first")
 
-et_annot$name <- mapIds(org.Mm.eg.db, 
+et_annot$name <- mapIds(org.Dm.eg.db, 
                         keys=row.names(et_annot), 
                         column="GENENAME", 
-                        keytype="ENSEMBL",
+                        keytype="FLYBASE",
                         multiVals="first")
 
 
-et_annot$entrez <- mapIds(org.Mm.eg.db, 
+et_annot$entrez <- mapIds(org.Dm.eg.db, 
                           keys=row.names(et_annot), 
                           column="ENTREZID", 
-                          keytype="ENSEMBL",
+                          keytype="FLYBASE",
                           multiVals="first")
 
 et_annot$logFC <- et_annot$logFC*(-1)
 
 ### Simple summary
-all <- nrow(raw_counts)
-allpadj <- sum(et_annot$PValue < pval_tr, na.rm=TRUE)
+all <- nrow(et_annot_non_filtered)
+allpadj <- sum(et_annot$PValue < pval_cutoff, na.rm=TRUE)
 avg_cpm <- mean(et_annot$logCPM)
-up <- sum(et_annot$logFC > high_logfc, na.rm=TRUE)
-down <- sum(et_annot$logFC < low_logfc, na.rm=TRUE)
+up <- sum(et_annot$logFC > logfcup_cutoff, na.rm=TRUE)
+down <- sum(et_annot$logFC < logfcdown_cutoff, na.rm=TRUE)
 header <- c('all genes', 'mean of logCPM', 'padj<0,05', 'genes with > high', 'genes with < low')
 meaning <- c(print(all), print(avg_cpm), print(allpadj), print(up), print(down))
 df <- data.frame(header, meaning)
 
 
 ### ANNOTATE COUNTS
-CountsTable$symbol <- mapIds(org.Mm.eg.db, 
+CountsTable$symbol <- mapIds(org.Dm.eg.db, 
                              keys=row.names(CountsTable), 
                              column="SYMBOL", 
-                             keytype="ENSEMBL",
+                             keytype="FLYBASE",
                              multiVals="first")
 
-CountsTable$name <- mapIds(org.Mm.eg.db, 
+CountsTable$name <- mapIds(org.Dm.eg.db, 
                            keys=row.names(CountsTable), 
                            column="GENENAME", 
-                           keytype="ENSEMBL",
+                           keytype="FLYBASE",
                            multiVals="first")
 CountsTable <- CountsTable[rownames(et_annot),]
 
-
-### HEATMAP ###
-
-y$genes$Symbol <- mapIds(org.Mm.eg.db, 
+### NEW HEATMAP
+y$genes$Symbol <- mapIds(org.Dm.eg.db, 
                          keys=row.names(y), 
                          column="SYMBOL", 
-                         keytype="ENSEMBL",
+                         keytype="FLYBASE",
                          multiVals="first")
 
 fit <- glmQLFit(y, robust=TRUE)
@@ -494,11 +405,12 @@ heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
 
+dev.off()
 
 
-### REPORTING
 
 
+## REPORTING 
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pval_cutoff))
 et_annot <- as.data.frame(subset(et_annot, logFC > logfcup_cutoff | logFC < logfcdown_cutoff))
@@ -506,3 +418,20 @@ et_annot <- as.data.frame(subset(et_annot, logFC > logfcup_cutoff | logFC < logf
 write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append = TRUE)
 write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
 write.xlsx(CountsTable, file = "Results edgeR.xlsx", sheetName = "Counts Table, logCPM>1", append = TRUE)
+
+
+for (f in 1:ncol(y)){
+  png(file = paste(f, "_for_each.png", sep=""))
+  plotMD(y, column=f)
+  abline(h=0, col="red", lty=2, lwd=2)
+  dev.off()
+}
+dev.off()
+
+pdf(file = "MDplot_common.pdf", width = 12, height = 17, family = "Helvetica")
+plotMD(tr, values=c(1,-1), col=c("red","blue"),
+       legend="topright")
+dev.off()
+
+
+plotBCV(y)
