@@ -105,9 +105,9 @@ hm_genes_count <- 100
 cpm_cutoff <- 1
 
 ### Statistical analysis
-directory <- '~/Fly memory project/experimental/NEW CONFIG/K_vs_N//'
+directory <- '~/Fly memory project/experimental/NEW CONFIG/all/'
 sampleFiles <- grep('fly',list.files(directory),value=TRUE)
-sampleCondition <- c('control', 'control', 'case', 'case')
+sampleCondition <- c('control', 'control', 'cross', 'cross', 'stress', 'stress', 'stress_24', 'stress_24')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
@@ -398,17 +398,15 @@ logCPM <- cpm(y, prior.count=2, log=TRUE)
 rownames(logCPM) <- y$genes$Symbol 
 colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
 o <- order(tr$table$PValue)
-logCPM <- logCPM[o[1:50],]
+logCPM <- logCPM[o[1:100],]
 logCPM <- t(scale(t(logCPM)))
 col.pan <- colorpanel(100, "blue", "white", "red")
-heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="none",
+pdf(file = "Main Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
+heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="column",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
 
 dev.off()
-
-
-
 
 ## REPORTING 
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
@@ -421,9 +419,10 @@ write.xlsx(CountsTable, file = "Results edgeR.xlsx", sheetName = "Counts Table, 
 
 
 for (f in 1:ncol(y)){
-  png(file = paste(f, "_for_each.png", sep=""))
+  pdf(file = "MDPlots.pdf", width = 12, height = 17, family = "Helvetica")
   plotMD(y, column=f)
   abline(h=0, col="red", lty=2, lwd=2)
+  rasterImage(img,0,0,1,1)
   dev.off()
 }
 dev.off()
@@ -433,5 +432,19 @@ plotMD(tr, values=c(1,-1), col=c("red","blue"),
        legend="topright")
 dev.off()
 
-
+pdf(file = "BCVPlot.pdf", width = 12, height = 17, family = "Helvetica")
 plotBCV(y)
+dev.off()
+
+logdf <- as.data.frame(logCPM)
+dir.create("plots")
+setwd(direc)
+for (i in seq(1:nrow(logdf))){
+      png(file = paste(rownames(logdf[i,]), "_CPM.png", sep=""))
+      boxplot.default(logdf[i,],outline = TRUE,  main = paste(rownames(logdf[i,])))
+      dev.off()
+}
+
+
+
+
