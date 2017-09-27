@@ -392,13 +392,13 @@ heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
 dev.off()
-ncol(y)
 for (f in 1:ncol(y)){
   png(file = paste(f, ".png", sep=""))
   plotMD(y, column=f)
   abline(h=0, col="red", lty=2, lwd=2)
   dev.off()
 }
+
 ## REPORTING
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pval_cutoff))
