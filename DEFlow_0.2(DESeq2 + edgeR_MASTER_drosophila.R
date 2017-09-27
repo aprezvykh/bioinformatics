@@ -79,7 +79,7 @@ library("calibrate")
 library("foreach")
 library("ggthemes")
 library("topGO")
-library(edgeR)
+library("edgeR")
 library("tcltk")
 library("sqldf")
 library("RH2")
@@ -105,9 +105,10 @@ hm_genes_count <- 100
 cpm_cutoff <- 1
 
 ### Statistical analysis
-directory <- '~/Fly memory project/experimental_multimap/K_vs_F24//'
+directory <- '~/Fly memory project/experimental_multimap/N_vs_F//'
+setwd(directory)
 sampleFiles <- grep('fly',list.files(directory),value=TRUE)
-sampleCondition <- c('control', 'control', 'stress_24', 'stress_24')
+sampleCondition <- c('cross', 'cross', 'stress', 'stress')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
@@ -386,11 +387,18 @@ o <- order(et$table$PValue)
 logCPM <- logCPM[o[1:100],]
 logCPM <- t(scale(t(logCPM)))
 col.pan <- colorpanel(100, "blue", "white", "red")
+pdf(file = "Top 100 Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
 heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
-
-
+dev.off()
+ncol(y)
+for (f in 1:ncol(y)){
+  png(file = paste(f, ".png", sep=""))
+  plotMD(y, column=f)
+  abline(h=0, col="red", lty=2, lwd=2)
+  dev.off()
+}
 ## REPORTING
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pval_cutoff))
@@ -402,24 +410,24 @@ write.xlsx(CountsTable, file = "Results edgeR.xlsx", sheetName = "Counts Table, 
 
 
 ### Genes heatmap
-gcount <- 50
-hm <- as.data.frame(resOrderedBM)
-select <- order((hm$padj), decreasing=TRUE)[1:gcount]
-hmcol<- colorRampPalette(brewer.pal(11, 'RdYlBu'))(gcount)
-pdf(file = "topvargenes.pdf", width = 12, height = 17, family = "Helvetica")
-ass <-as.data.frame(assay(rld, normalized = TRUE)[select,])
+#gcount <- 50
+#hm <- as.data.frame(resOrderedBM)
+#select <- order((hm$padj), decreasing=TRUE)[1:gcount]
+#hmcol<- colorRampPalette(brewer.pal(11, 'RdYlBu'))(gcount)
+#pdf(file = "topvargenes.pdf", width = 12, height = 17, family = "Helvetica")
+#ass <-as.data.frame(assay(rld, normalized = TRUE)[select,])
 
-hdf <- hm[1:gcount,]
-rownames(ass) <- NULL
-rownames(hdf) <- hdf$symbol
-rownames(ass) <- rownames(hdf)
+#hdf <- hm[1:gcount,]
+#rownames(ass) <- NULL
+#rownames(hdf) <- hdf$symbol
+#rownames(ass) <- rownames(hdf)
 
-pheatmap(ass,
-         cellwidth = 40, scale="row", fontsize = 10,
-         clustering_distance_rows = 'euclidean',
-         cluster_rows=T, cluster_cols=F,
-         legend = TRUE, main = "Transcripts differential expression, p <0,05",
-         clustering_method = "complete", show_rownames = T)
+#pheatmap(ass,
+#         cellwidth = 40, scale="row", fontsize = 10,
+#         clustering_distance_rows = 'euclidean',
+#         cluster_rows=T, cluster_cols=F,
+#         legend = TRUE, main = "Transcripts differential expression, p <0,05",
+#         clustering_method = "complete", show_rownames = T)
 
-dev.off()
+#dev.off()
 
