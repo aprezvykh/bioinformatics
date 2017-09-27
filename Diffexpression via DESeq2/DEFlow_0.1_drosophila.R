@@ -79,6 +79,8 @@ library("xlsx")
 library("calibrate")
 library("foreach")
 library("ggthemes")
+library("edgeR")
+library("topGO")
 
 ### Parameters manual###
 # pval_cutoff - cutoffs your pvalue. default is 0.05
@@ -101,7 +103,7 @@ base_mean_cutoff_value <- 5
 hm_genes_count <- 100
 
 ### Statistical analysis
-directory <- '~/Fly memory project/experimental/K_vs_F24/'
+directory <- '~/Fly memory project/K_vs_F24/'
 setwd('~/diffexp_reports/')
 sampleFiles <- grep('fly',list.files(directory), value=TRUE)
 sampleCondition <- c('24', '24', 'k', 'k')
@@ -171,6 +173,10 @@ write.xlsx(resHBM, file = "Results all.xlsx", sheetName = "genes with Bm>base_me
 resOrderedBM <- dfx
 
 
+### EDGER PART
+
+y <- readDGE(files = sampleFiles)
+
 ## TRANSFORM ### 
 
 rld<- rlogTransformation(dds, blind=TRUE)
@@ -236,6 +242,7 @@ g = ggplot(data=res, aes(x=log2FoldChange, y=-log10(padj), colour=threshold)) +
   xlab("log2 fold change") + ylab("-log10 p-value")
 g
 dev.off()
+
 
 
 ### PLOTS

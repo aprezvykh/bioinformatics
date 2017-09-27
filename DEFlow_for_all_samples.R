@@ -1,8 +1,8 @@
-install.packages(heatmap.2)
 library(heatmap.2)
 library(edgeR)
 library(org.Dm.eg.db)
 library(gplots)
+library(plyr)
 ### Statistical analysis
 directory <- '~/Fly memory project/experimental_multimap/all/'
 setwd(directory)
@@ -16,6 +16,8 @@ y <- readDGE(files = sampleFiles, group = sampleCondition, labels = sampleFiles)
 y <- calcNormFactors(y)
 y <- estimateCommonDisp(y)
 y <- estimateTagwiseDisp(y)
+keep <- rowSums(cpm(y) > 0.5) >= 4
+y <- y[keep, , keep.lib.sizes=FALSE]
 et <- exactTest(y)
 et_annot <- as.data.frame(et$table)
 y$genes$Symbol <- mapIds(org.Dm.eg.db, 
@@ -45,7 +47,7 @@ et_annot$entrez <- mapIds(org.Dm.eg.db,
                           multiVals="first")
 
 logCPM <- cpm(y, prior.count=2, log=TRUE)
-rownames(logCPM) <- y$genes$Symbol 
+rownames(logCPM) <- y$genes$Symbol
 colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
 o <- order(et$table$PValue)
 logCPM <- logCPM[o[1:100],]
@@ -54,22 +56,27 @@ col.pan <- colorpanel(100, "blue", "white", "red")
 pdf(file = "Top 100 Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
 heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-          margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
+          margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Transcripts differential
+          expression, p < 0.05")
 dev.off()
 
-y$genes$Symbol
+
+let <- c("ncRNA")
 logCPM <- NULL
-let <- c("NADH")
-logCPM <- as.data.frame(cpm(y, prior.count=2, log=TRUE))
-rownames(logCPM) <- y$genes$Symbol
-colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
+logCPM <- cpm(y, prior.count=2, log=TRUE)
+nColCount <- ncol(logCPM)
+logCPM <- as.data.frame(logCPM)
 logCPM$Name <- mapIds(org.Dm.eg.db, 
-                          keys=row.names(et_annot), 
+                          keys=row.names(logCPM), 
                           column="GENENAME", 
                           keytype="FLYBASE",
                           multiVals="first")
 
-sub <- logCPM[grep(paste(let), l,]
+rownames(logCPM) <- make.names(y$genes$Symbol, unique=TRUE)
+colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
+colnames(logCPM)[nColCount+1] <- c("Name")
+sub <- logCPM[grepl(paste(let), logCPM$Name),]
+sub$Name <- NULL
 sub <- t(scale(t(sub)))
 pdf(file = "paste(let).pdf", width = 12, height = 17, family = "Helvetica")
 heatmap.2(sub, col=col.pan, Rowv=TRUE, scale="column",
