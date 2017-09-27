@@ -105,7 +105,7 @@ hm_genes_count <- 100
 cpm_cutoff <- 1
 
 ### Statistical analysis
-directory <- '~/Fly memory project/experimental/NEW CONFIG/all/'
+directory <- '~/Fly memory project/experimental_multimap/all/'
 sampleFiles <- grep('fly',list.files(directory),value=TRUE)
 sampleCondition <- c('control', 'control', 'cross', 'cross', 'stress', 'stress', 'stress_24', 'stress_24')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
@@ -113,6 +113,8 @@ ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=director
 dds<-DESeq(ddsHTSeq)
 
 ## Simple tests ##
+dir.create("Output")
+setwd("Output")
 res <- results(dds, tidy = FALSE )
 allpadj <- sum(res$padj < pval_cutoff, na.rm=TRUE)
 res <- res[order(res$padj),]
@@ -223,7 +225,9 @@ write.xlsx(gobp, file = "GO_Fisher.xlsx", sheetName = "MF, top 100", append = TR
 write.xlsx(gobp, file = "GO_Fisher.xlsx", sheetName = "CC, top 100", append = TRUE)
 
 
-## TRANSFORM ### 
+## TRANSFORM ###
+dir.create("Plots DESeq2")
+setwd("Plots DESeq")
 rld<- rlogTransformation(dds, blind=TRUE)
 pdf(file = "pcaplot.pdf", width = 12, height = 17, family = "Helvetica")
 print(plotPCA(rld, intgroup=c('condition')))
@@ -291,7 +295,7 @@ g = ggplot(data=resadj, aes(x=log2FoldChange, y=-log10(padj), colour=threshold))
 g
 dev.off()
 
-#function - gets raw counts by gene name
+# function - gets raw counts by gene name
 cfds <- function(gene_name){
   ens <- rownames(resc[grep(gene_name, resc$symbol, ignore.case=TRUE),])
   m <- match(ens, rownames(resc))
@@ -301,10 +305,7 @@ cfds <- function(gene_name){
 
 resc <- as.data.frame(resadj)
 
-gene_list = list("Sod2",
-                 "Sod3",
-                 "Tardbp",
-                 "Fus")
+gene_list = NULL
 
 for (i in gene_list){
   u <- cfds(i)
@@ -401,14 +402,53 @@ o <- order(tr$table$PValue)
 logCPM <- logCPM[o[1:100],]
 logCPM <- t(scale(t(logCPM)))
 col.pan <- colorpanel(100, "blue", "white", "red")
-pdf(file = "Main Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
+pdf(file = "Main Heatmap_drosophila.pdf", width = 12, height = 17, family = "Helvetica")
 heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="column",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
 
 dev.off()
 
-## REPORTING 
+
+### Gene set heatmap. Paste in let your word interested in!
+let <- c("Hsp")
+logCPM <- cpm(y, prior.count=2, log=TRUE)
+rownames(logCPM) <- y$genes$Symbol
+colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
+sub <- logCPM[grep(paste(let), rownames(logCPM)),]
+sub <- t(scale(t(sub)))
+pdf(file = paste(let), width = 12, height = 17, family = "Helvetica")
+heatmap.2(sub, col=col.pan, Rowv=TRUE, scale="column",
+          trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
+          margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
+dev.off()
+
+### Multiple MDPlots
+dir.create("Multiple MDPlots")
+setwd("Multiple MDPlots")
+for (f in 1:ncol(y)){
+  png(file = paste(f, ".png", sep=""))
+  plotMD(y, column=f)
+  abline(h=0, col="red", lty=2, lwd=2)
+  dev.off()
+}
+
+pdf(file = "MDplot_common.pdf", width = 12, height = 17, family = "Helvetica")
+plotMD(tr, values=c(1,-1), col=c("red","blue"),
+       legend="topright")
+dev.off()
+
+setwd("Output")
+logdf <- as.data.frame(logCPM)
+dir.create("Significant genes")
+setwd("Significant genes")
+for (i in seq(1:nrow(logdf))){
+      png(file = paste(rownames(logdf[i,]), "_CPM.png", sep=""))
+      boxplot.default(logdf[i,],outline = TRUE,  main = paste(rownames(logdf[i,])))
+      dev.off()
+}
+
+## REPORTING
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pval_cutoff))
 et_annot <- as.data.frame(subset(et_annot, logFC > logfcup_cutoff | logFC < logfcdown_cutoff))
@@ -417,34 +457,4 @@ write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append
 write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
 write.xlsx(CountsTable, file = "Results edgeR.xlsx", sheetName = "Counts Table, logCPM>1", append = TRUE)
 
-
-for (f in 1:ncol(y)){
-  pdf(file = "MDPlots.pdf", width = 12, height = 17, family = "Helvetica")
-  plotMD(y, column=f)
-  abline(h=0, col="red", lty=2, lwd=2)
-  rasterImage(img,0,0,1,1)
-  dev.off()
-}
 dev.off()
-
-pdf(file = "MDplot_common.pdf", width = 12, height = 17, family = "Helvetica")
-plotMD(tr, values=c(1,-1), col=c("red","blue"),
-       legend="topright")
-dev.off()
-
-pdf(file = "BCVPlot.pdf", width = 12, height = 17, family = "Helvetica")
-plotBCV(y)
-dev.off()
-
-logdf <- as.data.frame(logCPM)
-dir.create("plots")
-setwd(direc)
-for (i in seq(1:nrow(logdf))){
-      png(file = paste(rownames(logdf[i,]), "_CPM.png", sep=""))
-      boxplot.default(logdf[i,],outline = TRUE,  main = paste(rownames(logdf[i,])))
-      dev.off()
-}
-
-
-
-
