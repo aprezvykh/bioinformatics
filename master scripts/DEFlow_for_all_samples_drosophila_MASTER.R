@@ -60,8 +60,7 @@ heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="none",
           expression, p < 0.05")
 dev.off()
 
-
-let <- c("ncRNA")
+let <- c("Actin ")
 logCPM <- NULL
 logCPM <- cpm(y, prior.count=2, log=TRUE)
 nColCount <- ncol(logCPM)
@@ -78,7 +77,7 @@ colnames(logCPM)[nColCount+1] <- c("Name")
 sub <- logCPM[grepl(paste(let), logCPM$Name),]
 sub$Name <- NULL
 sub <- t(scale(t(sub)))
-pdf(file = "paste(let).pdf", width = 12, height = 17, family = "Helvetica")
+pdf(file = "Interesting genes.pdf", width = 12, height = 17, family = "Helvetica")
 heatmap.2(sub, col=col.pan, Rowv=TRUE, scale="column",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
@@ -91,7 +90,6 @@ for (i in seq(1:nrow(logdf))){
   boxplot.default(logdf[i,],outline = TRUE,  main = paste(rownames(logdf[i,])))
   dev.off()
 }
-
 
 ### Multiple MDPlots
 
@@ -107,9 +105,4 @@ plotMD(tr, values=c(1,-1), col=c("red","blue"),
        legend="topright")
 dev.off()
 
-logdf <- as.data.frame(logCPM)
-for (i in seq(1:nrow(logdf))){
-  png(file = paste(rownames(logdf[i,]), "_CPM.png", sep=""))
-  boxplot.default(logdf[i,],outline = TRUE,  main = paste(rownames(logdf[i,])))
-  dev.off()
   
