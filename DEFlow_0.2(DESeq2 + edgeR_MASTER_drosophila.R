@@ -78,7 +78,7 @@ library("xlsx")
 library("calibrate")
 library("foreach")
 library("ggthemes")
-library(topGO)
+library("topGO")
 library(edgeR)
 library("tcltk")
 library("sqldf")
@@ -105,16 +105,14 @@ hm_genes_count <- 100
 cpm_cutoff <- 1
 
 ### Statistical analysis
-directory <- '~/Fly memory project/experimental_multimap/all/'
+directory <- '~/Fly memory project/experimental_multimap/K_vs_F24//'
 sampleFiles <- grep('fly',list.files(directory),value=TRUE)
-sampleCondition <- c('control', 'control', 'cross', 'cross', 'stress', 'stress', 'stress_24', 'stress_24')
+sampleCondition <- c('control', 'control', 'stress_24', 'stress_24')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
 
 ## Simple tests ##
-dir.create("Output")
-setwd("Output")
 res <- results(dds, tidy = FALSE )
 allpadj <- sum(res$padj < pval_cutoff, na.rm=TRUE)
 res <- res[order(res$padj),]
@@ -216,18 +214,16 @@ GOFisherCC <- function(df, nodes, nrows, p){
   return(go_table)
 }
 
-gobp <- GOFisherBP(resadj, 5, 100, 0.05)
-gomf <- GOFisherMF(resadj, 5, 100, 0.05)
-gocc <- GOFisherCC(resadj, 5, 100, 0.05)
+#gobp <- GOFisherBP(resadj, 5, 100, 0.05)
+#gomf <- GOFisherMF(resadj, 5, 100, 0.05)
+#gocc <- GOFisherCC(resadj, 5, 100, 0.05)
 
-write.xlsx(gobp, file = "GO_Fisher.xlsx", sheetName = "BP, top 100", append = TRUE)
-write.xlsx(gobp, file = "GO_Fisher.xlsx", sheetName = "MF, top 100", append = TRUE)
-write.xlsx(gobp, file = "GO_Fisher.xlsx", sheetName = "CC, top 100", append = TRUE)
+#write.xlsx(gobp, file = "GO_Fisher.xlsx", sheetName = "BP, top 100", append = TRUE)
+#write.xlsx(gobp, file = "GO_Fisher.xlsx", sheetName = "MF, top 100", append = TRUE)
+#write.xlsx(gobp, file = "GO_Fisher.xlsx", sheetName = "CC, top 100", append = TRUE)
 
 
 ## TRANSFORM ###
-dir.create("Plots DESeq2")
-setwd("Plots DESeq")
 rld<- rlogTransformation(dds, blind=TRUE)
 pdf(file = "pcaplot.pdf", width = 12, height = 17, family = "Helvetica")
 print(plotPCA(rld, intgroup=c('condition')))
@@ -236,30 +232,7 @@ pdf(file = "MAplot.pdf", width = 12, height = 17, family = "Helvetica")
 plotMA(dds,ylim=c(-10,10),main='DESeq2')
 dev.off()
 
-### Genes heatmap
-gcount <- 50
-hm <- as.data.frame(resOrderedBM)
-select <- order((hm$padj), decreasing=TRUE)[1:gcount]
-hmcol<- colorRampPalette(brewer.pal(11, 'RdYlBu'))(gcount)
-pdf(file = "topvargenes.pdf", width = 12, height = 17, family = "Helvetica")
-ass <-as.data.frame(assay(rld, normalized = TRUE)[select,])
-
-hdf <- hm[1:gcount,]
-rownames(ass) <- NULL
-rownames(hdf) <- hdf$symbol
-rownames(ass) <- rownames(hdf)
-
-pheatmap(ass,
-        cellwidth = 40, scale="row", fontsize = 10,
-         clustering_distance_rows = 'euclidean',
-         cluster_rows=T, cluster_cols=F,
-         legend = TRUE, main = "Transcripts differential expression, p <0,05",
-         clustering_method = "complete", show_rownames = T)
-
-dev.off()
-
 ## Estimate & sparsity
-
 pdf(file = "dispestimate.pdf", width = 12, height = 17, family = "Helvetica")
 plotDispEsts(dds)
 dev.off()
@@ -358,19 +331,9 @@ et_annot$entrez <- mapIds(org.Dm.eg.db,
                           keytype="FLYBASE",
                           multiVals="first")
 
+
+
 et_annot$logFC <- et_annot$logFC*(-1)
-
-### Simple summary
-all <- nrow(et_annot_non_filtered)
-allpadj <- sum(et_annot$PValue < pval_cutoff, na.rm=TRUE)
-avg_cpm <- mean(et_annot$logCPM)
-up <- sum(et_annot$logFC > logfcup_cutoff, na.rm=TRUE)
-down <- sum(et_annot$logFC < logfcdown_cutoff, na.rm=TRUE)
-header <- c('all genes', 'mean of logCPM', 'padj<0,05', 'genes with > high', 'genes with < low')
-meaning <- c(print(all), print(avg_cpm), print(allpadj), print(up), print(down))
-df <- data.frame(header, meaning)
-
-
 ### ANNOTATE COUNTS
 CountsTable$symbol <- mapIds(org.Dm.eg.db, 
                              keys=row.names(CountsTable), 
@@ -385,68 +348,48 @@ CountsTable$name <- mapIds(org.Dm.eg.db,
                            multiVals="first")
 CountsTable <- CountsTable[rownames(et_annot),]
 
-### NEW HEATMAP
+### TESTING CONTROL/CASE STATEMENT
+fc <- et_annot[order(et_annot$logFC),]
+lfgene <- rownames(fc[4,])
+c <- grep(paste(lfgene), rownames(CountsTable))
+dfc <- as.data.frame(CountsTable[c,])
+dfc$meancontrol <- (dfc[1,1] + dfc[1,2])/2
+dfc$meancase <- (dfc[1,3] + dfc[1,4])/2
+if(dfc$meancase > dfc$meancontrol){
+  et_annot$logFC <- et_annot$logFC*(-1)
+}
+
+### Simple summary
+all <- nrow(et_annot_non_filtered)
+allpadj <- sum(et_annot$PValue < pval_cutoff, na.rm=TRUE)
+avg_cpm <- mean(et_annot$logCPM)
+up <- sum(et_annot$logFC > logfcup_cutoff, na.rm=TRUE)
+down <- sum(et_annot$logFC < logfcdown_cutoff, na.rm=TRUE)
+header <- c('all genes', 'mean of logCPM', 'padj<0,05', 'genes with > high', 'genes with < low')
+meaning <- c(print(all), print(avg_cpm), print(allpadj), print(up), print(down))
+df <- data.frame(header, meaning)
+
+dev.off()
+
+# NEW HEATMAP
 y$genes$Symbol <- mapIds(org.Dm.eg.db, 
-                         keys=row.names(y), 
-                         column="SYMBOL", 
-                         keytype="FLYBASE",
-                         multiVals="first")
+                        keys=row.names(y), 
+                        column="SYMBOL", 
+                        keytype="FLYBASE",
+                        multiVals="first")
 
-fit <- glmQLFit(y, robust=TRUE)
-tr <- glmTreat(fit)
+
 logCPM <- cpm(y, prior.count=2, log=TRUE)
-
 rownames(logCPM) <- y$genes$Symbol 
 colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
-o <- order(tr$table$PValue)
+o <- order(et$table$PValue)
 logCPM <- logCPM[o[1:100],]
 logCPM <- t(scale(t(logCPM)))
 col.pan <- colorpanel(100, "blue", "white", "red")
-pdf(file = "Main Heatmap_drosophila.pdf", width = 12, height = 17, family = "Helvetica")
-heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="column",
+heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
 
-dev.off()
-
-
-### Gene set heatmap. Paste in let your word interested in!
-let <- c("Hsp")
-logCPM <- cpm(y, prior.count=2, log=TRUE)
-rownames(logCPM) <- y$genes$Symbol
-colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
-sub <- logCPM[grep(paste(let), rownames(logCPM)),]
-sub <- t(scale(t(sub)))
-pdf(file = paste(let), width = 12, height = 17, family = "Helvetica")
-heatmap.2(sub, col=col.pan, Rowv=TRUE, scale="column",
-          trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-          margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
-dev.off()
-
-### Multiple MDPlots
-dir.create("Multiple MDPlots")
-setwd("Multiple MDPlots")
-for (f in 1:ncol(y)){
-  png(file = paste(f, ".png", sep=""))
-  plotMD(y, column=f)
-  abline(h=0, col="red", lty=2, lwd=2)
-  dev.off()
-}
-
-pdf(file = "MDplot_common.pdf", width = 12, height = 17, family = "Helvetica")
-plotMD(tr, values=c(1,-1), col=c("red","blue"),
-       legend="topright")
-dev.off()
-
-setwd("Output")
-logdf <- as.data.frame(logCPM)
-dir.create("Significant genes")
-setwd("Significant genes")
-for (i in seq(1:nrow(logdf))){
-      png(file = paste(rownames(logdf[i,]), "_CPM.png", sep=""))
-      boxplot.default(logdf[i,],outline = TRUE,  main = paste(rownames(logdf[i,])))
-      dev.off()
-}
 
 ## REPORTING
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
@@ -457,4 +400,26 @@ write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append
 write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
 write.xlsx(CountsTable, file = "Results edgeR.xlsx", sheetName = "Counts Table, logCPM>1", append = TRUE)
 
+
+### Genes heatmap
+gcount <- 50
+hm <- as.data.frame(resOrderedBM)
+select <- order((hm$padj), decreasing=TRUE)[1:gcount]
+hmcol<- colorRampPalette(brewer.pal(11, 'RdYlBu'))(gcount)
+pdf(file = "topvargenes.pdf", width = 12, height = 17, family = "Helvetica")
+ass <-as.data.frame(assay(rld, normalized = TRUE)[select,])
+
+hdf <- hm[1:gcount,]
+rownames(ass) <- NULL
+rownames(hdf) <- hdf$symbol
+rownames(ass) <- rownames(hdf)
+
+pheatmap(ass,
+         cellwidth = 40, scale="row", fontsize = 10,
+         clustering_distance_rows = 'euclidean',
+         cluster_rows=T, cluster_cols=F,
+         legend = TRUE, main = "Transcripts differential expression, p <0,05",
+         clustering_method = "complete", show_rownames = T)
+
 dev.off()
+
