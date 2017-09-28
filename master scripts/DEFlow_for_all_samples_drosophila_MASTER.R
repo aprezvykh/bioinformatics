@@ -4,7 +4,7 @@ library(org.Dm.eg.db)
 library(gplots)
 library(plyr)
 ### Statistical analysis
-directory <- '~/Fly memory project/experimental_multimap/all/'
+directory <- '~/Fly memory project/experimental_multimap/all//'
 setwd(directory)
 sampleFiles <- grep('fly',list.files(directory),value=TRUE)
 sampleCondition <- c('control', 'control', 
@@ -14,12 +14,14 @@ sampleCondition <- c('control', 'control',
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 y <- readDGE(files = sampleFiles, group = sampleCondition, labels = sampleFiles)
 y <- calcNormFactors(y)
+y$samples
 y <- estimateCommonDisp(y)
 y <- estimateTagwiseDisp(y)
-keep <- rowSums(cpm(y) > 0.5) >= 4
+keep <- rowSums(cpm(y) > 1) >= 4
 y <- y[keep, , keep.lib.sizes=FALSE]
 et <- exactTest(y)
 et_annot <- as.data.frame(et$table)
+
 y$genes$Symbol <- mapIds(org.Dm.eg.db, 
                           keys=row.names(y), 
                           column="SYMBOL", 
@@ -46,7 +48,7 @@ et_annot$entrez <- mapIds(org.Dm.eg.db,
                           keytype="FLYBASE",
                           multiVals="first")
 
-logCPM <- cpm(y, prior.count=2, log=TRUE)
+logCPM <- cpm(y, prior.count=2, log=TRUE, normalized.lib.sizes=TRUE)
 rownames(logCPM) <- y$genes$Symbol
 colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
 o <- order(et$table$PValue)
@@ -60,9 +62,9 @@ heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="none",
           expression, p < 0.05")
 dev.off()
 
-let <- c("Actin ")
+let <- c("NADH")
 logCPM <- NULL
-logCPM <- cpm(y, prior.count=2, log=TRUE)
+logCPM <- cpm(y, prior.count=2, log=TRUE, normalized.lib.sizes=TRUE)
 nColCount <- ncol(logCPM)
 logCPM <- as.data.frame(logCPM)
 logCPM$Name <- mapIds(org.Dm.eg.db, 
@@ -105,4 +107,28 @@ plotMD(tr, values=c(1,-1), col=c("red","blue"),
        legend="topright")
 dev.off()
 
-  
+
+### High Expressed Genes
+row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature")
+cpm <-cpm(y)
+cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ]
+cpm <- as.data.frame(cpm(y))
+cpm$rowsum <- rowSums(cpm)
+topcpm <- cpm[order(cpm$rowsum, decreasing = TRUE),]
+topcpm <- topcpm[complete.cases(topcpm), ]
+topcpm <- topcpm[1:100,]
+topcpm$rowsum <- NULL
+topcpm <- as.data.frame(topcpm)
+topcpm$Symbol <- mapIds(org.Dm.eg.db, 
+                      keys=row.names(topcpm), 
+                      column="SYMBOL", 
+                      keytype="FLYBASE",
+                      multiVals="first")
+rownames(topcpm) <- make.names(topcpm$Symbol, unique=TRUE)
+topcpm$Symbol <- NULL
+topcpm <- t(scale(t(topcpm)))
+pdf(file = "Top 100 high expressed genes.pdf", width = 12, height = 17, family = "Helvetica")
+heatmap.2(topcpm, col=col.pan, Rowv=TRUE, scale="column",
+          trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
+          margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
+dev.off()
