@@ -12,11 +12,21 @@ sampleCondition <- c('control', 'control',
                      'stress', 'stress', 
                      'stress_24', 'stress_24')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
+
+
 y <- readDGE(files = sampleFiles, group = sampleCondition, labels = sampleFiles)
-y <- calcNormFactors(y)
-y$samples
+y <- calcNormFactors(y, method = "TMM", logratioTrim = TRUE)
 y <- estimateCommonDisp(y)
 y <- estimateTagwiseDisp(y)
+
+#MDS PLOT
+
+pch <- c(0,1,2,15,16,17)
+colors <- rep(c("darkgreen", "red", "blue"), 2)
+pdf(file = "PCAPlot.pdf", width = 12, height = 17, family = "Helvetica")
+plotMDS(y, col=colors[sampleTable$condition], pch = pch[sampleTable$condition])
+legend("topleft", legend=levels(sampleTable$condition), pch=pch, col=colors, ncol=2)
+dev.off()
 keep <- rowSums(cpm(y) > 1) >= 4
 y <- y[keep, , keep.lib.sizes=FALSE]
 et <- exactTest(y)
@@ -48,6 +58,7 @@ et_annot$entrez <- mapIds(org.Dm.eg.db,
                           keytype="FLYBASE",
                           multiVals="first")
 
+## TOP 100 PVALUE
 logCPM <- cpm(y, prior.count=2, log=TRUE, normalized.lib.sizes=TRUE)
 rownames(logCPM) <- y$genes$Symbol
 colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
@@ -62,16 +73,32 @@ heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="none",
           expression, p < 0.05")
 dev.off()
 
-let <- c("NADH")
+### TOP 100 LOGFC GENES 
+logCPM <- cpm(y, prior.count=2, log=TRUE)
+rownames(logCPM) <- y$genes$Symbol
+colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
+o <- order(et$table$logFC)
+logCPM <- logCPM[o[1:100],]
+logCPM <- t(scale(t(logCPM)))
+col.pan <- colorpanel(100, "blue", "white", "red")
+pdf(file = "Top 100 LogFC Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
+heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="none",
+          trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
+          margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Transcripts differential
+          expression, p < 0.05")
+dev.off()
+
+### SEARCH AND PLOT!
+let <- c("cycle")
 logCPM <- NULL
-logCPM <- cpm(y, prior.count=2, log=TRUE, normalized.lib.sizes=TRUE)
+logCPM <- cpm(y, prior.count=2, log=TRUE)
 nColCount <- ncol(logCPM)
 logCPM <- as.data.frame(logCPM)
-logCPM$Name <- mapIds(org.Dm.eg.db, 
-                          keys=row.names(logCPM), 
-                          column="GENENAME", 
-                          keytype="FLYBASE",
-                          multiVals="first")
+logCPM$Name <- mapIds(org.Mm.eg.db, 
+                      keys=row.names(logCPM), 
+                      column="GENENAME", 
+                      keytype="ENSEMBL",
+                      multiVals="first")
 
 rownames(logCPM) <- make.names(y$genes$Symbol, unique=TRUE)
 colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
@@ -79,11 +106,12 @@ colnames(logCPM)[nColCount+1] <- c("Name")
 sub <- logCPM[grepl(paste(let), logCPM$Name),]
 sub$Name <- NULL
 sub <- t(scale(t(sub)))
-pdf(file = "Interesting genes.pdf", width = 12, height = 17, family = "Helvetica")
+pdf(file = paste(let,"_query_heatmap.pdf",sep=""), width = 12, height = 17, family = "Helvetica")
 heatmap.2(sub, col=col.pan, Rowv=TRUE, scale="column",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
 dev.off()
+
 
 ### MULTIPLE BOXPLOTS OF INTERESTING GENES
 logdf <- as.data.frame(sub)
@@ -119,6 +147,7 @@ topcpm <- topcpm[complete.cases(topcpm), ]
 topcpm <- topcpm[1:100,]
 topcpm$rowsum <- NULL
 topcpm <- as.data.frame(topcpm)
+colnames(topcpm) <- paste(y$samples$group, 1:2, sep="-")
 topcpm$Symbol <- mapIds(org.Dm.eg.db, 
                       keys=row.names(topcpm), 
                       column="SYMBOL", 
@@ -130,5 +159,7 @@ topcpm <- t(scale(t(topcpm)))
 pdf(file = "Top 100 high expressed genes.pdf", width = 12, height = 17, family = "Helvetica")
 heatmap.2(topcpm, col=col.pan, Rowv=TRUE, scale="column",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-          margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
+          margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Highest expressed genes")
 dev.off()
+
+

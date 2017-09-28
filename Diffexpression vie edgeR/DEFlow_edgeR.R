@@ -19,7 +19,7 @@ high_logfc <- 1
 pval_tr <- 0.05
 
 ### Experimental design
-setwd("~/Fly memory project/K_vs_F24/")
+setwd("~/Fly memory project/experimental_multimap/K_vs_F24/")
 files <- c("fly_K1.counts", "fly_K2.counts",
            "fly_F24.counts","fly_F24_2.counts")
 
@@ -29,7 +29,7 @@ ExpTable <- cbind(files, class, label)
 
 y <- readDGE(files = files, group = class, labels = label)
 y <- DGEList(y, group=class)
-normalized_lib_sizes <- calcNormFactors(y)
+normalized_lib_sizes <- calcNormFactors(y, method = "TMM")
 log_cpm <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes)
 CountsTable <- as.data.frame(y$counts)
 raw_counts <- as.data.frame(y$counts)
@@ -101,3 +101,11 @@ write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append
 write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
 write.xlsx(CountsTable, file = "Results edgeR.xlsx", sheetName = "Counts Table, logCPM>1", append = TRUE)
 
+
+
+
+
+design <- model.matrix(~0+class)
+colnames(design) <- levels(group)
+
+fit <- glmQLFit(y, design, robust=TRUE)
