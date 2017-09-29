@@ -86,7 +86,7 @@ dev.off()
 
 
 ### SEARCH AND PLOT!
-let <- c("glutamat")
+let <- c("proteasome")
 logCPM <- NULL
 logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes)
 nColCount <- ncol(logCPM)
