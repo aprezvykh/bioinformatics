@@ -1,6 +1,9 @@
 ### Script finds top genes from two data sets, that are overexpressed, but heve minimum differential expressed
 ### avg is BaseMean/gene counts. It can be made with DESeq2 from DEFlow script in this git
-
+install.packages("compare")
+library(gtools)
+library(xlsx)
+library(compare)
 moto.avg <- 609.685
 exp.avg <- 637.596
   
@@ -38,3 +41,53 @@ return(sub_low)
 }
 
 dataset <- dfdiff(mer_exp, mer_moto) 
+
+
+kf <- read.csv("~/Fly memory project/merge/K_vs_F.csv")
+kf24 <- read.csv("~/Fly memory project/merge/K_vs_F24.csv")
+mlow <- read.xlsx("~/Fly memory project/merge/m_downreg.xlsx", sheetIndex = 1)
+mup <- read.xlsx("~/Fly memory project/merge/m_upreg.xlsx", sheetIndex = 1)
+m <- smartbind(mlow, mup)
+
+commonf24 <- intersect(kf24$X, m$Gene)
+commonf<- intersect(kf$X, m$Gene)
+dff <- data.frame()
+dff24 <- data.frame()
+for (f in commonf24){
+  u <- match(f, kf24$X)
+  newrow <-data.frame(kf24[u,])
+  dff24 <- rbind(dff24, newrow)
+  
+}
+for (f in commonf){
+  u <- match(f, kf$X)
+  newrow <-data.frame(kf[u,])
+  dff <- rbind(dff, newrow)
+  
+}
+dff <- data.frame(dff$X, dff$log2FoldChange, dff$symbol)
+dff24 <- data.frame(dff24$X, dff24$log2FoldChange, dff24$symbol)
+
+mdff24 <- data.frame()
+mdff <- data.frame()
+for (f in commonf24){
+  u <- match(f, m$Gene)
+  newrow <-data.frame(m[u,])
+  mdff24 <- rbind(mdff24, newrow)
+  
+}
+for (f in commonf){
+  u <- match(f, m$Gene)
+  newrow <-data.frame(m[u,])
+  mdff <- rbind(mdff, newrow)
+  
+}
+
+
+mdff <- data.frame(mdff$Gene, mdff$Fold.Difference, mdff$Name)
+mdff24 <- data.frame(mdff24$Gene, mdff24$Fold.Difference, mdff24$Name)
+
+write.xlsx(dff, file = "dff.xlsx", sheetName = "dff", append = TRUE)
+write.xlsx(dff24, file = "dff24.xlsx", sheetName = "dff", append = TRUE)
+write.xlsx(mdff, file = "mdff.xlsx", sheetName = "dff", append = TRUE)
+write.xlsx(mdff24, file = "mdff24.xlsx", sheetName = "dff", append = TRUE)

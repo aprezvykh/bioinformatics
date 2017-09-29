@@ -3,6 +3,7 @@ library(edgeR)
 library(org.Dm.eg.db)
 library(gplots)
 library(plyr)
+library(ggplot2)
 ### Statistical analysis
 directory <- '~/Fly memory project/experimental_multimap/all//'
 setwd(directory)
@@ -15,6 +16,8 @@ sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=
 
 
 y <- readDGE(files = sampleFiles, group = sampleCondition, labels = sampleFiles)
+readqual <- as.data.frame(tail(y$counts, 3))
+
 y <- calcNormFactors(y, method = "TMM", logratioTrim = TRUE)
 y <- estimateCommonDisp(y)
 y <- estimateTagwiseDisp(y)
@@ -58,6 +61,7 @@ et_annot$entrez <- mapIds(org.Dm.eg.db,
                           keytype="FLYBASE",
                           multiVals="first")
 
+
 ## TOP 100 PVALUE
 logCPM <- cpm(y, prior.count=2, log=TRUE, normalized.lib.sizes=TRUE)
 rownames(logCPM) <- y$genes$Symbol
@@ -66,7 +70,7 @@ o <- order(et$table$PValue)
 logCPM <- logCPM[o[1:100],]
 logCPM <- t(scale(t(logCPM)))
 col.pan <- colorpanel(100, "blue", "white", "red")
-pdf(file = "Top 100 Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
+pdf(file = "Top 100 Pvalue Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
 heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Transcripts differential
@@ -89,21 +93,21 @@ heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="none",
 dev.off()
 
 ### SEARCH AND PLOT!
-let <- c("cycle")
+let <- c("fruitless")
 logCPM <- NULL
 logCPM <- cpm(y, prior.count=2, log=TRUE)
 nColCount <- ncol(logCPM)
 logCPM <- as.data.frame(logCPM)
-logCPM$Name <- mapIds(org.Mm.eg.db, 
+logCPM$Name <- mapIds(org.Dm.eg.db, 
                       keys=row.names(logCPM), 
                       column="GENENAME", 
-                      keytype="ENSEMBL",
+                      keytype="FLYBASE",
                       multiVals="first")
 
 rownames(logCPM) <- make.names(y$genes$Symbol, unique=TRUE)
 colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
 colnames(logCPM)[nColCount+1] <- c("Name")
-sub <- logCPM[grepl(paste(let), logCPM$Name),]
+sub <- logCPM[grepl(paste(let), logCPM$Name, ignore.case = TRUE),]
 sub$Name <- NULL
 sub <- t(scale(t(sub)))
 pdf(file = paste(let,"_query_heatmap.pdf",sep=""), width = 12, height = 17, family = "Helvetica")

@@ -105,10 +105,10 @@ hm_genes_count <- 100
 cpm_cutoff <- 1
 
 ### Statistical analysis
-directory <- '~/Fly memory project/experimental_multimap/N_vs_F//'
+directory <- '~/Fly memory project/experimental_multimap/K_vs_F24/'
 setwd(directory)
 sampleFiles <- grep('fly',list.files(directory),value=TRUE)
-sampleCondition <- c('cross', 'cross', 'stress', 'stress')
+sampleCondition <- c('control', 'control', 'stress_24', 'stress_24')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
@@ -152,6 +152,7 @@ resadj$name =   mapIds(org.Dm.eg.db,
                        keytype="FLYBASE",
                        multiVals="first")
 
+write.csv(resadj, file = "K_vs_F24.csv")
 
 ### BaseMean Filtering
 
@@ -304,8 +305,12 @@ raw_counts <- as.data.frame(y$counts)
 y <- calcNormFactors(y, method = "TMM")
 y <- estimateCommonDisp(y)
 y <- estimateTagwiseDisp(y)
+
 et <- exactTest(y)
-top <- as.data.frame(topTags(et))
+go <- goana(qlfTest, specifes="Hs");
+
+go <- goana(et$table, specifes="Dm")
+
 et_annot <- as.data.frame(et$table)
 et_annot_non_filtered <- as.data.frame(et$table)
 
@@ -333,8 +338,6 @@ et_annot$entrez <- mapIds(org.Dm.eg.db,
                           multiVals="first")
 
 
-
-et_annot$logFC <- et_annot$logFC*(-1)
 ### ANNOTATE COUNTS
 CountsTable$symbol <- mapIds(org.Dm.eg.db, 
                              keys=row.names(CountsTable), 
