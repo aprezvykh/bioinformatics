@@ -16,6 +16,7 @@ sampleCondition <- c('control_early', 'control_early', 'control_early', 'control
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 y <- readDGE(files = sampleFiles, group = sampleCondition, labels = sampleFiles)
 readqual <- as.data.frame(tail(y$counts, 3))
+
 y <- calcNormFactors(y, method = "TMM")
 y <- estimateCommonDisp(y)
 y <- estimateTagwiseDisp(y)

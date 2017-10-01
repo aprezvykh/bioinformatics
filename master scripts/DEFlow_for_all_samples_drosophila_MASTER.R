@@ -13,11 +13,12 @@ sampleCondition <- c('control', 'control',
                      'stress', 'stress', 
                      'stress_24', 'stress_24')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
-
-
 y <- readDGE(files = sampleFiles, group = sampleCondition, labels = sampleFiles)
 readqual <- as.data.frame(tail(y$counts, 3))
 
+pdf(file = "Alignment Quality.pdf", width = 12, height = 17, family = "Helvetica")
+boxplot(readqual)
+dev.off()
 y <- calcNormFactors(y, method = "TMM", logratioTrim = TRUE)
 y <- estimateCommonDisp(y)
 y <- estimateTagwiseDisp(y)
