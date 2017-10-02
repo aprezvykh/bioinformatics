@@ -4,6 +4,7 @@ library(DESeq2)
 library(org.Mm.eg.db)
 library(gplots)
 library(plyr)
+library(dplyr)
 library(pheatmap)
 ### Statistical analysis
 directory <- '~/counts_ens/'
@@ -16,14 +17,14 @@ sampleCondition <- c('control_early', 'control_early', 'control_early', 'control
                      'tg_late', 'tg_late', 'tg_late', 'tg_late', 'tg_late')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 y <- readDGE(files = sampleFiles, group = sampleCondition, labels = sampleFiles)
-
+cpm <- cpm(y)
 readqual <- as.data.frame(tail(y$counts, 3))
 
 y <- calcNormFactors(y, method = "TMM")
 y <- estimateCommonDisp(y)
 y <- estimateTagwiseDisp(y)
 
-### MDS PLOT
+  ### MDS PLOT
 
 pch <- c(0,1,2,15,16,17)
 colors <- rep(c("darkgreen", "red", "blue"), 2)
@@ -87,7 +88,7 @@ dev.off()
 
 
 ### SEARCH AND PLOT!
-let <- c("proteasome")
+let <- c("insulin-like growth factor")
 logCPM <- NULL
 logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes)
 nColCount <- ncol(logCPM)
@@ -154,21 +155,60 @@ for (f in 1:ncol(y)){
   abline(h=0, col="red", lty=2, lwd=2)
   dev.off()
 }
-
 pdf(file = "MDplot_common.pdf", width = 12, height = 17, family = "Helvetica")
 plotMD(tr, values=c(1,-1), col=c("red","blue"),
        legend="topright")
 dev.off()
-
 logdf <- as.data.frame(logCPM)
 for (i in seq(1:nrow(logdf))){
   png(file = paste(rownames(logdf[i,]), "_CPM.png", sep=""))
   boxplot.default(logdf[i,],outline = TRUE,  main = paste(rownames(logdf[i,])))
-  dev.off()
-  
+  dev.off()}
+
 ### GO PLOT
 row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature")
 cpm <- cpm(y)
 cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ]
 cpm <- as.data.frame(cpm(y))
+
+cpm$ntg1 <- (cpm$mouse_ntg_1_176.counts + 
+              cpm$mouse_ntg_1_177.counts + 
+                cpm$mouse_ntg_1_178.counts +
+                  cpm$mouse_ntg_1_213.counts + 
+                    cpm$mouse_ntg_1_225.counts)/5
+
+cpm$ntg3 <- (cpm$mouse_ntg_3_222.counts +
+              cpm$mouse_ntg_3_223.counts +
+               cpm$mouse_ntg_3_224.counts +
+                cpm$mouse_ntg_3_230.counts +
+                  cpm$mouse_ntg_3_245.counts)/5
+
+cpm$tg1 <- (cpm$mouse_tg_1_182.counts +
+              cpm$mouse_tg_1_183.counts +
+                cpm$mouse_tg_1_184.counts +
+                  cpm$mouse_tg_1_185.counts +
+                    cpm$mouse_tg_1_212.counts)/5
+cpm$tg2 <- (cpm$mouse_tg_2_204.counts +
+              cpm$mouse_tg_2_205.counts +
+                cpm$mouse_tg_2_226.counts +
+                  cpm$mouse_tg_2_227.counts)/4
+cpm$tg3 <- (cpm$mouse_tg_3_171.counts +
+              cpm$mouse_tg_3_172.counts +
+                cpm$mouse_tg_3_173.counts +
+                  cpm$mouse_tg_3_174.counts +
+                    cpm$mouse_tg_3_175.counts)/5
+
+avgcpm <- data.frame(cpm$ntg1, cpm$ntg3, cpm$tg1, cpm$tg2, cpm$tg3)
+trends <- data.frame()
+for (n in seq(1:nrow(avgcpm))){
+ row <- avgcpm[n,]
+if (row[,5] > row[,4] & row[,4] > row[,3] & row[,1] >= row[,2]) { 
+  trends <- rbind(trends, row)
+} else {
+  print("Trend not exists!")
+}
+}
+
+
+
 
