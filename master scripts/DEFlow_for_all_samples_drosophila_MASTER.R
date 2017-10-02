@@ -168,3 +168,7 @@ heatmap.2(topcpm, col=col.pan, Rowv=TRUE, scale="column",
 dev.off()
 
 
+row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature")
+cpm <-cpm(y)
+cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ]
+cpm <- as.data.frame(cpm(y))

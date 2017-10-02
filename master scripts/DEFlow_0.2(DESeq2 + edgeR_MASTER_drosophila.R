@@ -173,73 +173,6 @@ write.xlsx(dfx, file = "Results diffexpression.xlsx", sheetName = "genes with Bm
 resOrderedBM <- dfx
 
 
-### FISHER TEST GO
-#resadj <- as.data.frame(resadj)
-#resadj <- resadj[complete.cases(resadj), ]
-#resadj_high <- as.data.frame(subset(resadj, log2FoldChange > logfcup_cutoff))
-#resadj_low <- as.data.frame(subset(resadj, log2FoldChange < logfcdown_cutoff))
-
-GOFisherBP <- function(df, nodes, nrows, p){
-all_genes <- c(df$log2FoldChange)
-names(all_genes) <- rownames(df)
-go_data <- new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = function(p) p < 
-                 p, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", 
-               ID = "ENSEMBL", nodeSize = nodes)
-go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
-go_table <- GenTable(go_data, weightFisher = go_test,
-                     orderBy = "weightFisher", ranksOf = "weightFisher",
-                     topNodes = nrows)
-return(go_table)
-}
-GOFisherMF <- function(df, nodes, nrows, p){
-  all_genes <- c(df$log2FoldChange)
-  names(all_genes) <- rownames(df)
-  go_data <- new("topGOdata", ontology = "MF", allGenes = all_genes, geneSel = function(p) p < 
-                   p, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", 
-                 ID = "ENSEMBL", nodeSize = nodes)
-  go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
-  go_table <- GenTable(go_data, weightFisher = go_test,
-                       orderBy = "weightFisher", ranksOf = "weightFisher",
-                       topNodes = nrows)
-  return(go_table)
-}
-GOFisherCC <- function(df, nodes, nrows, p){
-  all_genes <- c(df$log2FoldChange)
-  names(all_genes) <- rownames(df)
-  go_data <- new("topGOdata", ontology = "CC", allGenes = all_genes, geneSel = function(p) p < 
-                   p, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", 
-                 ID = "ENSEMBL", nodeSize = nodes)
-  go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
-  go_table <- GenTable(go_data, weightFisher = go_test,
-                       orderBy = "weightFisher", ranksOf = "weightFisher",
-                       topNodes = nrows)
-  return(go_table)
-}
-
-
-
-#gobp_h <- GOFisherBP(resadj_high, 5, 100, 0.3)
-#gomf_h <- GOFisherMF(resadj_high, 5, 100, 0.3)
-#gocc_h <- GOFisherCC(resadj_high, 5, 100, 0.3)
-
-#gobp_l <- GOFisherBP(resadj_low, 5, 100, 0.3)
-#gomf_l <- GOFisherMF(resadj_low, 5, 100, 0.3)
-#gocc_l <- GOFisherCC(resadj_low, 5, 100, 0.3)
-
-
-#write.xlsx(gobp_h, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 100", append = TRUE)
-#write.xlsx(gomf_h, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 100", append = TRUE)
-#write.xlsx(gocc_h, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 100", append = TRUE)
-
-#write.xlsx(gobp_l, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 100", append = TRUE)
-#write.xlsx(gobp_l, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 100", append = TRUE)
-#write.xlsx(gobp_l, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 100", append = TRUE)
-
-#gobp <- GOFisherBP(res, 100, 100, 0.05)
-#gomf <- GOFisherMF(res, 100, 100, 0.05)
-#gocc <- GOFisherCC(res, 100, 100, 0.05)
-
-
 ## TRANSFORM ###
 rld<- rlogTransformation(dds, blind=TRUE)
 pdf(file = "pcaplot.pdf", width = 12, height = 17, family = "Helvetica")
@@ -271,8 +204,6 @@ par(mar=c(1,1,1,1))
 pheatmap(mat)
 
 dev.off()
-
-
 
 ### Volcano Plot
 resadj$threshold = as.factor(abs(resadj$log2FoldChange) > 2 & resadj$padj < 0.05/allgenes)
@@ -310,6 +241,23 @@ for (i in gene_list){
 dev.off()
 
 ### EDGER PART!
+
+pval_cutoff <- 0.05
+base_mean_cutoff <- 20
+logfcup_cutoff <- 0.3
+logfcdown_cutoff <- -0.3
+gs_size <- 15
+base_mean_cutoff_value <- 5
+hm_genes_count <- 100
+cpm_cutoff <- 1
+
+### Statistical analysis
+directory <- '~/Fly memory project/experimental_multimap/K_vs_F24/'
+setwd(directory)
+sampleFiles <- grep('fly',list.files(directory),value=TRUE)
+sampleCondition <- c('control', 'control', 'stress_24', 'stress_24')
+sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
+
 setwd(directory)
 y <- readDGE(files = sampleFiles, group = sampleCondition, labels = sampleFiles)
 y <- DGEList(y, group=class)
@@ -375,6 +323,119 @@ if(dfc$meancase > dfc$meancontrol){
   et_annot$logFC <- et_annot$logFC*(-1)
 }
 
+### GO ### 
+et_annot <- et_annot[complete.cases(et_annot), ]
+et_annot <- as.data.frame(subset(et_annot, PValue < 0.05))
+et_annot <- as.data.frame(subset(et_annot, logFC > logfcup_cutoff | logFC < logfcdown_cutoff))
+et_annot_high <- as.data.frame(subset(et_annot, logFC > 0))
+et_annot_low <- as.data.frame(subset(et_annot, logFC < 0))
+
+GOFisherBP <- function(df, nodes, nrows, p){
+  all_genes <- c(df$logFC)
+  names(all_genes) <- rownames(df)
+  go_data <- new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = function(s) s < 
+                   p, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", 
+                 ID = "ENSEMBL", nodeSize = nodes)
+  go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
+  go_table <- GenTable(go_data, weightFisher = go_test,
+                       orderBy = "weightFisher", ranksOf = "weightFisher",
+                       topNodes = nrows)
+  return(go_table)
+}
+GOFisherMF <- function(df, nodes, nrows, p){
+  all_genes <- c(df$logFC)
+  names(all_genes) <- rownames(df)
+  go_data <- new("topGOdata", ontology = "MF", allGenes = all_genes, geneSel = function(s) s < 
+                   p, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", 
+                 ID = "ENSEMBL", nodeSize = nodes)
+  go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
+  go_table <- GenTable(go_data, weightFisher = go_test,
+                       orderBy = "weightFisher", ranksOf = "weightFisher",
+                       topNodes = nrows)
+  return(go_table)
+}
+GOFisherCC <- function(df, nodes, nrows, p){
+  all_genes <- c(df$logFC)
+  names(all_genes) <- rownames(df)
+  go_data <- new("topGOdata", ontology = "CC", allGenes = all_genes, geneSel = function(s) s < 
+                   p, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", 
+                 ID = "ENSEMBL", nodeSize = nodes)
+  go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
+  go_table <- GenTable(go_data, weightFisher = go_test,
+                       orderBy = "weightFisher", ranksOf = "weightFisher",
+                       topNodes = nrows)
+  return(go_table)
+}
+
+gobp_h_50 <- GOFisherBP(et_annot_high, 5, 50, 0.05)
+gomf_h_50 <- GOFisherMF(et_annot_high, 5, 50, 0.05)
+gocc_h_50 <- GOFisherCC(et_annot_high, 5, 50, 0.05)
+
+gobp_l_50 <- GOFisherBP(et_annot_low, 5, 50, 0.05)
+gomf_l_50 <- GOFisherMF(et_annot_low, 5, 50, 0.05)
+gocc_l_50 <- GOFisherCC(et_annot_low, 5, 50, 0.05)
+
+gobp_h_100 <- GOFisherBP(et_annot_high, 5, 100, 0.05)
+gomf_h_100 <- GOFisherMF(et_annot_high, 5, 100, 0.05)
+gocc_h_100 <- GOFisherCC(et_annot_high, 5, 100, 0.05)
+
+gobp_l_100 <- GOFisherBP(et_annot_low, 5, 100, 0.05)
+gomf_l_100 <- GOFisherMF(et_annot_low, 5, 100, 0.05)
+gocc_l_100 <- GOFisherCC(et_annot_low, 5, 100, 0.05)
+
+gobp_h_1000 <- GOFisherBP(et_annot_high, 5, 1000, 0.05)
+gomf_h_1000 <- GOFisherMF(et_annot_high, 5, 1000, 0.05)
+gocc_h_1000 <- GOFisherCC(et_annot_high, 5, 1000, 0.05)
+
+gobp_l_1000 <- GOFisherBP(et_annot_low, 5, 1000, 0.05)
+gomf_l_1000 <- GOFisherMF(et_annot_low, 5, 1000, 0.05)
+gocc_l_1000 <- GOFisherCC(et_annot_low, 5, 1000, 0.05)
+
+
+write.xlsx(gobp_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 50", append = TRUE)
+write.xlsx(gomf_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 50", append = TRUE)
+write.xlsx(gocc_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 50", append = TRUE)
+write.xlsx(gobp_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 100", append = TRUE)
+write.xlsx(gomf_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 100", append = TRUE)
+write.xlsx(gocc_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 100", append = TRUE)
+write.xlsx(gobp_h_1000, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 1000", append = TRUE)
+write.xlsx(gomf_h_1000, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 1000", append = TRUE)
+write.xlsx(gocc_h_1000, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 1000", append = TRUE)
+
+write.xlsx(gobp_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 50", append = TRUE)
+write.xlsx(gomf_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 50", append = TRUE)
+write.xlsx(gocc_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 50", append = TRUE)
+write.xlsx(gobp_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 100", append = TRUE)
+write.xlsx(gomf_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 100", append = TRUE)
+write.xlsx(gocc_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 100", append = TRUE)
+write.xlsx(gobp_l_1000, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 1000", append = TRUE)
+write.xlsx(gomf_l_1000, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 1000", append = TRUE)
+write.xlsx(gocc_l_1000, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 1000", append = TRUE)
+
+
+### KEGG
+require(clusterProfiler)
+require(reactome.db)
+dfa <- as.character(et_annot$entrez)
+foldchanges <- et_annot$logFC
+x <- enrichPathway(gene=dfa, organism = "fly", minGSSize=5, readable = TRUE )
+head(as.data.frame(x))
+dev.off()
+
+par(mar=c(1,1,1,1))
+pdf(file = "barplot.pdf", width = 12, height = 17, family = "Helvetica")
+barplot(x, showCategory=30,  font.size = 9)
+dev.off()
+
+pdf(file = "enrichmap.pdf", width = 12, height = 17, family = "Helvetica")
+enrichMap(x, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7, n = 20, font.size = 20)
+dev.off()
+
+pdf(file = "cnetplot.pdf", width = 12, height = 17, family = "Helvetica")
+cnetplot(x, foldChange = foldchanges, categorySize="pvalue", showCategory = 10)
+dev.off()
+
+
 ### Simple summary
 all <- nrow(et_annot_non_filtered)
 allpadj <- sum(et_annot$PValue < pval_cutoff, na.rm=TRUE)
@@ -424,41 +485,7 @@ write.xlsx(CountsTable, file = "Results edgeR.xlsx", sheetName = "Counts Table, 
 
 
 
-et_annot_high <- as.data.frame(subset(et_annot, logFC > 0))
-et_annot_low <- as.data.frame(subset(et_annot, logFC < 0))
 
 
-all_genes <- c(et_annot_low$logFC)
-names(all_genes) <- rownames(et_annot_low)
-go_data <- new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = function(p) p < 
-                 0.01, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", 
-               ID = "ENSEMBL", nodeSize = 10)
-go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
-go_table <- GenTable(go_data, weightFisher = go_test,
-                     orderBy = "weightFisher", ranksOf = "weightFisher",
-                     topNodes = 50)
-write.xlsx(go_table, file = "GO_downreg.xlsx", sheetName = "BP, top 50", append = TRUE)
-
-all_genes <- c(et_annot_low$logFC)
-names(all_genes) <- rownames(et_annot_low)
-go_data <- new("topGOdata", ontology = "MF", allGenes = all_genes, geneSel = function(p) p < 
-                 0.01, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", 
-               ID = "ENSEMBL", nodeSize = 10)
-go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
-go_table <- GenTable(go_data, weightFisher = go_test,
-                     orderBy = "weightFisher", ranksOf = "weightFisher",
-                     topNodes = 50)
-write.xlsx(go_table, file = "GO_downreg.xlsx", sheetName = "MF, top 50", append = TRUE)
-
-all_genes <- c(et_annot_low$logFC)
-names(all_genes) <- rownames(et_annot_low)
-go_data <- new("topGOdata", ontology = "CC", allGenes = all_genes, geneSel = function(p) p < 
-                 0.01, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", 
-               ID = "ENSEMBL", nodeSize = 10)
-go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
-go_table <- GenTable(go_data, weightFisher = go_test,
-                     orderBy = "weightFisher", ranksOf = "weightFisher",
-                     topNodes = 50)
-write.xlsx(go_table, file = "GO_downreg.xlsx", sheetName = "CC, top 50", append = TRUE)
 
 

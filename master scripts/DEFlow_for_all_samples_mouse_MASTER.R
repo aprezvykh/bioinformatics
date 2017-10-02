@@ -4,6 +4,7 @@ library(DESeq2)
 library(org.Mm.eg.db)
 library(gplots)
 library(plyr)
+library(pheatmap)
 ### Statistical analysis
 directory <- '~/counts_ens/'
 setwd(directory)
@@ -15,6 +16,7 @@ sampleCondition <- c('control_early', 'control_early', 'control_early', 'control
                      'tg_late', 'tg_late', 'tg_late', 'tg_late', 'tg_late')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 y <- readDGE(files = sampleFiles, group = sampleCondition, labels = sampleFiles)
+
 readqual <- as.data.frame(tail(y$counts, 3))
 
 y <- calcNormFactors(y, method = "TMM")
@@ -60,14 +62,13 @@ logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes)
 rownames(logCPM) <- y$genes$Symbol
 colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
 o <- order(et$table$PValue)
-logCPM <- logCPM[o[1:100],]
+logCPM <- logCPM[o[1:200],]
 logCPM <- t(scale(t(logCPM)))
 col.pan <- colorpanel(100, "blue", "white", "red")
 pdf(file = "Top 100 Pvalue Heatmap_2.pdf", width = 12, height = 17, family = "Helvetica")
 heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-          margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Transcripts differential
-          expression, p < 0.05")
+          margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top FDR genes, p < 0.05")
 dev.off()
 
 # TOP 100 LOGFC GENES
@@ -81,8 +82,7 @@ col.pan <- colorpanel(100, "blue", "white", "red")
 pdf(file = "Top 100 logFC Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
 heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-          margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Transcripts differential
-          expression, p < 0.05")
+          margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top Log2FoldChange genes, p < 0.05")
 dev.off()
 
 
@@ -165,5 +165,10 @@ for (i in seq(1:nrow(logdf))){
   png(file = paste(rownames(logdf[i,]), "_CPM.png", sep=""))
   boxplot.default(logdf[i,],outline = TRUE,  main = paste(rownames(logdf[i,])))
   dev.off()
-
   
+### GO PLOT
+row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature")
+cpm <- cpm(y)
+cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ]
+cpm <- as.data.frame(cpm(y))
+
