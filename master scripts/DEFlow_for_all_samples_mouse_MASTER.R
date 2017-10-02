@@ -199,6 +199,7 @@ cpm$tg3 <- (cpm$mouse_tg_3_171.counts +
                     cpm$mouse_tg_3_175.counts)/5
 
 avgcpm <- data.frame(cpm$ntg1, cpm$ntg3, cpm$tg1, cpm$tg2, cpm$tg3)
+rownames(avgcpm) <- rownames(cpm)
 trends <- data.frame()
 for (n in seq(1:nrow(avgcpm))){
  row <- avgcpm[n,]
@@ -208,7 +209,6 @@ if (row[,5] > row[,4] & row[,4] > row[,3] & row[,1] >= row[,2]) {
   print("Trend not exists!")
 }
 }
-
 
 
 
