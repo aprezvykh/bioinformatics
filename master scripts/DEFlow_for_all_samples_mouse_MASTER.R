@@ -1,3 +1,4 @@
+install.packages("matlib")
 library(heatmap.2)
 library(edgeR)
 library(DESeq2)
@@ -6,6 +7,7 @@ library(gplots)
 library(plyr)
 library(dplyr)
 library(pheatmap)
+library(matlib)
 ### Statistical analysis
 directory <- '~/counts_ens/'
 setwd(directory)
@@ -102,6 +104,7 @@ logCPM$Name <- mapIds(org.Mm.eg.db,
 rownames(logCPM) <- make.names(y$genes$Symbol, unique=TRUE)
 colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
 colnames(logCPM)[nColCount+1] <- c("Name")
+
 sub <- logCPM[grepl(paste(let), logCPM$Name),]
 sub$Name <- NULL
 sub <- t(scale(t(sub)))
@@ -198,8 +201,10 @@ cpm$tg3 <- (cpm$mouse_tg_3_171.counts +
                   cpm$mouse_tg_3_174.counts +
                     cpm$mouse_tg_3_175.counts)/5
 
+### TRENDS FOR INCREASING
 avgcpm <- data.frame(cpm$ntg1, cpm$ntg3, cpm$tg1, cpm$tg2, cpm$tg3)
 rownames(avgcpm) <- rownames(cpm)
+
 trends <- data.frame()
 for (n in seq(1:nrow(avgcpm))){
  row <- avgcpm[n,]
@@ -210,5 +215,36 @@ if (row[,5] > row[,4] & row[,4] > row[,3] & row[,1] >= row[,2]) {
 }
 }
 
+coords <- data.frame(trends$cpm.tg1, trends$cpm.tg2, trends$cpm.tg3)
+rownames(coords) <- rownames(trends)
+regress <- data.frame()
+for (f in seq(1:nrow(coords))){
+x <- as.data.frame(coords[f,])
+v1 <- c(1, 2)
+v2 <- c(x$trends.cpm.tg1, x$trends.cpm.tg2)
+v3 <- c(2, 3)
+v4 <- c(x$trends.cpm.tg2, x$trends.cpm.tg3)
+fit1 <- lm(v1~v2)
+co1 <- as.data.frame(coef(fit1))
+co1 <- co1[2,]
+fit2 <- lm(v3~v4)
+co2 <- as.data.frame(coef(fit2))
+co2 <- co2[2,]
+coff <- data.frame(co1, co2)
+rownames(coff) <- rownames(x)
+regress <- rbind(coff, regress)
+}
+
+up_reg <- 1.5
+down_reg <- 0.5
+subset1 <- as.data.frame(subset(regress, co1 > down_reg))
+subset2 <- as.data.frame(subset(subset1, co1 < up_reg))
+subset3 <- as.data.frame(subset(subset2, co2 > down_reg))
+subset4 <- as.data.frame(subset(subset3, co2 < up_reg))
+subset_incr <- as.data.frame(subset4)
+
+logCPM <- cpm(y)
+logCPM <- as.data.frame(logCPM)
+trgenes <- logCPM[rownames(subset),]
 
 
