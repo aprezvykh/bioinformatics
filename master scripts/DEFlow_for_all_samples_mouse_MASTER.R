@@ -1,4 +1,3 @@
-install.packages("matlib")
 library(heatmap.2)
 library(edgeR)
 library(DESeq2)
@@ -9,24 +8,26 @@ library(dplyr)
 library(pheatmap)
 library(matlib)
 ### Statistical analysis
-directory <- '~/counts_ens/'
+directory <- '~/motoneurons compare/Motoneurons/'
 setwd(directory)
-sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
-sampleCondition <- c('control_early', 'control_early', 'control_early', 'control_early', 'control_early', 
-                     'control_late', 'control_late', 'control_late', 'control_late', 'control_late', 
-                     'tg_early', 'tg_early', 'tg_early', 'tg_early', 'tg_early', 
-                     'tg_mid', 'tg_mid', 'tg_mid', 'tg_mid', 
-                     'tg_late', 'tg_late', 'tg_late', 'tg_late', 'tg_late')
+sampleFiles <- grep('moto',list.files(directory),value=TRUE)
+# sampleCondition <- c('control_early', 'control_early', 'control_early', 'control_early', 'control_early', 
+#                     'control_late', 'control_late', 'control_late', 'control_late', 'control_late', 
+#                    'tg_early', 'tg_early', 'tg_early', 'tg_early', 'tg_early', 
+#                     'tg_mid', 'tg_mid', 'tg_mid', 'tg_mid', 
+#                     'tg_late', 'tg_late', 'tg_late', 'tg_late', 'tg_late')
+sampleCondition <- c('moto', 'moto')
+
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 y <- readDGE(files = sampleFiles, group = sampleCondition, labels = sampleFiles)
 cpm <- cpm(y)
 readqual <- as.data.frame(tail(y$counts, 3))
-
 y <- calcNormFactors(y, method = "TMM")
 y <- estimateCommonDisp(y)
 y <- estimateTagwiseDisp(y)
-
-  ### MDS PLOT
+cpm <- cpm(y)
+write.csv(cpm, file = "exp_moto.csv")
+### MDS PLOT
 
 pch <- c(0,1,2,15,16,17)
 colors <- rep(c("darkgreen", "red", "blue"), 2)
