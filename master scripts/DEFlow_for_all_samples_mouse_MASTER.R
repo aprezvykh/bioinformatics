@@ -8,20 +8,23 @@ library(dplyr)
 library(pheatmap)
 library(matlib)
 ### Statistical analysis
-directory <- '~/motoneurons compare/Motoneurons/'
+directory <- '~/ALS Mice/experimental/'
 setwd(directory)
-sampleFiles <- grep('moto',list.files(directory),value=TRUE)
-# sampleCondition <- c('control_early', 'control_early', 'control_early', 'control_early', 'control_early', 
-#                     'control_late', 'control_late', 'control_late', 'control_late', 'control_late', 
-#                    'tg_early', 'tg_early', 'tg_early', 'tg_early', 'tg_early', 
-#                     'tg_mid', 'tg_mid', 'tg_mid', 'tg_mid', 
-#                     'tg_late', 'tg_late', 'tg_late', 'tg_late', 'tg_late')
-sampleCondition <- c('moto', 'moto')
+sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
+sampleCondition <- c('control_early', 'control_early', 'control_early', 'control_early', 'control_early', 
+                     'control_late', 'control_late', 'control_late', 'control_late', 'control_late', 
+                    'tg_early', 'tg_early', 'tg_early', 'tg_early', 'tg_early', 
+                     'tg_mid', 'tg_mid', 'tg_mid', 'tg_mid', 
+                     'tg_late', 'tg_late', 'tg_late', 'tg_late', 'tg_late')
+
 
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 y <- readDGE(files = sampleFiles, group = sampleCondition, labels = sampleFiles)
 cpm <- cpm(y)
-readqual <- as.data.frame(tail(y$counts, 3))
+readqual <- as.data.frame(tail(y$counts, 5))
+
+
+
 y <- calcNormFactors(y, method = "TMM")
 y <- estimateCommonDisp(y)
 y <- estimateTagwiseDisp(y)
@@ -169,4 +172,35 @@ for (i in seq(1:nrow(logdf))){
   boxplot.default(logdf[i,],outline = TRUE,  main = paste(rownames(logdf[i,])))
   dev.off()}
 
-### GO PLOT
+### DISEASE
+als <- read.xlsx('~/ALS-associated genes.xlsx', sheetIndex = 1, header = FALSE)
+als <- as.data.frame(als$X1)
+names(als) <- c("gene")
+
+logCPM <- NULL
+logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes)
+nColCount <- ncol(logCPM)
+logCPM <- as.data.frame(logCPM)
+logCPM$Name <- mapIds(org.Mm.eg.db, 
+                      keys=row.names(logCPM), 
+                      column="GENENAME", 
+                      keytype="ENSEMBL",
+                      multiVals="first")
+
+rownames(logCPM) <- make.names(y$genes$Symbol, unique=TRUE)
+colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
+colnames(logCPM)[nColCount+1] <- c("Name")
+
+disset <- data.frame()
+for (f in als$gene){
+sub <- logCPM[grepl(paste(f), rownames(logCPM), ignore.case = TRUE, fixed = FALSE),]
+disset <- rbind(sub, disset)
+}
+disset$Name <- NULL
+disset[,25] <- NULL
+disset <- t(scale(t(disset)))
+pdf(file = "ALS_heatmap.pdf", width = 12, height = 17, family = "Helvetica")
+heatmap.2(disset, col=col.pan, Rowv=TRUE, scale="column",
+          trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
+          margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
+dev.off()
