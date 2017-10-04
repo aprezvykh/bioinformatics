@@ -1,14 +1,31 @@
-library(heatmap.2)
+source("https://bioconductor.org/biocLite.R")
+biocLite("edgeR")
+install.packages("Rcpp")
+library(AnnotationDbi)
+library(Rcpp)
+library(gplots)
 library(edgeR)
-library(DESeq2)
 library(org.Mm.eg.db)
 library(gplots)
 library(plyr)
 library(dplyr)
 library(pheatmap)
-library(matlib)
+library(xlsx)
+library(gage)
+library(gageData)
+library(topGO)
+library(ggplot2)
+### PASTE 1 IF YOU WANT TO ANALYZE ALL SAMPLES. PASTE 0 IF YOU WANT TO
+analyze_all_samples <- FALSE
+pvalue_cutoff <- 0.05
+logfchigh_cutoff <- 0.5
+logfclow_cutoff <- -0.5
+cpm_cutoff <- 0.5
+gr_control <- c("tg_mid")
+gr_case <- c("tg_late")
+
 ### Statistical analysis
-directory <- '~/ALS Mice/experimental/'
+directory <- '~/ALS Mice//'
 setwd(directory)
 sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
 sampleCondition <- c('control_early', 'control_early', 'control_early', 'control_early', 'control_early', 
@@ -17,59 +34,275 @@ sampleCondition <- c('control_early', 'control_early', 'control_early', 'control
                      'tg_mid', 'tg_mid', 'tg_mid', 'tg_mid', 
                      'tg_late', 'tg_late', 'tg_late', 'tg_late', 'tg_late')
 
+sampleTable <- data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 
-sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
-y <- readDGE(files = sampleFiles, group = sampleCondition, labels = sampleFiles)
-cpm <- cpm(y)
+if (analyze_all_samples == TRUE){
+  y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
+  subTable <- NULL
+} else if (analyze_all_samples == FALSE){
+  control <- sampleTable[grepl(paste(gr_control), sampleTable$condition),]
+  case <- sampleTable[grepl(paste(gr_case), sampleTable$condition),]
+  subTable <- rbind(control, case)
+  sampleTable <- NULL
+  y <- readDGE(files = subTable$sampleName, group = subTable$condition, labels = subTable$fileName) 
+  
+}
 readqual <- as.data.frame(tail(y$counts, 5))
-
-
-
-y <- calcNormFactors(y, method = "TMM")
+libsize <- as.data.frame(t(y$samples$lib.size))
+names(libsize) <- names(readqual)
+readqual <- rbind(libsize, readqual)
+rownames(readqual[1,]) <- c("lib_size")
+normalized_lib_sizes <- calcNormFactors(y, method = "TMM")
+CountsTable <- as.data.frame(y$counts)
+raw_counts <- as.data.frame(y$counts)
 y <- estimateCommonDisp(y)
 y <- estimateTagwiseDisp(y)
-cpm <- cpm(y)
-write.csv(cpm, file = "exp_moto.csv")
-### MDS PLOT
+et <- exactTest(y)
+top <- as.data.frame(topTags(et))
+et_annot <- as.data.frame(et$table)
+et_annot_non_filtered <- as.data.frame(et$table)
 
+### ANNOTATE
+
+y$genes$Symbol <- mapIds(org.Mm.eg.db, 
+                         keys=row.names(et_annot_non_filtered), 
+                         column="SYMBOL", 
+                         keytype="ENSEMBL",
+                         multiVals="first")
+y$genes$Name <- mapIds(org.Mm.eg.db, 
+                         keys=row.names(et_annot_non_filtered), 
+                         column="GENENAME", 
+                         keytype="ENSEMBL",
+                         multiVals="first")
+
+et_annot$symbol <- mapIds(org.Mm.eg.db, 
+                          keys=row.names(et_annot), 
+                          column="SYMBOL", 
+                          keytype="ENSEMBL",
+                          multiVals="first")
+
+et_annot$name <- mapIds(org.Mm.eg.db, 
+                        keys=row.names(et_annot), 
+                        column="GENENAME", 
+                        keytype="ENSEMBL",
+                        multiVals="first")
+
+
+et_annot$entrez <- mapIds(org.Mm.eg.db, 
+                          keys=row.names(et_annot), 
+                          column="ENTREZID", 
+                          keytype="ENSEMBL",
+                          multiVals="first")
+
+
+et_annot_non_filtered$Symbol <- mapIds(org.Mm.eg.db, 
+                          keys=row.names(et_annot_non_filtered), 
+                          column="SYMBOL", 
+                          keytype="ENSEMBL",
+                          multiVals="first")
+et_annot_non_filtered$Symbol <- mapIds(org.Mm.eg.db, 
+                          keys=row.names(et_annot_non_filtered), 
+                          column="ENTREZID", 
+                          keytype="ENSEMBL",
+                          multiVals="first")
+
+### TESTING A HYPOTESIS
+
+fc <- et_annot[order(et_annot$logFC),]
+lfgene <- rownames(fc[4,])
+c <- grep(paste(lfgene), rownames(CountsTable))
+dfc <- as.data.frame(CountsTable[c,])
+dfc$meancontrol <- (dfc[1,1] + dfc[1,2])/2
+dfc$meancase <- (dfc[1,3] + dfc[1,4])/2
+if(dfc$meancase > dfc$meancontrol){
+  et_annot$logFC <- et_annot$logFC*(-1)
+}
+
+### Simple summary
+all <- nrow(raw_counts)
+allpadj <- sum(et_annot$PValue < pvalue_cutoff, na.rm=TRUE)
+avg_cpm <- mean(et_annot$logCPM)
+up <- sum(et_annot$logFC > logfchigh_cutoff, na.rm=TRUE)
+down <- sum(et_annot$logFC < logfclow_cutoff, na.rm=TRUE)
+header <- c('all genes', 'mean of logCPM', 'padj<0,05', 'genes with > high', 'genes with < low')
+meaning <- c(print(all), print(avg_cpm), print(allpadj), print(up), print(down))
+df <- data.frame(header, meaning)
+
+
+### ANNOTATE COUNTS
+CountsTable$symbol <- mapIds(org.Mm.eg.db, 
+                             keys=row.names(CountsTable), 
+                             column="SYMBOL", 
+                             keytype="ENSEMBL",
+                             multiVals="first")
+
+CountsTable$name <- mapIds(org.Mm.eg.db, 
+                           keys=row.names(CountsTable), 
+                           column="GENENAME", 
+                           keytype="ENSEMBL",
+                           multiVals="first")
+
+CountsTable <- CountsTable[rownames(et_annot),]
+
+### GO TESTS
+data(go.sets.mm)
+data(go.subs.mm)
+
+foldchanges = et_annot$logFC
+names(foldchanges) = et_annot$entrez
+
+gomfsets = go.sets.mm[go.subs.mm$MF]
+gomfres = gage(foldchanges, gsets=gomfsets, same.dir=TRUE,set.size = c(10, 100), rank.test = TRUE)
+lapply(gomfres, head)
+gomfres <- as.data.frame(gomfres)
+gomfres <- gomfres[complete.cases(gomfres), ]
+write.xlsx(gomfres, file = "GO.xlsx", sheetName = "GO_MF", append = TRUE)
+
+gobpsets = go.sets.mm[go.subs.mm$BP]
+gobpres = gage(foldchanges, gsets=gobpsets, same.dir=TRUE)
+lapply(gobpres, head)
+gobpres <- as.data.frame(gobpres)
+gobpres <- gobpres[complete.cases(gobpres), ]
+write.xlsx(gobpres, file = "GO.xlsx", sheetName = "GO_BP", append = TRUE)
+
+goccsets = go.sets.mm[go.subs.mm$CC]
+goccres = gage(foldchanges, gsets=goccsets, same.dir=TRUE)
+lapply(goccres, head)
+goccres <- as.data.frame(goccres)
+goccres <- goccres[complete.cases(goccres), ]
+write.xlsx(goccres, file = "GO.xlsx", sheetName = "GO_CC", append = TRUE)
+
+
+### FISHER GO TESTS
+et_annot_high <- as.data.frame(subset(et_annot, logFC > 0))
+et_annot_low <- as.data.frame(subset(et_annot, logFC < 0))
+
+GOFisherBP <- function(df, nodes, nrows, p){
+  all_genes <- c(df$logFC)
+  names(all_genes) <- rownames(df)
+  go_data <- new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = function(s) s < 
+                   p, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", 
+                 ID = "ENSEMBL", nodeSize = nodes)
+  go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
+  go_table <- GenTable(go_data, weightFisher = go_test,
+                       orderBy = "weightFisher", ranksOf = "weightFisher",
+                       topNodes = nrows)
+  return(go_table)
+}
+GOFisherMF <- function(df, nodes, nrows, p){
+  all_genes <- c(df$logFC)
+  names(all_genes) <- rownames(df)
+  go_data <- new("topGOdata", ontology = "MF", allGenes = all_genes, geneSel = function(s) s < 
+                   p, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", 
+                 ID = "ENSEMBL", nodeSize = nodes)
+  go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
+  go_table <- GenTable(go_data, weightFisher = go_test,
+                       orderBy = "weightFisher", ranksOf = "weightFisher",
+                       topNodes = nrows)
+  return(go_table)
+}
+GOFisherCC <- function(df, nodes, nrows, p){
+  all_genes <- c(df$logFC)
+  names(all_genes) <- rownames(df)
+  go_data <- new("topGOdata", ontology = "CC", allGenes = all_genes, geneSel = function(s) s < 
+                   p, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", 
+                 ID = "ENSEMBL", nodeSize = nodes)
+  go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
+  go_table <- GenTable(go_data, weightFisher = go_test,
+                       orderBy = "weightFisher", ranksOf = "weightFisher",
+                       topNodes = nrows)
+  return(go_table)
+}
+
+gobp_h_50 <- GOFisherBP(et_annot_high, 5, 50, 0.05)
+gomf_h_50 <- GOFisherMF(et_annot_high, 5, 50, 0.05)
+gocc_h_50 <- GOFisherCC(et_annot_high, 5, 50, 0.05)
+
+gobp_l_50 <- GOFisherBP(et_annot_low, 5, 50, 0.05)
+gomf_l_50 <- GOFisherMF(et_annot_low, 5, 50, 0.05)
+gocc_l_50 <- GOFisherCC(et_annot_low, 5, 50, 0.05)
+
+gobp_h_100 <- GOFisherBP(et_annot_high, 5, 100, 0.05)
+gomf_h_100 <- GOFisherMF(et_annot_high, 5, 100, 0.05)
+gocc_h_100 <- GOFisherCC(et_annot_high, 5, 100, 0.05)
+
+gobp_l_100 <- GOFisherBP(et_annot_low, 5, 100, 0.05)
+gomf_l_100 <- GOFisherMF(et_annot_low, 5, 100, 0.05)
+gocc_l_100 <- GOFisherCC(et_annot_low, 5, 100, 0.05)
+
+gobp_h_1000 <- GOFisherBP(et_annot_high, 5, 1000, 0.05)
+gomf_h_1000 <- GOFisherMF(et_annot_high, 5, 1000, 0.05)
+gocc_h_1000 <- GOFisherCC(et_annot_high, 5, 1000, 0.05)
+
+gobp_l_1000 <- GOFisherBP(et_annot_low, 5, 1000, 0.05)
+gomf_l_1000 <- GOFisherMF(et_annot_low, 5, 1000, 0.05)
+gocc_l_1000 <- GOFisherCC(et_annot_low, 5, 1000, 0.05)
+
+
+write.xlsx(gobp_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 50", append = TRUE)
+write.xlsx(gomf_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 50", append = TRUE)
+write.xlsx(gocc_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 50", append = TRUE)
+write.xlsx(gobp_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 100", append = TRUE)
+write.xlsx(gomf_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 100", append = TRUE)
+write.xlsx(gocc_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 100", append = TRUE)
+write.xlsx(gobp_h_1000, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 1000", append = TRUE)
+write.xlsx(gomf_h_1000, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 1000", append = TRUE)
+write.xlsx(gocc_h_1000, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 1000", append = TRUE)
+
+write.xlsx(gobp_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 50", append = TRUE)
+write.xlsx(gomf_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 50", append = TRUE)
+write.xlsx(gocc_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 50", append = TRUE)
+write.xlsx(gobp_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 100", append = TRUE)
+write.xlsx(gomf_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 100", append = TRUE)
+write.xlsx(gocc_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 100", append = TRUE)
+write.xlsx(gobp_l_1000, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 1000", append = TRUE)
+write.xlsx(gomf_l_1000, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 1000", append = TRUE)
+write.xlsx(gocc_l_1000, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 1000", append = TRUE)
+
+
+### MDS PLOT
 pch <- c(0,1,2,15,16,17)
 colors <- rep(c("darkgreen", "red", "blue"), 2)
 pdf(file = "PCAPlot.pdf", width = 12, height = 17, family = "Helvetica")
 plotMDS(y, col=colors[sampleTable$condition], pch = pch[sampleTable$condition])
 legend("topleft", legend=levels(sampleTable$condition), pch=pch, col=colors, ncol=2)
 dev.off()
-keep <- rowSums(cpm(y) > 0.5) >= 4
-y <- y[keep, , keep.lib.sizes=FALSE]
-et <- exactTest(y)
-et_annot <- as.data.frame(et$table)
-y$genes$Symbol <- mapIds(org.Mm.eg.db, 
-                          keys=row.names(y), 
+
+### VOLCANO PLOT
+allgenes <- nrow(et_annot_non_filtered)
+et_annot_non_filtered$threshold = as.factor(abs(et_annot_non_filtered$logFC) > 1 & et_annot_non_filtered$PValue < 0.05/allgenes)
+pdf(file = "Volcano plot.pdf", width = 12, height = 17, family = "Helvetica")
+g = ggplot(data=et_annot_non_filtered, aes(x=logFC, y=-log10(PValue), colour=threshold)) +
+  geom_point(alpha=1, size=1) +
+  labs(legend.position = "none") +
+  xlim(c(-6, 6)) + ylim(c(1.30103, 30)) +
+  xlab("log2 fold change") + ylab("-log10 p-value")
+g
+dev.off()
+
+
+et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
+et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
+et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
+
+write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append = TRUE)
+write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
+write.xlsx(CountsTable, file = "Results edgeR.xlsx", sheetName = "Counts Table, logCPM>1", append = TRUE)
+
+# TOP 100 PVALUE GENES
+y$counts$Symbol <- NULL
+y$counts$Symbol <- mapIds(org.Mm.eg.db, 
+                          keys=row.names(y$counts), 
                           column="SYMBOL", 
-                          keytype="ENSEMBL",
-                          multiVals="first")
-y$genes$Name <- mapIds(org.Mm.eg.db, 
-                          keys=row.names(y), 
-                          column="GENENAME", 
-                          keytype="ENSEMBL",
-                          multiVals="first")
-et_annot$symbol <- mapIds(org.Mm.eg.db, 
-                          keys=row.names(et_annot), 
-                          column="SYMBOL", 
-                          keytype="ENSEMBL",
-                          multiVals="first")
-et_annot$name <- mapIds(org.Mm.eg.db, 
-                          keys=row.names(et_annot), 
-                          column="GENENAME", 
                           keytype="ENSEMBL",
                           multiVals="first")
 
-# TOP 100 PVALUE GENES
 normalized_lib_sizes <- calcNormFactors(y, method = "TMM")
 logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes)
-rownames(logCPM) <- y$genes$Symbol
+rownames(logCPM) <- y$counts$Symbol
 colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
 o <- order(et$table$PValue)
-logCPM <- logCPM[o[1:200],]
+logCPM <- logCPM[o[1:100],]
 logCPM <- t(scale(t(logCPM)))
 col.pan <- colorpanel(100, "blue", "white", "red")
 pdf(file = "Top 100 Pvalue Heatmap_2.pdf", width = 12, height = 17, family = "Helvetica")
@@ -80,7 +313,7 @@ dev.off()
 
 # TOP 100 LOGFC GENES
 logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes)
-rownames(logCPM) <- y$genes$Symbol
+rownames(logCPM) <- y$counts$Symbol
 colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
 o <- order(et$table$logFC)
 logCPM <- logCPM[o[1:100],]
@@ -94,8 +327,9 @@ dev.off()
 
 
 ### SEARCH AND PLOT!
-let <- c("insulin-like growth factor")
+let <- c("sas")
 logCPM <- NULL
+normalized_lib_sizes <- calcNormFactors(y, method = "TMM")
 logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes)
 nColCount <- ncol(logCPM)
 logCPM <- as.data.frame(logCPM)
@@ -105,7 +339,7 @@ logCPM$Name <- mapIds(org.Mm.eg.db,
                           keytype="ENSEMBL",
                           multiVals="first")
 
-rownames(logCPM) <- make.names(y$genes$Symbol, unique=TRUE)
+rownames(logCPM) <- make.names(y$counts$Symbol, unique=TRUE)
 colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
 colnames(logCPM)[nColCount+1] <- c("Name")
 
@@ -120,7 +354,7 @@ dev.off()
 
 
 ### High Expressed Genes
-row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature")
+row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "__too_low_aQual", "__not_aligned" )
 cpm <- cpm(y)
 cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ]
 cpm <- as.data.frame(cpm(y))
@@ -173,34 +407,4 @@ for (i in seq(1:nrow(logdf))){
   dev.off()}
 
 ### DISEASE
-als <- read.xlsx('~/ALS-associated genes.xlsx', sheetIndex = 1, header = FALSE)
-als <- as.data.frame(als$X1)
-names(als) <- c("gene")
 
-logCPM <- NULL
-logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes)
-nColCount <- ncol(logCPM)
-logCPM <- as.data.frame(logCPM)
-logCPM$Name <- mapIds(org.Mm.eg.db, 
-                      keys=row.names(logCPM), 
-                      column="GENENAME", 
-                      keytype="ENSEMBL",
-                      multiVals="first")
-
-rownames(logCPM) <- make.names(y$genes$Symbol, unique=TRUE)
-colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
-colnames(logCPM)[nColCount+1] <- c("Name")
-
-disset <- data.frame()
-for (f in als$gene){
-sub <- logCPM[grepl(paste(f), rownames(logCPM), ignore.case = TRUE, fixed = FALSE),]
-disset <- rbind(sub, disset)
-}
-disset$Name <- NULL
-disset[,25] <- NULL
-disset <- t(scale(t(disset)))
-pdf(file = "ALS_heatmap.pdf", width = 12, height = 17, family = "Helvetica")
-heatmap.2(disset, col=col.pan, Rowv=TRUE, scale="column",
-          trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-          margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
-dev.off()
