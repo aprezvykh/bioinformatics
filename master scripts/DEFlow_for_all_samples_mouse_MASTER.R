@@ -25,7 +25,7 @@ gr_control <- c("tg_mid")
 gr_case <- c("tg_late")
 
 ### Statistical analysis
-directory <- '~/ALS Mice//'
+directory <- '~/ALS Mice/experimental/'
 setwd(directory)
 sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
 sampleCondition <- c('control_early', 'control_early', 'control_early', 'control_early', 'control_early', 
