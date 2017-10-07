@@ -18,35 +18,37 @@ library(ggplot2)
 ### PASTE 1 IF YOU WANT TO ANALYZE ALL SAMPLES. PASTE 0 IF YOU WANT TO
 analyze_all_samples <- FALSE
 pvalue_cutoff <- 0.05
-logfchigh_cutoff <- 0.5
-logfclow_cutoff <- -0.5
+logfchigh_cutoff <- 1
+logfclow_cutoff <- -1
 cpm_cutoff <- 0.5
-gr_control <- c("tg_mid")
-gr_case <- c("tg_late")
+gr_control <- c("tg_1")
+gr_case <- c("tg_2")
 
 ### Statistical analysis
-directory <- '~/ALS Mice/experimental/'
+directory <- '~/bioinformatics/counts/ALS Mice/experimental/'
 setwd(directory)
-sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
-sampleCondition <- c('control_early', 'control_early', 'control_early', 'control_early', 'control_early', 
-                     'control_late', 'control_late', 'control_late', 'control_late', 'control_late', 
-                    'tg_early', 'tg_early', 'tg_early', 'tg_early', 'tg_early', 
-                     'tg_mid', 'tg_mid', 'tg_mid', 'tg_mid', 
-                     'tg_late', 'tg_late', 'tg_late', 'tg_late', 'tg_late')
-
-sampleTable <- data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 
 if (analyze_all_samples == TRUE){
-  y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
-  subTable <- NULL
-} else if (analyze_all_samples == FALSE){
-  control <- sampleTable[grepl(paste(gr_control), sampleTable$condition),]
-  case <- sampleTable[grepl(paste(gr_case), sampleTable$condition),]
-  subTable <- rbind(control, case)
-  sampleTable <- NULL
-  y <- readDGE(files = subTable$sampleName, group = subTable$condition, labels = subTable$fileName) 
+  sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
+  sampleCondition <- c('control_early', 'control_early', 'control_early', 'control_early', 'control_early', 
+                       'control_late', 'control_late', 'control_late', 'control_late', 'control_late', 
+                       'tg_early', 'tg_early', 'tg_early', 'tg_early', 'tg_early', 
+                       'tg_mid', 'tg_mid', 'tg_mid', 'tg_mid', 
+                       'tg_late', 'tg_late', 'tg_late', 'tg_late', 'tg_late')
   
+  sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
+  y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
+} else if (analyze_all_samples == FALSE){
+        files_control <- grep(paste(gr_control),list.files(directory),value=TRUE)
+        files_case <- grep(paste(gr_case),list.files(directory),value=TRUE)
+        sampleFiles <- c(files_control, files_case)
+        cond_control <- rep(paste(gr_control), length(files_control))
+        cond_case <- rep(paste(gr_case), length(files_case))
+        sampleCondition <- c(cond_control, cond_case)
+        sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
+        y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
 }
+
 readqual <- as.data.frame(tail(y$counts, 5))
 libsize <- as.data.frame(t(y$samples$lib.size))
 names(libsize) <- names(readqual)
