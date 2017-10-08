@@ -13,9 +13,12 @@ library(gageData)
 library(topGO)
 library(ggplot2)
 library("ReactomePA")
+library(reshape)
 require(clusterProfiler)
 require(reactome.db)
+library(pathview)
 ### PASTE 1 IF YOU WANT TO ANALYZE ALL SAMPLES. PASTE 0 IF YOU WANT TO
+custom_heatmap <- FALSE
 fisherGO <- FALSE
 analyze_all_samples <- FALSE
 pvalue_cutoff <- 0.05
@@ -23,7 +26,7 @@ logfchigh_cutoff <- 1
 logfclow_cutoff <- -1
 cpm_cutoff <- 0.5
 gr_control <- c("control_1")
-gr_case <- c("control_3")
+gr_case <- c("tg_3")
 gs_size <- 10
 
 ### Statistical analysis
@@ -52,6 +55,8 @@ if (analyze_all_samples == TRUE){
 }
 
 stattest <- paste(gr_control, gr_case, sep = "-")
+directory <- '~/bioinformatics/counts/ALS Mice/experimental/results/'
+setwd(directory)
 dir.create(stattest)
 setwd(stattest)
 readqual <- as.data.frame(tail(y$counts, 5))
@@ -59,6 +64,23 @@ libsize <- as.data.frame(t(y$samples$lib.size))
 names(libsize) <- names(readqual)
 readqual <- rbind(libsize, readqual)
 rownames(readqual[1,]) <- c("lib_size")
+write.xlsx(readqual, file = "htseq-count stats.xlsx", sheetName = "just stats", append = TRUE)
+readqual[nrow(readqual)+1,] <- (readqual[2,]/readqual[1,])*100
+readqual[nrow(readqual)+1,] <- (readqual[3,]/readqual[1,])*100
+
+qual <- readqual[7:8,]
+rownames(qual) <- c("% of no feature", "% of ambigous")
+
+m1 <- melt(qual[1,])
+m2 <- melt(qual[2,])
+pdf(file = "No feature.pdf", width = 12, height = 17, family = "Helvetica")
+ggplot(m1) + aes(x = variable, y = value) + geom_bar(stat = "identity")
+dev.off()
+
+pdf(file = "Ambigous.pdf", width = 12, height = 17, family = "Helvetica")
+ggplot(m1) + aes(x = variable, y = value) + geom_bar(stat = "identity")
+dev.off()
+
 normalized_lib_sizes <- calcNormFactors(y, method = "TMM")
 CountsTable <- as.data.frame(y$counts)
 raw_counts <- as.data.frame(y$counts)
@@ -438,7 +460,7 @@ plotMD(y, values=c(1,-1), col=c("red","blue"),
 dev.off()
 
 ### SEARCH AND PLOT!
-
+if (custom_heatmap = TRUE) {
 logCPM$Name <- y$genes$Name
 let <- c("caspase", 
          "apoptosis",
@@ -457,5 +479,28 @@ for (f in let){
             margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
   dev.off()
 }
+}
 
+# KEGG PLOTS
+data(kegg.sets.mm)
+data(sigmet.idx.mm)
+kegg.sets.mm = kegg.sets.mm[sigmet.idx.mm]
+
+keggres = gage(foldchanges, gsets=kegg.sets.mm, same.dir=TRUE)
+lapply(keggres, head)
+
+keggrespathways = data.frame(id=rownames(keggres$greater),
+  keggres$greater) %>% 
+  tbl_df() %>% 
+  filter(row_number()<=5) %>% 
+  .$id %>% 
+  as.character()
+keggresids = substr(keggrespathways, start=1, stop=8)
+keggresids
+plot_pathway = function(pid){
+         pathview(gene.data=foldchanges, 
+         pathway.id=pid, 
+         species="mmu", 
+         new.signature=FALSE)
+}
 
