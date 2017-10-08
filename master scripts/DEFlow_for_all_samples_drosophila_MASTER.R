@@ -31,8 +31,7 @@ pdf(file = "PCAPlot.pdf", width = 12, height = 17, family = "Helvetica")
 plotMDS(y, col=colors[sampleTable$condition], pch = pch[sampleTable$condition])
 legend("topleft", legend=levels(sampleTable$condition), pch=pch, col=colors, ncol=2)
 dev.off()
-keep <- rowSums(cpm(y) > 1) >= 4
-y <- y[keep, , keep.lib.sizes=FALSE]
+
 et <- exactTest(y)
 et_annot <- as.data.frame(et$table)
 

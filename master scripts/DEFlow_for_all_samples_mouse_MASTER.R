@@ -1,6 +1,3 @@
-source("https://bioconductor.org/biocLite.R")
-biocLite("edgeR")
-install.packages("Rcpp")
 library(AnnotationDbi)
 library(Rcpp)
 library(gplots)
@@ -15,29 +12,34 @@ library(gage)
 library(gageData)
 library(topGO)
 library(ggplot2)
+library("ReactomePA")
+require(clusterProfiler)
+require(reactome.db)
 ### PASTE 1 IF YOU WANT TO ANALYZE ALL SAMPLES. PASTE 0 IF YOU WANT TO
+fisherGO <- FALSE
 analyze_all_samples <- FALSE
 pvalue_cutoff <- 0.05
 logfchigh_cutoff <- 1
 logfclow_cutoff <- -1
 cpm_cutoff <- 0.5
-gr_control <- c("tg_1")
-gr_case <- c("tg_2")
+gr_control <- c("control_1")
+gr_case <- c("control_3")
+gs_size <- 10
 
 ### Statistical analysis
 directory <- '~/bioinformatics/counts/ALS Mice/experimental/'
 setwd(directory)
 
 if (analyze_all_samples == TRUE){
-  sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
-  sampleCondition <- c('control_early', 'control_early', 'control_early', 'control_early', 'control_early', 
-                       'control_late', 'control_late', 'control_late', 'control_late', 'control_late', 
-                       'tg_early', 'tg_early', 'tg_early', 'tg_early', 'tg_early', 
-                       'tg_mid', 'tg_mid', 'tg_mid', 'tg_mid', 
-                       'tg_late', 'tg_late', 'tg_late', 'tg_late', 'tg_late')
+        sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
+        sampleCondition <- c('control_early', 'control_early', 'control_early', 'control_early', 'control_early', 
+                             'control_late', 'control_late', 'control_late', 'control_late', 'control_late', 
+                             'tg_early', 'tg_early', 'tg_early', 'tg_early', 'tg_early', 
+                             'tg_mid', 'tg_mid', 'tg_mid', 'tg_mid', 
+                             'tg_late', 'tg_late', 'tg_late', 'tg_late', 'tg_late')
   
-  sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
-  y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
+        sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
+        y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
 } else if (analyze_all_samples == FALSE){
         files_control <- grep(paste(gr_control),list.files(directory),value=TRUE)
         files_case <- grep(paste(gr_case),list.files(directory),value=TRUE)
@@ -49,6 +51,9 @@ if (analyze_all_samples == TRUE){
         y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
 }
 
+stattest <- paste(gr_control, gr_case, sep = "-")
+dir.create(stattest)
+setwd(stattest)
 readqual <- as.data.frame(tail(y$counts, 5))
 libsize <- as.data.frame(t(y$samples$lib.size))
 names(libsize) <- names(readqual)
@@ -59,10 +64,21 @@ CountsTable <- as.data.frame(y$counts)
 raw_counts <- as.data.frame(y$counts)
 y <- estimateCommonDisp(y)
 y <- estimateTagwiseDisp(y)
+keep <- rowSums(cpm(y) > cpm_cutoff) >= ncol(sampleTable)
+row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "__too_low_aQual", "__not_aligned" )
+cpm <- cpm(y)
+cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ]
+cpm <- as.data.frame(cpm(y))
+cpm$rowsum <- rowSums(cpm)
+y <- y[keep, , keep.lib.sizes=FALSE]
+normalized_lib_sizes <- calcNormFactors(y, method = "TMM")
+logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes)
 et <- exactTest(y)
 top <- as.data.frame(topTags(et))
 et_annot <- as.data.frame(et$table)
 et_annot_non_filtered <- as.data.frame(et$table)
+
+
 
 ### ANNOTATE
 
@@ -78,10 +94,10 @@ y$genes$Name <- mapIds(org.Mm.eg.db,
                          multiVals="first")
 
 et_annot$symbol <- mapIds(org.Mm.eg.db, 
-                          keys=row.names(et_annot), 
-                          column="SYMBOL", 
-                          keytype="ENSEMBL",
-                          multiVals="first")
+                         keys=row.names(et_annot), 
+                         column="SYMBOL", 
+                         keytype="ENSEMBL",
+                         multiVals="first")
 
 et_annot$name <- mapIds(org.Mm.eg.db, 
                         keys=row.names(et_annot), 
@@ -91,10 +107,10 @@ et_annot$name <- mapIds(org.Mm.eg.db,
 
 
 et_annot$entrez <- mapIds(org.Mm.eg.db, 
-                          keys=row.names(et_annot), 
-                          column="ENTREZID", 
-                          keytype="ENSEMBL",
-                          multiVals="first")
+                         keys=row.names(et_annot), 
+                         column="ENTREZID", 
+                         keytype="ENSEMBL",
+                         multiVals="first")
 
 
 et_annot_non_filtered$Symbol <- mapIds(org.Mm.eg.db, 
@@ -107,6 +123,7 @@ et_annot_non_filtered$Symbol <- mapIds(org.Mm.eg.db,
                           column="ENTREZID", 
                           keytype="ENSEMBL",
                           multiVals="first")
+
 
 ### TESTING A HYPOTESIS
 
@@ -178,6 +195,8 @@ write.xlsx(goccres, file = "GO.xlsx", sheetName = "GO_CC", append = TRUE)
 ### FISHER GO TESTS
 et_annot_high <- as.data.frame(subset(et_annot, logFC > 0))
 et_annot_low <- as.data.frame(subset(et_annot, logFC < 0))
+
+if (fisherGO == TRUE){
 
 GOFisherBP <- function(df, nodes, nrows, p){
   all_genes <- c(df$logFC)
@@ -260,7 +279,7 @@ write.xlsx(gocc_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 100
 write.xlsx(gobp_l_1000, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 1000", append = TRUE)
 write.xlsx(gomf_l_1000, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 1000", append = TRUE)
 write.xlsx(gocc_l_1000, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 1000", append = TRUE)
-
+}
 
 ### MDS PLOT
 pch <- c(0,1,2,15,16,17)
@@ -282,7 +301,6 @@ g = ggplot(data=et_annot_non_filtered, aes(x=logFC, y=-log10(PValue), colour=thr
 g
 dev.off()
 
-
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
 et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
@@ -291,76 +309,92 @@ write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append
 write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
 write.xlsx(CountsTable, file = "Results edgeR.xlsx", sheetName = "Counts Table, logCPM>1", append = TRUE)
 
-# TOP 100 PVALUE GENES
-y$counts$Symbol <- NULL
-y$counts$Symbol <- mapIds(org.Mm.eg.db, 
-                          keys=row.names(y$counts), 
-                          column="SYMBOL", 
-                          keytype="ENSEMBL",
-                          multiVals="first")
+### REACTOME PART
+dfa <- as.character(et_annot$entrez)
+x <- enrichPathway(gene=dfa, organism = "mouse", minGSSize=gs_size, readable = TRUE )
+head(as.data.frame(x))
+dev.off()
 
-normalized_lib_sizes <- calcNormFactors(y, method = "TMM")
-logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes)
-rownames(logCPM) <- y$counts$Symbol
+par(mar=c(1,1,1,1))
+pdf(file = "barplot.pdf", width = 12, height = 17, family = "Helvetica")
+barplot(x, showCategory=30,  font.size = 9)
+dev.off()
+
+pdf(file = "enrichmap.pdf", width = 12, height = 17, family = "Helvetica")
+enrichMap(x, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7, n = 20, font.size = 20)
+dev.off()
+
+pdf(file = "cnetplot.pdf", width = 12, height = 17, family = "Helvetica")
+cnetplot(x, foldChange = foldchanges, categorySize="pvalue", showCategory = 10)
+dev.off()
+
+#HIGH
+df_high <- et_annot_high$entrez
+x <- enrichPathway(gene=df_high, organism = "mouse", minGSSize=gs_size, readable = TRUE )
+head(as.data.frame(x))
+dev.off()
+
+par(mar=c(1,1,1,1))
+pdf(file = "barplot_high.pdf", width = 12, height = 17, family = "Helvetica")
+barplot(x, showCategory=30,  font.size = 9)
+dev.off()
+
+#LOW
+
+df_low <- et_annot_low$entrez
+x <- enrichPathway(gene=df_low, organism = "mouse", minGSSize=gs_size, readable = TRUE )
+head(as.data.frame(x))
+dev.off()
+
+par(mar=c(1,1,1,1))
+pdf(file = "barplot_low.pdf", width = 12, height = 17, family = "Helvetica")
+barplot(x, showCategory=30,  font.size = 9)
+dev.off()
+
+
+
+###KEGG expression profile (without lfc, but with generatio)
+
+kk <- enrichKEGG(gene = df_high, organism = "mmu", pvalueCutoff = 0.05)
+write.xlsx(kk, file = "KEGG.xlsx", sheetName = "KEGG_upreg", append = TRUE)
+pdf(file = "KEGG_upreg.pdf", width = 12, height = 17, family = "Helvetica")
+barplot(kk, showCategory=30,  font.size = 9)
+dev.off()
+
+kk <- enrichKEGG(gene = df_low, organism = "mmu", pvalueCutoff = 0.05)
+write.xlsx(kk, file = "KEGG.xlsx", sheetName = "KEGG_downreg", append = TRUE)
+pdf(file = "KEGG_downreg.pdf", width = 12, height = 17, family = "Helvetica")
+barplot(kk, showCategory=30,  font.size = 9)
+dev.off()
+
+
+# TOP 100 PVALUE GENES
+logCPM <- as.data.frame(logCPM)
+rownames(logCPM) <- make.names(y$genes$Symbol, unique = TRUE)
 colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
 o <- order(et$table$PValue)
-logCPM <- logCPM[o[1:100],]
-logCPM <- t(scale(t(logCPM)))
+logCPMpval <- logCPM[o[1:100],]
+logCPMpval <- t(scale(t(logCPMpval)))
 col.pan <- colorpanel(100, "blue", "white", "red")
-pdf(file = "Top 100 Pvalue Heatmap_2.pdf", width = 12, height = 17, family = "Helvetica")
-heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="none",
+pdf(file = "Top 100 Pvalue Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
+heatmap.2(logCPMpval, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top FDR genes, p < 0.05")
 dev.off()
 
 # TOP 100 LOGFC GENES
-logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes)
-rownames(logCPM) <- y$counts$Symbol
-colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
 o <- order(et$table$logFC)
-logCPM <- logCPM[o[1:100],]
-logCPM <- t(scale(t(logCPM)))
+logCPMfc <- logCPM[o[1:100],]
+logCPMfc <- t(scale(t(logCPMfc)))
 col.pan <- colorpanel(100, "blue", "white", "red")
 pdf(file = "Top 100 logFC Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
-heatmap.2(logCPM, col=col.pan, Rowv=TRUE, scale="none",
+heatmap.2(logCPMfc, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top Log2FoldChange genes, p < 0.05")
 dev.off()
 
 
-### SEARCH AND PLOT!
-let <- c("sas")
-logCPM <- NULL
-normalized_lib_sizes <- calcNormFactors(y, method = "TMM")
-logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes)
-nColCount <- ncol(logCPM)
-logCPM <- as.data.frame(logCPM)
-logCPM$Name <- mapIds(org.Mm.eg.db, 
-                          keys=row.names(logCPM), 
-                          column="GENENAME", 
-                          keytype="ENSEMBL",
-                          multiVals="first")
-
-rownames(logCPM) <- make.names(y$counts$Symbol, unique=TRUE)
-colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
-colnames(logCPM)[nColCount+1] <- c("Name")
-
-sub <- logCPM[grepl(paste(let), logCPM$Name),]
-sub$Name <- NULL
-sub <- t(scale(t(sub)))
-pdf(file = paste(let,"_query_heatmap.pdf",sep=""), width = 12, height = 17, family = "Helvetica")
-heatmap.2(sub, col=col.pan, Rowv=TRUE, scale="column",
-          trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-          margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
-dev.off()
-
-
 ### High Expressed Genes
-row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "__too_low_aQual", "__not_aligned" )
-cpm <- cpm(y)
-cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ]
-cpm <- as.data.frame(cpm(y))
-cpm$rowsum <- rowSums(cpm)
 topcpm <- cpm[order(cpm$rowsum, decreasing = TRUE),]
 topcpm <- topcpm[complete.cases(topcpm), ]
 topcpm <- topcpm[1:100,]
@@ -382,12 +416,12 @@ heatmap.2(topcpm, col=col.pan, Rowv=TRUE, scale="column",
 dev.off()
 
 ### MULTIPLE BOXPLOTS OF INTERESTING GENES
-logdf <- as.data.frame(sub)
-for (i in seq(1:nrow(logdf))){
-  png(file = paste(rownames(logdf[i,]), "_CPM.png", sep=""))
-  boxplot.default(logdf[i,],outline = TRUE,  main = paste(rownames(logdf[i,])))
-  dev.off()
-}
+#logdf <- as.data.frame(sub)
+#for (i in seq(1:nrow(logdf))){
+#  png(file = paste(rownames(logdf[i,]), "_CPM.png", sep=""))
+#  boxplot.default(logdf[i,],outline = TRUE,  main = paste(rownames(logdf[i,])))
+#  dev.off()
+#}
 
 
 ### Multiple MDPlots
@@ -399,14 +433,29 @@ for (f in 1:ncol(y)){
   dev.off()
 }
 pdf(file = "MDplot_common.pdf", width = 12, height = 17, family = "Helvetica")
-plotMD(tr, values=c(1,-1), col=c("red","blue"),
+plotMD(y, values=c(1,-1), col=c("red","blue"),
        legend="topright")
 dev.off()
-logdf <- as.data.frame(logCPM)
-for (i in seq(1:nrow(logdf))){
-  png(file = paste(rownames(logdf[i,]), "_CPM.png", sep=""))
-  boxplot.default(logdf[i,],outline = TRUE,  main = paste(rownames(logdf[i,])))
-  dev.off()}
 
-### DISEASE
+### SEARCH AND PLOT!
+
+logCPM$Name <- y$genes$Name
+let <- c("caspase", 
+         "apoptosis",
+         "neural",
+         "neuron",
+         "death",
+         "mitochondrial",
+         "ATP")
+for (f in let){
+  sub <- logCPM[grepl(paste(f), logCPM$Name),]
+  sub$Name <- NULL
+  sub <- t(scale(t(sub)))
+  pdf(file = paste(f,"_query_heatmap.pdf",sep=""), width = 12, height = 17, family = "Helvetica")
+  heatmap.2(sub, col=col.pan, Rowv=TRUE, scale="column",
+            trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
+            margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
+  dev.off()
+}
+
 

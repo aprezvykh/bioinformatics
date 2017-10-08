@@ -1,20 +1,25 @@
-experimental <- as.data.frame(read.csv("~/motoneurons compare/exp_cpm.csv"))
-motoneurons <- as.data.frame(read.csv("~/motoneurons compare/exp_moto.csv"))
-
-experimental$avg <- (experimental$mouse_ntg_1_176.counts +
-                    experimental$mouse_ntg_1_177.counts +
-                    experimental$mouse_ntg_1_178.counts +
-                    experimental$mouse_ntg_1_213.counts +
-                    experimental$mouse_ntg_1_225.counts)/5
-motoneurons$avg <- (motoneurons$moto_las_1.counts +
-                    motoneurons$moto_las_2.counts)/2
-
-experimental$avg2 <- motoneurons$avg
-experimental$mouse_ntg_1_176.counts <- NULL
-experimental$mouse_ntg_1_178.counts <- NULL
-experimental$mouse_ntg_1_225.counts <- NULL
-experimental$mouse_ntg_1_177.counts <- NULL
-experimental$mouse_ntg_1_213.counts <- NULL
+library("rentrez")
+library("DOSE")
+library("clusterProfiler")
+library("ReactomePA")
+experimental <- as.data.frame(read.csv("~/bioinformatics/counts/ALS Mice/experimental.csv"))
+microglia <- as.data.frame(read.csv("~/bioinformatics/counts/ALS Mice/microglia.csv"))
+motoneurons <- as.data.frame(read.csv("~/bioinformatics/counts/ALS Mice/motoneurons.csv"))
 rownames(experimental) <- experimental$X
-experimental$X <- NULL
-names(experimental) <- c("experimental", "moto")
+rownames(microglia) <- microglia$X
+int <- intersect(experimental$X, microglia$X)
+sdiff <- function(a,b){
+  setdiff(union(a,b), intersect(a,b))}
+mt <- sdiff(int, experimental$X)
+moto <- experimental[mt,]
+moto <- moto[complete.cases(moto), ]
+int2 <- intersect(motoneurons$X, moto$X)
+final <- moto[int2,]
+
+
+
+dfb <- as.character(final$entrez)
+y <- enrichKEGG(gene=dfb, organism = "mouse", minGSSize=1)
+y
+barplot(y, showCategory=10,  font.size = 9)
+
