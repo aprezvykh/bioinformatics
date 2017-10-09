@@ -12,8 +12,8 @@ gs_size <- 1
 kegg_plots <- TRUE
 data(go.sets.mm)
 data(go.subs.mm)
-setwd("~/bioinformatics/counts/ALS Mice/compare_new/glia/")
-et_annot <- read.csv("~/bioinformatics/counts/ALS Mice/compare_new/deg_glia.csv")
+setwd("~/bioinformatics/counts/ALS Mice/compare_new//")
+et_annot <- read.csv("~/bioinformatics/counts/ALS Mice/compare_new/deg_moto.csv.csv")
 rownames(et_annot) <- et_annot$X
 et_annot_high <- subset(et_annot, et_annot$logFC > 0)
 et_annot_low <- subset(et_annot, et_annot$logFC < 0)
@@ -128,3 +128,5 @@ if (kegg_plots == TRUE){
   setwd("kegg")
   tmp = sapply(keggresids, function(pid) pathview(gene.data=foldchanges, pathway.id=pid, species="mmu"))
 }
+
+
