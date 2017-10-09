@@ -4,33 +4,39 @@ library(gplots)
 library(edgeR)
 library(org.Mm.eg.db)
 library(gplots)
-library(plyr)
-library(dplyr)
 library(pheatmap)
 library(xlsx)
 library(gage)
 library(gageData)
 library(topGO)
 library(ggplot2)
-library("ReactomePA")
+library(ReactomePA)
 library(reshape)
 require(clusterProfiler)
 require(reactome.db)
+library(data.table)
 library(pathview)
+library(plyr)
+library(dplyr)
 ### PASTE 1 IF YOU WANT TO ANALYZE ALL SAMPLES. PASTE 0 IF YOU WANT TO
 custom_heatmap <- FALSE
+custom_genes_plots <- FALSE
 fisherGO <- FALSE
 analyze_all_samples <- FALSE
+disease_association <- TRUE
+kegg_plots <- TRUE
+
 pvalue_cutoff <- 0.05
 logfchigh_cutoff <- 1
 logfclow_cutoff <- -1
 cpm_cutoff <- 0.5
-gr_control <- c("control_1")
+gr_control <- c("tg_1")
 gr_case <- c("tg_3")
 gs_size <- 10
-
+diseases_set <- 50
+number_of_kegg_plots <- 50
 ### Statistical analysis
-directory <- '~/bioinformatics/counts/ALS Mice/experimental/'
+directory <- '~/GitHub/counts/ALS Mice/experimental/'
 setwd(directory)
 
 if (analyze_all_samples == TRUE){
@@ -55,7 +61,7 @@ if (analyze_all_samples == TRUE){
 }
 
 stattest <- paste(gr_control, gr_case, sep = "-")
-directory <- '~/bioinformatics/counts/ALS Mice/experimental/results/'
+directory <- '~/GitHub/counts/ALS Mice/experimental/results/'
 setwd(directory)
 dir.create(stattest)
 setwd(stattest)
@@ -64,7 +70,8 @@ libsize <- as.data.frame(t(y$samples$lib.size))
 names(libsize) <- names(readqual)
 readqual <- rbind(libsize, readqual)
 rownames(readqual[1,]) <- c("lib_size")
-write.xlsx(readqual, file = "htseq-count stats.xlsx", sheetName = "just stats", append = TRUE)
+
+
 readqual[nrow(readqual)+1,] <- (readqual[2,]/readqual[1,])*100
 readqual[nrow(readqual)+1,] <- (readqual[3,]/readqual[1,])*100
 
@@ -391,6 +398,8 @@ dev.off()
 
 
 # TOP 100 PVALUE GENES
+if (heatmaps == TRUE){
+
 logCPM <- as.data.frame(logCPM)
 rownames(logCPM) <- make.names(y$genes$Symbol, unique = TRUE)
 colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
@@ -437,17 +446,12 @@ heatmap.2(topcpm, col=col.pan, Rowv=TRUE, scale="column",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Highest expressed genes")
 dev.off()
 
-### MULTIPLE BOXPLOTS OF INTERESTING GENES
-#logdf <- as.data.frame(sub)
-#for (i in seq(1:nrow(logdf))){
-#  png(file = paste(rownames(logdf[i,]), "_CPM.png", sep=""))
-#  boxplot.default(logdf[i,],outline = TRUE,  main = paste(rownames(logdf[i,])))
-#  dev.off()
-#}
+}
+
 
 
 ### Multiple MDPlots
-
+dir.create("mdplots")
 for (f in 1:ncol(y)){
   png(file = paste(f, ".png", sep=""))
   plotMD(y, column=f)
@@ -458,9 +462,9 @@ pdf(file = "MDplot_common.pdf", width = 12, height = 17, family = "Helvetica")
 plotMD(y, values=c(1,-1), col=c("red","blue"),
        legend="topright")
 dev.off()
-
+setwd(directory)
 ### SEARCH AND PLOT!
-if (custom_heatmap = TRUE) {
+if (custom_heatmap == TRUE) {
 logCPM$Name <- y$genes$Name
 let <- c("caspase", 
          "apoptosis",
@@ -478,6 +482,14 @@ for (f in let){
             trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
             margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
   dev.off()
+  if (custom_genes_plots == TRUE){
+  logdf <- as.data.frame(sub)
+  for (i in seq(1:nrow(logdf))){
+    png(file = paste(rownames(logdf[i,]), "_CPM.png", sep=""))
+    boxplot.default(logdf[i,],outline = TRUE,  main = paste(rownames(logdf[i,])))
+    dev.off()}
+  }
+  
 }
 }
 
@@ -487,20 +499,77 @@ data(sigmet.idx.mm)
 kegg.sets.mm = kegg.sets.mm[sigmet.idx.mm]
 
 keggres = gage(foldchanges, gsets=kegg.sets.mm, same.dir=TRUE)
-lapply(keggres, head)
+keggreswr <- as.data.frame(keggres)
+write.xlsx(keggreswr, file = "KEGG pathview.xlsx", sheetName = "KEGG", append = TRUE)
 
+if (kegg_plots == TRUE){
 keggrespathways = data.frame(id=rownames(keggres$greater),
   keggres$greater) %>% 
   tbl_df() %>% 
-  filter(row_number()<=5) %>% 
+  filter(row_number()<=number_of_kegg_plots) %>% 
   .$id %>% 
   as.character()
 keggresids = substr(keggrespathways, start=1, stop=8)
-keggresids
+
 plot_pathway = function(pid){
          pathview(gene.data=foldchanges, 
          pathway.id=pid, 
          species="mmu", 
          new.signature=FALSE)
 }
+detach("package:dplyr", unload=TRUE)
+dir.create("kegg")
+setwd("kegg")
+tmp = sapply(keggresids, function(pid) pathview(gene.data=foldchanges, pathway.id=pid, species="mmu"))
+}
 
+
+setwd(directory)
+### DISEASE ASSOCIATION
+
+if (disease_association == TRUE){
+et_annot_high <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff))
+et_annot_low <- as.data.frame(subset(et_annot, logFC < logfclow_cutoff))
+
+table <- read.delim(file = '~/GitHub/data/curated_gene_disease_associations.tsv')
+table <- as.data.frame(table)
+
+diseases_up <- data.frame()
+diseases_down <- data.frame()
+for (f in et_annot_high$symbol){
+  sub <- NULL
+  sub <- table[grepl(paste(f), table$geneSymbol, ignore.case = TRUE),]
+  sub <- sub[order(sub$score, decreasing = TRUE),]
+  sub <- sub[seq(1:5),]
+  sub <- as.data.frame(sub$diseaseName)
+  sub <- transpose(sub)
+  sub$gene <- paste(f)
+  diseases_up <- rbind(sub, diseases_up)
+}
+write.xlsx(diseases_up, file = "Diseases association by Disgenet.xlsx", sheetName = "upreg", append = TRUE)
+
+for (f in et_annot_low$symbol){
+  sub <- NULL
+  sub <- table[grepl(paste(f), table$geneSymbol, ignore.case = TRUE),]
+  sub <- sub[order(sub$score, decreasing = TRUE),]
+  sub <- sub[seq(1:5),]
+  sub <- as.data.frame(sub$diseaseName)
+  sub <- transpose(sub)
+  sub$gene <- paste(f)
+  diseases_down<- rbind(sub, diseases_down)
+}
+write.xlsx(diseases_down, file = "Diseases association by Disgenet.xlsx", sheetName = "downreg", append = TRUE)
+
+
+up <- as.data.frame(table(unlist(diseases_up)))
+up <- up[order(up$Freq, decreasing = TRUE),]
+up <- up[seq(1:diseases_set),]
+names(up) <- c("Disease", "Frequency")
+write.xlsx(up, file = "Top Diseases by Disgenet.xlsx", sheetName = "upreg", append = TRUE)
+
+down <- as.data.frame(table(unlist(diseases_down)))
+down <- down[order(down$Freq, decreasing = TRUE),]
+down <- down[seq(1:diseases_set),]
+names(down) <- c("Disease", "Frequency")
+write.xlsx(down, file = "Top Diseases by Disgenet.xlsx", sheetName = "downreg", append = TRUE)
+}

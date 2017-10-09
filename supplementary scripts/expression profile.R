@@ -19,17 +19,16 @@ logfclow_cutoff <- -1
 cpm_cutoff <- 0.5
 
 ### Statistical analysis
-directory <- '~/bioinformatics/counts/ALS Mice/motoneurons laser dissected//'
+directory <- '~/GitHub/counts/ALS Mice/microglia/'
 setwd(directory)
-sampleFiles <- grep('moto',list.files(directory),value=TRUE)
-sampleCondition <- c('1', '1')
+sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
+sampleCondition <- c('1', '1', '1', '1', '1', '1')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
 y <- estimateCommonDisp(y)
 y <- estimateTagwiseDisp(y)
 cpm <- as.data.frame(cpm(y))
 cpm$sum <- rowSums(cpm)
-cpm <- subset(cpm, cpm$sum > 5)
 ### ANNOTATE
 
 cpm$Symbol <- mapIds(org.Mm.eg.db, 
@@ -43,4 +42,4 @@ cpm$Name <- mapIds(org.Mm.eg.db,
                        keytype="ENSEMBL",
                        multiVals="first")
 
-write.csv(cpm, file = "motoneurons.csv")
+write.csv(cpm, file = "microglia.csv")
