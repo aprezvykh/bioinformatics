@@ -8,12 +8,14 @@ library("ReactomePA")
 library("reactome.db")
 library("topGO")
 library("clusterProfiler")
-gs_size <- 1
+library("xlsx")
+gs_size <- 5
 kegg_plots <- TRUE
 data(go.sets.mm)
 data(go.subs.mm)
-setwd("~/bioinformatics/counts/ALS Mice/compare_new//")
-et_annot <- read.csv("~/bioinformatics/counts/ALS Mice/compare_new/deg_moto.csv.csv")
+et_annot <- read.csv("~/GitHub/counts/ALS Mice/non_filtered manifastation genes_tg_1_tg_2/MANIFESTATION.csv")
+setwd("~/GitHub//counts/ALS Mice/non_filtered manifastation genes_tg_1_tg_2/")
+
 rownames(et_annot) <- et_annot$X
 et_annot_high <- subset(et_annot, et_annot$logFC > 0)
 et_annot_low <- subset(et_annot, et_annot$logFC < 0)
@@ -21,7 +23,7 @@ foldchanges = et_annot$logFC
 names(foldchanges) = et_annot$entrez
 
 gomfsets = go.sets.mm[go.subs.mm$MF]
-gomfres = gage(foldchanges, gsets=gomfsets, same.dir=TRUE,set.size = c(10, 100), rank.test = TRUE)
+gomfres = gage(foldchanges, gsets=gomfsets, same.dir=TRUE,set.size = c(5, 100), rank.test = TRUE)
 lapply(gomfres, head)
 gomfres <- as.data.frame(gomfres)
 gomfres <- gomfres[complete.cases(gomfres), ]
@@ -87,13 +89,13 @@ dev.off()
 
 ###KEGG expression profile (without lfc, but with generatio)
 
-kk <- enrichKEGG(gene = df_high, organism = "mmu", pvalueCutoff = 0.05)
+kk <- enrichKEGG(gene = df_high, organism = "mmu", pvalueCutoff = 0.2)
 write.xlsx(kk, file = "KEGG.xlsx", sheetName = "KEGG_upreg", append = TRUE)
 pdf(file = "KEGG_upreg.pdf", width = 12, height = 17, family = "Helvetica")
 barplot(kk, showCategory=3,  font.size = 9)
 dev.off()
 
-kk <- enrichKEGG(gene = df_low, organism = "mmu", pvalueCutoff = 0.05)
+kk <- enrichKEGG(gene = df_low, organism = "mmu", pvalueCutoff = 0.2)
 write.xlsx(kk, file = "KEGG.xlsx", sheetName = "KEGG_downreg", append = TRUE)
 pdf(file = "KEGG_downreg.pdf", width = 12, height = 17, family = "Helvetica")
 barplot(kk, showCategory=3,  font.size = 9)
@@ -130,3 +132,8 @@ if (kegg_plots == TRUE){
 }
 
 
+
+pathview(gene.data=foldchanges, 
+         pathway.id="mmu03050", 
+         species="mmu", 
+         new.signature=FALSE)

@@ -18,11 +18,13 @@ library(data.table)
 library(pathview)
 library(plyr)
 library(dplyr)
+library(RColorBrewer)
+library(Matrix)
 ### PASTE 1 IF YOU WANT TO ANALYZE ALL SAMPLES. PASTE 0 IF YOU WANT TO
 custom_heatmap <- FALSE
 custom_genes_plots <- FALSE
 fisherGO <- FALSE
-analyze_all_samples <- FALSE
+analyze_all_samples <- TRUE
 disease_association <- TRUE
 kegg_plots <- TRUE
 
@@ -63,8 +65,14 @@ if (analyze_all_samples == TRUE){
 stattest <- paste(gr_control, gr_case, sep = "-")
 directory <- '~/GitHub/counts/ALS Mice/experimental/results/'
 setwd(directory)
+if (analyze_all_samples == FALSE){
 dir.create(stattest)
 setwd(stattest)
+} else if (analyze_all_samples == TRUE){
+  dir.create("all")
+  setwd("all")
+}
+
 readqual <- as.data.frame(tail(y$counts, 5))
 libsize <- as.data.frame(t(y$samples$lib.size))
 names(libsize) <- names(readqual)
@@ -313,9 +321,24 @@ write.xlsx(gocc_l_1000, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 10
 ### MDS PLOT
 pch <- c(0,1,2,15,16,17)
 colors <- rep(c("darkgreen", "red", "blue"), 2)
-pdf(file = "PCAPlot.pdf", width = 12, height = 17, family = "Helvetica")
+# pdf(file = "PCAPlot.pdf", width = 12, height = 17, family = "Helvetica")
+png(file = "MDSPlot.png")
 plotMDS(y, col=colors[sampleTable$condition], pch = pch[sampleTable$condition])
 legend("topleft", legend=levels(sampleTable$condition), pch=pch, col=colors, ncol=2)
+dev.off()
+
+# CORELLATION MATRIX
+par(mar=c(1,1,1,1))
+#pdf(file = "matrix.pdf", width = 12, height = 17, family = "Helvetica")
+hmcol<- colorRampPalette(brewer.pal(11, 'RdYlBu'))(50)
+distsRL <- dist(t(logCPM))
+mat<- as.matrix(distsRL)
+rownames(mat) <- colnames(mat) <- with(colData(dds),
+                                  paste(condition,sampleFiles , sep=' : '))
+
+hc <- hclust(distsRL)
+par(mar=c(1,1,1,1))
+pheatmap(mat)
 dev.off()
 
 ### VOLCANO PLOT
@@ -523,6 +546,10 @@ setwd("kegg")
 tmp = sapply(keggresids, function(pid) pathview(gene.data=foldchanges, pathway.id=pid, species="mmu"))
 }
 
+pathview(gene.data=foldchanges, 
+         pathway.id="mmu03050", 
+         species="mmu", 
+         new.signature=FALSE)
 
 setwd(directory)
 ### DISEASE ASSOCIATION

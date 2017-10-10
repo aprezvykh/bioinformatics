@@ -1,6 +1,13 @@
 library(xlsx)
-glia <- read.csv("~/bioinformatics/counts/ALS Mice/compare_new/microglia.csv")
-moto <- read.csv("~/bioinformatics//counts/ALS Mice/compare_new/motoneurons.csv")
+glia <- read.csv("~/GitHub/counts/ALS Mice/old diff/microglia.csv")
+moto <- read.csv("~/GitHub//counts/ALS Mice/old diff//motoneurons.csv")
+df <- data.frame()
+for (f in glia$X){
+  a <- grep(paste(f), moto$X)
+  df <- moto[a,]
+  df 
+  
+}
 
 compare <- data.frame(glia$X, glia$sum, moto$sum)
 compare <- subset(compare, ((compare$glia.sum + compare$moto.sum)/2) > 8)
@@ -19,8 +26,8 @@ moto_aff <- subset(moto_aff, moto_aff$compare.moto.affinity > 5)
 
 common_genes <- data.frame()
 
-exp <- read.xlsx(file = "~/bioinformatics/counts/ALS Mice/experimental/results/tg_1-tg_3/Results edgeR.xlsx", sheetIndex = 2)
-x <- read.xlsx(file = "~/bioinformatics/counts/ALS Mice/motoneurons marker.xlsx", sheetIndex = 1)
+exp <- read.csv("~/GitHub/counts/ALS Mice/compare_tg_1_tg_2/MANIFESTATION.csv")
+x <- read.xlsx(file = "~/GitHub/counts/ALS Mice/old diff/motoneurons marker.xlsx", sheetIndex = 1)
 
 in1 <- intersect(moto_aff$compare.glia.X, exp$NA.)
 
@@ -44,7 +51,7 @@ for (f in sig_glia$`intersect(gl_aff$compare.glia.X, exp$NA.)`){
 deg_moto <- deg_moto[complete.cases(deg_moto), ]
 deg_glia<- deg_glia[complete.cases(deg_glia), ]
 
-write.csv(deg_moto, file = "deg_moto.csv")
-write.csv(deg_glia, file = "deg_glia.csv")
+write.csv(deg_moto, file = "deg_moto_12.csv")
+write.csv(deg_glia, file = "deg_glia_12.csv")
 
 
