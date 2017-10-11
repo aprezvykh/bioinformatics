@@ -1,5 +1,4 @@
-source("https://bioconductor.org/biocLite.R")
-biocLite("PANTHER.db")
+library(beepr)
 library(AnnotationDbi)
 library(Rcpp)
 library(gplots)
@@ -23,13 +22,17 @@ library(dplyr)
 library(RColorBrewer)
 library(Matrix)
 library(PANTHER.db)
+library(GO.db)
+library(Hmisc)
 ### PASTE 1 IF YOU WANT TO ANALYZE ALL SAMPLES. PASTE 0 IF YOU WANT TO
+beep()
 custom_heatmap <- FALSE
 custom_genes_plots <- FALSE
 fisherGO <- FALSE
 analyze_all_samples <- TRUE
 disease_association <- TRUE
 kegg_plots <- TRUE
+panther_analysis <- TRUE
 
 pvalue_cutoff <- 0.05
 logfchigh_cutoff <- 1
@@ -113,6 +116,7 @@ cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ]
 cpm <- as.data.frame(cpm(y))
 cpm$rowsum <- rowSums(cpm)
 y <- y[keep, , keep.lib.sizes=FALSE]
+
 normalized_lib_sizes <- calcNormFactors(y, method = "TMM")
 logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes)
 et <- exactTest(y)
@@ -165,7 +169,11 @@ et_annot_non_filtered$Symbol <- mapIds(org.Mm.eg.db,
                           column="ENTREZID", 
                           keytype="ENSEMBL",
                           multiVals="first")
+### FILTRATION
 
+et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
+et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
+et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
 
 ### TESTING A HYPOTESIS
 
@@ -323,6 +331,16 @@ write.xlsx(gomf_l_1000, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 10
 write.xlsx(gocc_l_1000, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 1000", append = TRUE)
 }
 
+
+
+## CORELLATION MARIX WITH DESEQ2
+correl <- cpm(y)
+x <- cor(correl)
+x <- dist(x)
+png(file = "Corellation matrix.png")
+heatmap.2(x, margins = c(10,10))
+dev.off()
+        
 ### MDS PLOT
 pch <- c(0,1,2,15,16,17)
 colors <- rep(c("darkgreen", "red", "blue"), 2)
@@ -332,19 +350,7 @@ plotMDS(y, col=colors[sampleTable$condition], pch = pch[sampleTable$condition])
 legend("topleft", legend=levels(sampleTable$condition), pch=pch, col=colors, ncol=2)
 dev.off()
 
-# CORELLATION MATRIX
-par(mar=c(1,1,1,1))
-#pdf(file = "matrix.pdf", width = 12, height = 17, family = "Helvetica")
-hmcol<- colorRampPalette(brewer.pal(11, 'RdYlBu'))(50)
-distsRL <- dist(t(logCPM))
-mat<- as.matrix(distsRL)
-rownames(mat) <- colnames(mat) <- with(colData(dds),
-                                  paste(condition,sampleFiles , sep=' : '))
 
-hc <- hclust(distsRL)
-par(mar=c(1,1,1,1))
-pheatmap(mat)
-dev.off()
 
 ### VOLCANO PLOT
 allgenes <- nrow(et_annot_non_filtered)
@@ -358,9 +364,6 @@ g = ggplot(data=et_annot_non_filtered, aes(x=logFC, y=-log10(PValue), colour=thr
 g
 dev.off()
 
-et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
-et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
-et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
 
 write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append = TRUE)
 write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
@@ -610,6 +613,8 @@ write.xlsx(down, file = "Top Diseases by Disgenet.xlsx", sheetName = "downreg", 
 
 
 ### PANTHER.DB
+
+if (panther_analysis == TRUE){
 pan_up <- et_annot_high
 pan_down <- et_annot_low
 
@@ -662,3 +667,9 @@ write.xlsx(go_pan_down, file = "GOSlim Terms by PANTHER", sheetName = "DOWN", ap
 
 write.xlsx(pth_pan_up, file = "Top Pathways by PANTHER", sheetName = "UP", append = TRUE)
 write.xlsx(pth_pan_down, file = "Top Pathways by PANTHER", sheetName = "DOWN", append = TRUE)
+}
+
+beep()
+beep()
+beep()
+
