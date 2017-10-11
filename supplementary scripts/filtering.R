@@ -1,6 +1,6 @@
 library("xlsx")
-setwd("~/GitHub//counts/ALS Mice/non_filtered manifastation genes_tg_1_tg_2/")
-man <- read.xlsx("~/GitHub//counts/ALS Mice/non_filtered manifastation genes_tg_1_tg_2/manifestation_tg_1_tg_2.xlsx", sheetIndex = 1)  
+setwd("~/GitHub//counts/ALS Mice/new filtering/tg1-tg2/")
+man <- read.xlsx("~/GitHub//counts/ALS Mice/new filtering/tg1-tg2/manifestation_genes_only_12.xlsx", sheetIndex = 1)  
 diff <- read.xlsx("~/GitHub/counts/ALS Mice/experimental/results/tg_1-tg_2/Results edgeR.xlsx", sheetIndex = 2)
 man <- as.data.frame(man$Ensembl.ID)
 manifestation <- data.frame()
@@ -15,4 +15,4 @@ for (f in man$genes){
 }
 
 et_annot <- as.data.frame(manifestation)
-write.csv(et_annot, file = "~/GitHub/counts/ALS Mice/non_filtered manifastation genes_tg_1_tg_2/MANIFESTATION.csv")
+write.csv(et_annot, file = "~/GitHub/counts/ALS Mice/new filtering/tg1-tg2/manifestation_deg_12.csv")

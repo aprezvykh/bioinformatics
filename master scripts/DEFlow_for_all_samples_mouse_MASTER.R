@@ -1,3 +1,5 @@
+source("https://bioconductor.org/biocLite.R")
+biocLite("PANTHER.db")
 library(AnnotationDbi)
 library(Rcpp)
 library(gplots)
@@ -20,6 +22,7 @@ library(plyr)
 library(dplyr)
 library(RColorBrewer)
 library(Matrix)
+library(PANTHER.db)
 ### PASTE 1 IF YOU WANT TO ANALYZE ALL SAMPLES. PASTE 0 IF YOU WANT TO
 custom_heatmap <- FALSE
 custom_genes_plots <- FALSE
@@ -37,6 +40,8 @@ gr_case <- c("tg_3")
 gs_size <- 10
 diseases_set <- 50
 number_of_kegg_plots <- 50
+go_terms_set <- 50
+pathways_set <- 30
 ### Statistical analysis
 directory <- '~/GitHub/counts/ALS Mice/experimental/'
 setwd(directory)
@@ -600,3 +605,60 @@ down <- down[seq(1:diseases_set),]
 names(down) <- c("Disease", "Frequency")
 write.xlsx(down, file = "Top Diseases by Disgenet.xlsx", sheetName = "downreg", append = TRUE)
 }
+
+
+
+
+### PANTHER.DB
+pan_up <- et_annot_high
+pan_down <- et_annot_low
+
+pan_up$goslim <- mapIds(PANTHER.db, 
+                        keys=et_annot_high$entrez, 
+                        column="GOSLIM_ID", 
+                        keytype="ENTREZ",
+                        multiVals="first")
+
+pan_up$pathway <- mapIds(PANTHER.db, 
+                        keys=et_annot_high$entrez, 
+                        column="PATHWAY_ID", 
+                        keytype="ENTREZ",
+                        multiVals="first")
+pan_down$goslim <- mapIds(PANTHER.db, 
+                        keys=et_annot_low$entrez, 
+                        column="GOSLIM_ID", 
+                        keytype="ENTREZ",
+                        multiVals="first")
+
+pan_down$pathway <- mapIds(PANTHER.db, 
+                        keys=et_annot_low$entrez, 
+                        column="PATHWAY_ID", 
+                        keytype="ENTREZ",
+                        multiVals="first")
+
+
+go_pan_up <- as.data.frame(table(unlist(pan_up$goslim)))
+go_pan_up <- go_pan_up[order(go_pan_up$Freq, decreasing = TRUE),]
+go_pan_up <- go_pan_up[seq(1:go_terms_set),]
+names(go_pan_up) <- c("GO term", "Frequency")
+
+go_pan_down <- as.data.frame(table(unlist(pan_down$goslim)))
+go_pan_down <- go_pan_down[order(go_pan_down$Freq, decreasing = TRUE),]
+go_pan_down <- go_pan_down[seq(1:go_terms_set),]
+names(go_pan_down) <- c("GO term", "Frequency")
+
+pth_pan_up <- as.data.frame(table(unlist(pan_up$pathway)))
+pth_pan_up <- pth_pan_up[order(pth_pan_up$Freq, decreasing = TRUE),]
+pth_pan_up <- pth_pan_up[seq(1:pathways_set),]
+names(pth_pan_up) <- c("Pathway ID", "Frequency")
+
+pth_pan_down <- as.data.frame(table(unlist(pan_down$pathway)))
+pth_pan_down <- pth_pan_down[order(pth_pan_down$Freq, decreasing = TRUE),]
+pth_pan_down <- pth_pan_down[seq(1:pathways_set),]
+names(pth_pan_down) <- c("Pathway ID", "Frequency")
+
+write.xlsx(go_pan_up, file = "GOSlim Terms by PANTHER", sheetName = "UP", append = TRUE)
+write.xlsx(go_pan_down, file = "GOSlim Terms by PANTHER", sheetName = "DOWN", append = TRUE)
+
+write.xlsx(pth_pan_up, file = "Top Pathways by PANTHER", sheetName = "UP", append = TRUE)
+write.xlsx(pth_pan_down, file = "Top Pathways by PANTHER", sheetName = "DOWN", append = TRUE)

@@ -9,12 +9,16 @@ library("reactome.db")
 library("topGO")
 library("clusterProfiler")
 library("xlsx")
-gs_size <- 5
+gs_size <- 2
 kegg_plots <- TRUE
 data(go.sets.mm)
 data(go.subs.mm)
-et_annot <- read.csv("~/GitHub/counts/ALS Mice/non_filtered manifastation genes_tg_1_tg_2/MANIFESTATION.csv")
-setwd("~/GitHub//counts/ALS Mice/non_filtered manifastation genes_tg_1_tg_2/")
+
+library("dplyr")
+dir <- "~/GitHub/counts/ALS Mice/new filtering/tg1-tg3/other/"
+file <- grep("deg", list.files(dir), value = TRUE)
+setwd(dir)
+et_annot <- read.csv(paste(file))
 
 rownames(et_annot) <- et_annot$X
 et_annot_high <- subset(et_annot, et_annot$logFC > 0)
@@ -78,7 +82,6 @@ dev.off()
 df_low <- et_annot_low$entrez
 x <- enrichPathway(gene=df_low, organism = "mouse", minGSSize=gs_size, readable = TRUE )
 head(as.data.frame(x))
-dev.off()
 
 par(mar=c(1,1,1,1))
 pdf(file = "barplot_low.pdf", width = 12, height = 17, family = "Helvetica")
@@ -131,9 +134,9 @@ if (kegg_plots == TRUE){
   tmp = sapply(keggresids, function(pid) pathview(gene.data=foldchanges, pathway.id=pid, species="mmu"))
 }
 
-
-
 pathview(gene.data=foldchanges, 
          pathway.id="mmu03050", 
          species="mmu", 
          new.signature=FALSE)
+
+
