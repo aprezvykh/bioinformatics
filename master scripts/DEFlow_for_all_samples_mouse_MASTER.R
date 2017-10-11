@@ -1,3 +1,4 @@
+install.packages("beepr")
 library(beepr)
 library(AnnotationDbi)
 library(Rcpp)
@@ -29,7 +30,7 @@ beep()
 custom_heatmap <- FALSE
 custom_genes_plots <- FALSE
 fisherGO <- FALSE
-analyze_all_samples <- TRUE
+analyze_all_samples <- FALSE
 disease_association <- TRUE
 kegg_plots <- TRUE
 panther_analysis <- TRUE
@@ -46,7 +47,7 @@ number_of_kegg_plots <- 50
 go_terms_set <- 50
 pathways_set <- 30
 ### Statistical analysis
-directory <- '~/GitHub/counts/ALS Mice/experimental/'
+directory <- '~/bioinformatics/counts/ALS Mice/experimental/'
 setwd(directory)
 
 if (analyze_all_samples == TRUE){
@@ -71,7 +72,7 @@ if (analyze_all_samples == TRUE){
 }
 
 stattest <- paste(gr_control, gr_case, sep = "-")
-directory <- '~/GitHub/counts/ALS Mice/experimental/results/'
+directory <- '~/bioinformatics/counts/ALS Mice/experimental/results/'
 setwd(directory)
 if (analyze_all_samples == FALSE){
 dir.create(stattest)
@@ -183,9 +184,21 @@ c <- grep(paste(lfgene), rownames(CountsTable))
 dfc <- as.data.frame(CountsTable[c,])
 dfc$meancontrol <- (dfc[1,1] + dfc[1,2])/2
 dfc$meancase <- (dfc[1,3] + dfc[1,4])/2
-if(dfc$meancase > dfc$meancontrol){
+if (dfc$meancase > dfc$meancontrol){
   et_annot$logFC <- et_annot$logFC*(-1)
 }
+
+
+fc <- et_annot_non_filtered[order(et_annot_non_filtered$logFC),]
+lfgene <- rownames(fc[4,])
+c <- grep(paste(lfgene), rownames(CountsTable))
+dfc <- as.data.frame(CountsTable[c,])
+dfc$meancontrol <- (dfc[1,1] + dfc[1,2])/2
+dfc$meancase <- (dfc[1,3] + dfc[1,4])/2
+if (dfc$meancase > dfc$meancontrol){
+  et_annot_non_filtered$logFC <- et_annot_non_filtered$logFC*(-1)
+}
+
 
 ### Simple summary
 all <- nrow(raw_counts)
@@ -196,6 +209,10 @@ down <- sum(et_annot$logFC < logfclow_cutoff, na.rm=TRUE)
 header <- c('all genes', 'mean of logCPM', 'padj<0,05', 'genes with > high', 'genes with < low')
 meaning <- c(print(all), print(avg_cpm), print(allpadj), print(up), print(down))
 df <- data.frame(header, meaning)
+
+write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append = TRUE)
+write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
+write.xlsx(CountsTable, file = "Results edgeR.xlsx", sheetName = "Counts Table, logCPM>1", append = TRUE)
 
 
 ### ANNOTATE COUNTS
@@ -336,7 +353,6 @@ write.xlsx(gocc_l_1000, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 10
 ## CORELLATION MARIX WITH DESEQ2
 correl <- cpm(y)
 x <- cor(correl)
-x <- dist(x)
 png(file = "Corellation matrix.png")
 heatmap.2(x, margins = c(10,10))
 dev.off()
@@ -364,10 +380,6 @@ g = ggplot(data=et_annot_non_filtered, aes(x=logFC, y=-log10(PValue), colour=thr
 g
 dev.off()
 
-
-write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append = TRUE)
-write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
-write.xlsx(CountsTable, file = "Results edgeR.xlsx", sheetName = "Counts Table, logCPM>1", append = TRUE)
 
 ### REACTOME PART
 dfa <- as.character(et_annot$entrez)
@@ -566,7 +578,7 @@ if (disease_association == TRUE){
 et_annot_high <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff))
 et_annot_low <- as.data.frame(subset(et_annot, logFC < logfclow_cutoff))
 
-table <- read.delim(file = '~/GitHub/data/curated_gene_disease_associations.tsv')
+table <- read.delim(file = '~/bioinformatics/data/curated_gene_disease_associations.tsv')
 table <- as.data.frame(table)
 
 diseases_up <- data.frame()
@@ -581,7 +593,7 @@ for (f in et_annot_high$symbol){
   sub$gene <- paste(f)
   diseases_up <- rbind(sub, diseases_up)
 }
-write.xlsx(diseases_up, file = "Diseases association by Disgenet.xlsx", sheetName = "upreg", append = TRUE)
+# write.xlsx(diseases_up, file = "Diseases association by Disgenet.xlsx", sheetName = "upreg", append = TRUE)
 
 for (f in et_annot_low$symbol){
   sub <- NULL
@@ -593,7 +605,7 @@ for (f in et_annot_low$symbol){
   sub$gene <- paste(f)
   diseases_down<- rbind(sub, diseases_down)
 }
-write.xlsx(diseases_down, file = "Diseases association by Disgenet.xlsx", sheetName = "downreg", append = TRUE)
+# write.xlsx(diseases_down, file = "Diseases association by Disgenet.xlsx", sheetName = "downreg", append = TRUE)
 
 
 up <- as.data.frame(table(unlist(diseases_up)))
@@ -662,14 +674,13 @@ pth_pan_down <- pth_pan_down[order(pth_pan_down$Freq, decreasing = TRUE),]
 pth_pan_down <- pth_pan_down[seq(1:pathways_set),]
 names(pth_pan_down) <- c("Pathway ID", "Frequency")
 
-write.xlsx(go_pan_up, file = "GOSlim Terms by PANTHER", sheetName = "UP", append = TRUE)
-write.xlsx(go_pan_down, file = "GOSlim Terms by PANTHER", sheetName = "DOWN", append = TRUE)
+write.xlsx(go_pan_up, file = "GOSlim Terms by PANTHER.xlsx", sheetName = "UP", append = TRUE)
+write.xlsx(go_pan_down, file = "GOSlim Terms by PANTHER.xlsx", sheetName = "DOWN", append = TRUE)
 
-write.xlsx(pth_pan_up, file = "Top Pathways by PANTHER", sheetName = "UP", append = TRUE)
-write.xlsx(pth_pan_down, file = "Top Pathways by PANTHER", sheetName = "DOWN", append = TRUE)
+write.xlsx(pth_pan_up, file = "Top Pathways by PANTHER.xlsx", sheetName = "UP", append = TRUE)
+write.xlsx(pth_pan_down, file = "Top Pathways by PANTHER.xlsx", sheetName = "DOWN", append = TRUE)
 }
 
-beep()
-beep()
+
 beep()
 
