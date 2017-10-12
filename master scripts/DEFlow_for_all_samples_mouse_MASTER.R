@@ -1,4 +1,3 @@
-install.packages("beepr")
 library(beepr)
 library(AnnotationDbi)
 library(Rcpp)
@@ -25,8 +24,11 @@ library(Matrix)
 library(PANTHER.db)
 library(GO.db)
 library(Hmisc)
+library(DESeq2)
+library(checkmate)
 ### PASTE 1 IF YOU WANT TO ANALYZE ALL SAMPLES. PASTE 0 IF YOU WANT TO
-beep()
+
+heatmaps <- TRUE
 custom_heatmap <- FALSE
 custom_genes_plots <- FALSE
 fisherGO <- FALSE
@@ -34,20 +36,23 @@ analyze_all_samples <- FALSE
 disease_association <- TRUE
 kegg_plots <- TRUE
 panther_analysis <- TRUE
+deseq2_part <- TRUE
 
 pvalue_cutoff <- 0.05
 logfchigh_cutoff <- 1
 logfclow_cutoff <- -1
 cpm_cutoff <- 0.5
-gr_control <- c("tg_1")
-gr_case <- c("tg_3")
+gr_control <- c("control_3")
+gr_case <- c("tg_1")
 gs_size <- 10
 diseases_set <- 50
 number_of_kegg_plots <- 50
 go_terms_set <- 50
 pathways_set <- 30
+
 ### Statistical analysis
-directory <- '~/bioinformatics/counts/ALS Mice/experimental/'
+col.pan <- colorpanel(100, "blue", "white", "red")
+directory <- '~/GitHub/counts/ALS Mice/experimental/'
 setwd(directory)
 
 if (analyze_all_samples == TRUE){
@@ -72,8 +77,9 @@ if (analyze_all_samples == TRUE){
 }
 
 stattest <- paste(gr_control, gr_case, sep = "-")
-directory <- '~/bioinformatics/counts/ALS Mice/experimental/results/'
+directory <- '~/GitHub/counts/ALS Mice/experimental/results/'
 setwd(directory)
+
 if (analyze_all_samples == FALSE){
 dir.create(stattest)
 setwd(stattest)
@@ -177,28 +183,54 @@ et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
 et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
 
 ### TESTING A HYPOTESIS
+counts_control <- CountsTable[,grep(gr_control, names(CountsTable))]
+counts_case <- CountsTable[,grep(gr_case, names(CountsTable))]
+counts_control$rowsum.control <- rowSums(counts_control)
+counts_case$rowsum.case <- rowSums(counts_case)
+diff <- data.frame(counts_control$rowsum.control, counts_case$rowsum.case)
+rownames(diff) <- rownames(CountsTable) 
 
 fc <- et_annot[order(et_annot$logFC),]
 lfgene <- rownames(fc[4,])
-c <- grep(paste(lfgene), rownames(CountsTable))
-dfc <- as.data.frame(CountsTable[c,])
-dfc$meancontrol <- (dfc[1,1] + dfc[1,2])/2
-dfc$meancase <- (dfc[1,3] + dfc[1,4])/2
-if (dfc$meancase > dfc$meancontrol){
+c <- grep(paste(lfgene), rownames(diff))
+dfc <- as.data.frame(diff[c,])
+lfgenefc <- fc[4,1]
+stat <- dfc$counts_control.rowsum.control > dfc$counts_case.rowsum.case
+
+if (stat == TRUE & lfgenefc < 0){
+  print("No Correction Needed!")
+} else {
   et_annot$logFC <- et_annot$logFC*(-1)
 }
 
 
-fc <- et_annot_non_filtered[order(et_annot_non_filtered$logFC),]
-lfgene <- rownames(fc[4,])
-c <- grep(paste(lfgene), rownames(CountsTable))
-dfc <- as.data.frame(CountsTable[c,])
-dfc$meancontrol <- (dfc[1,1] + dfc[1,2])/2
-dfc$meancase <- (dfc[1,3] + dfc[1,4])/2
-if (dfc$meancase > dfc$meancontrol){
-  et_annot_non_filtered$logFC <- et_annot_non_filtered$logFC*(-1)
-}
 
+### Distribution
+dir.create("distributions")
+setwd("distributions")
+
+png(file = "logCPM distribution, filtered.png")
+hist(et_annot$logCPM, main = "logCPM distribution, filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "logCPM")
+dev.off()
+png(file = "p-value distribution, filtered.png")
+hist(et_annot$PValue, main = "p-value distribution, filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "p-value")
+dev.off()
+png(file = "LogFC distribution, filtered.png")
+hist(et_annot$logFC, main = "logFC distribution, filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "LogFC")
+dev.off()
+
+png(file = "logCPM distribution, nonfiltered.png")
+hist(et_annot_non_filtered$logCPM, main = "logCPM distribution, non-filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "logCPM")
+dev.off()
+png(file = "p-value distribution, nonfiltered.png")
+hist(et_annot_non_filtered$PValue, main = "p-value distribution, non-filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "p-value")
+dev.off()
+png(file = "LogFC distribution, nonfiltered.png")
+hist(et_annot_non_filtered$logFC, main = "logFC distribution, non-filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "LogFC")
+dev.off()
+
+setwd(directory)
+setwd(stattest)
 
 ### Simple summary
 all <- nrow(raw_counts)
@@ -212,7 +244,7 @@ df <- data.frame(header, meaning)
 
 write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append = TRUE)
 write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
-write.xlsx(CountsTable, file = "Results edgeR.xlsx", sheetName = "Counts Table, logCPM>1", append = TRUE)
+# write.xlsx(CountsTable, file = "Results edgeR.xlsx", sheetName = "Counts Table, logCPM>1", append = TRUE)
 
 
 ### ANNOTATE COUNTS
@@ -228,7 +260,6 @@ CountsTable$name <- mapIds(org.Mm.eg.db,
                            keytype="ENSEMBL",
                            multiVals="first")
 
-CountsTable <- CountsTable[rownames(et_annot),]
 
 ### GO TESTS
 data(go.sets.mm)
@@ -445,7 +476,7 @@ if (heatmaps == TRUE){
 
 logCPM <- as.data.frame(logCPM)
 rownames(logCPM) <- make.names(y$genes$Symbol, unique = TRUE)
-colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
+# colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
 o <- order(et$table$PValue)
 logCPMpval <- logCPM[o[1:100],]
 logCPMpval <- t(scale(t(logCPMpval)))
@@ -474,7 +505,7 @@ topcpm <- topcpm[complete.cases(topcpm), ]
 topcpm <- topcpm[1:100,]
 topcpm$rowsum <- NULL
 topcpm <- as.data.frame(topcpm)
-colnames(topcpm) <- paste(y$samples$group, 1:2, sep="-")
+# colnames(topcpm) <- paste(y$samples$group, 1:2, sep="-")
 topcpm$Symbol <- mapIds(org.Mm.eg.db, 
                         keys=row.names(topcpm), 
                         column="SYMBOL", 
@@ -495,6 +526,7 @@ dev.off()
 
 ### Multiple MDPlots
 dir.create("mdplots")
+setwd("mdplots")
 for (f in 1:ncol(y)){
   png(file = paste(f, ".png", sep=""))
   plotMD(y, column=f)
@@ -505,7 +537,7 @@ pdf(file = "MDplot_common.pdf", width = 12, height = 17, family = "Helvetica")
 plotMD(y, values=c(1,-1), col=c("red","blue"),
        legend="topright")
 dev.off()
-setwd(directory)
+setwd(stattest)
 ### SEARCH AND PLOT!
 if (custom_heatmap == TRUE) {
 logCPM$Name <- y$genes$Name
@@ -537,6 +569,8 @@ for (f in let){
 }
 
 # KEGG PLOTS
+setwd(directory)
+setwd(stattest)
 data(kegg.sets.mm)
 data(sigmet.idx.mm)
 kegg.sets.mm = kegg.sets.mm[sigmet.idx.mm]
@@ -573,12 +607,12 @@ pathview(gene.data=foldchanges,
 
 setwd(directory)
 ### DISEASE ASSOCIATION
-
+setwd(stattest)
 if (disease_association == TRUE){
 et_annot_high <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff))
 et_annot_low <- as.data.frame(subset(et_annot, logFC < logfclow_cutoff))
 
-table <- read.delim(file = '~/bioinformatics/data/curated_gene_disease_associations.tsv')
+table <- read.delim(file = '~/GitHub/data/curated_gene_disease_associations.tsv')
 table <- as.data.frame(table)
 
 diseases_up <- data.frame()
@@ -681,6 +715,30 @@ write.xlsx(pth_pan_up, file = "Top Pathways by PANTHER.xlsx", sheetName = "UP", 
 write.xlsx(pth_pan_down, file = "Top Pathways by PANTHER.xlsx", sheetName = "DOWN", append = TRUE)
 }
 
+### DESEQ2 PART (ADDITIONAL)
+directory <- '~/GitHub/counts/ALS Mice/experimental/'
+ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
+dds<-DESeq(ddsHTSeq)
+res <- results(dds, tidy = FALSE )
+rld<- rlogTransformation(dds, blind=TRUE)
 
-beep()
+setwd('~/GitHub/counts/ALS Mice/experimental/results/')
+setwd(stattest)
+png(file = "PCAPlot(DESeq2).png")
+print(plotPCA(rld, intgroup=c('condition')))
+dev.off()
 
+pdf(file = "MAplot(DESeq2).pdf", width = 12, height = 17, family = "Helvetica")
+plotMA(dds,ylim=c(-10,10),main='DESeq2')
+dev.off()
+
+pdf(file = "Dispestimate(DESeq2).pdf", width = 12, height = 17, family = "Helvetica")
+plotDispEsts(dds)
+dev.off()
+
+pdf(file = "Sparsity(DESeq2).pdf", width = 12, height = 17, family = "Helvetica")
+plotSparsity(dds)
+dev.off()
+
+
+     
