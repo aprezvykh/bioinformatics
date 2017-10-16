@@ -1,3 +1,8 @@
+zz <- file("error.log", open="wt")
+sink(zz, type="message")
+sink(type="message")
+close(zz)
+
 library(beepr)
 library(AnnotationDbi)
 library(Rcpp)
@@ -39,16 +44,18 @@ panther_analysis <- TRUE
 deseq2_part <- TRUE
 
 pvalue_cutoff <- 0.05
-logfchigh_cutoff <- 1
-logfclow_cutoff <- -1
+logfchigh_cutoff <- 0.5
+logfclow_cutoff <- -0.5
 cpm_cutoff <- 0.5
-gr_control <- c("control_3")
-gr_case <- c("tg_1")
+gr_control <- c("tg_1")
+gr_case <- c("tg_3")
 gs_size <- 10
 diseases_set <- 50
 number_of_kegg_plots <- 50
 go_terms_set <- 50
 pathways_set <- 30
+genes_in_term <- 3
+
 
 ### Statistical analysis
 col.pan <- colorpanel(100, "blue", "white", "red")
@@ -131,8 +138,6 @@ top <- as.data.frame(topTags(et))
 et_annot <- as.data.frame(et$table)
 et_annot_non_filtered <- as.data.frame(et$table)
 
-
-
 ### ANNOTATE
 
 y$genes$Symbol <- mapIds(org.Mm.eg.db, 
@@ -165,6 +170,19 @@ et_annot$entrez <- mapIds(org.Mm.eg.db,
                          keytype="ENSEMBL",
                          multiVals="first")
 
+et_annot$GOID <-     mapIds(org.Mm.eg.db, 
+                         keys=row.names(et_annot), 
+                         column="GO", 
+                         keytype="ENSEMBL",
+                         multiVals="first")
+
+et_annot$term <- mapIds(GO.db, 
+                       keys=et_annot$GOID, 
+                       column="TERM", 
+                       keytype="GOID",
+                       multiVals="first")
+
+et_annot$term <- as.character(et_annot$term)
 
 et_annot_non_filtered$Symbol <- mapIds(org.Mm.eg.db, 
                           keys=row.names(et_annot_non_filtered), 
@@ -246,6 +264,92 @@ write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append
 write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
 # write.xlsx(CountsTable, file = "Results edgeR.xlsx", sheetName = "Counts Table, logCPM>1", append = TRUE)
 
+
+
+### MY GO TESTS
+tab <- as.data.frame(table(unlist(et_annot$GOID)))
+rownames(tab) <- tab$Var1
+my_go <- data.frame()
+for (f in tab$Var1){
+  sub <- grep(paste(f), et_annot$GOID, ignore.case = TRUE)
+  st <- et_annot[sub,]
+  lfc <- mean(st$logFC)
+  df <- data.frame(f, lfc, nrow(st))
+  my_go <- rbind(df, my_go)
+}
+
+rownames(my_go) <- my_go$f
+my_go$term <- mapIds(GO.db, 
+                         keys=rownames(my_go), 
+                         column="TERM", 
+                         keytype="GOID",
+                         multiVals="first")
+my_go$term <- as.character(my_go$term)
+names(my_go) <- c("term", "logFC", "genes in term", "name of term")
+
+for_hm <- my_go
+my_go <- my_go[order(my_go$`genes in term`, decreasing = TRUE),]
+write.xlsx(my_go, file = "My GO.xlsx", sheetName = "GO classes", append = TRUE)
+
+
+### GO HEATMAP
+cpmfgh <- as.data.frame(logCPM)
+
+cpmfgh$GOID <-            mapIds(org.Mm.eg.db, 
+                                 keys=row.names(cpmfgh), 
+                                 column="GO", 
+                                 keytype="ENSEMBL",
+                                 multiVals="first")
+
+
+tab <- as.data.frame(table(unlist(cpmfgh$GOID)))
+rownames(tab) <- tab$Var1
+my_go <- data.frame()
+
+for (f in rownames(tab)){
+  sub <- grep(paste(f), cpmfgh$GOID, ignore.case = TRUE)
+  st <- cpmfgh[sub,]
+  st$GOID <- NULL
+  a <- as.data.frame(colMeans(st))
+  a <- t(a)
+  a <- as.data.frame(a)
+  rownames(a) <- paste(f)
+  my_go <- rbind(a, my_go)
+}
+
+
+for_hm <- for_hm[order(for_hm$logFC),]
+for_hm <- as.data.frame(subset(for_hm, for_hm$`genes in term` > genes_in_term))
+for_hm <- as.data.frame(subset(for_hm, for_hm$logFC > logfchigh_cutoff | for_hm$logFC < logfclow_cutoff))
+
+go_for_heatmap <- data.frame()
+
+for (f in for_hm$term){
+  a <- grep(paste(f), rownames(my_go))
+  d <- my_go[a,]
+  go_for_heatmap <- rbind(d, go_for_heatmap)
+  
+}
+
+go_for_heatmap$term <- mapIds(GO.db, 
+                        keys=row.names(go_for_heatmap), 
+                        column="TERM", 
+                        keytype="GOID",
+                        multiVals="first")
+
+
+
+
+rownames(go_for_heatmap) <- go_for_heatmap$term
+go_for_heatmap$term <- NULL
+
+go_for_heatmap <- t(scale(t(go_for_heatmap)))
+pdf(file = "GO heatmap", width = 12, height = 17, family = "Helvetica")
+heatmap.2(go_for_heatmap, col=col.pan, Rowv=TRUE, scale="column",
+          trace="none", dendrogram="both", cexRow=0.7, cexCol=0.7, density.info="none",
+          margin=c(10,9), lhei=c(2,10), lwid=c(2,15))
+
+dev.off()
 
 ### ANNOTATE COUNTS
 CountsTable$symbol <- mapIds(org.Mm.eg.db, 
@@ -401,7 +505,7 @@ dev.off()
 
 ### VOLCANO PLOT
 allgenes <- nrow(et_annot_non_filtered)
-et_annot_non_filtered$threshold = as.factor(abs(et_annot_non_filtered$logFC) > 1 & et_annot_non_filtered$PValue < 0.05/allgenes)
+et_annot_non_filtered$threshold = as.factor(abs(et_annot_non_filtered$logFC) > logfchigh_cutoff & et_annot_non_filtered$PValue < 0.05/allgenes)
 pdf(file = "Volcano plot.pdf", width = 12, height = 17, family = "Helvetica")
 g = ggplot(data=et_annot_non_filtered, aes(x=logFC, y=-log10(PValue), colour=threshold)) +
   geom_point(alpha=1, size=1) +
@@ -741,4 +845,3 @@ plotSparsity(dds)
 dev.off()
 
 
-     
