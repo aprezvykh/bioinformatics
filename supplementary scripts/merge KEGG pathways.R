@@ -1,0 +1,15 @@
+source("https://bioconductor.org/biocLite.R")
+biocLite("KEGG.db")
+biocLite("tkWidgets")
+library(tkWidgets)
+library(KEGGgraph)
+library(KEGG.db)
+
+setwd("~/GitHub/counts/ALS Mice/topKEGG tg1-tg3/")
+pathways = list.files(pattern="*.xml")
+for (i in 1:length(pathways)) assign(pathways[i], parseKGML2Graph(pathways[i],expandGenes=TRUE))
+rm(i);rm(pathways)
+pathways<-objNameToList(objects(), parent.frame())
+merged <- ugraph(mergeKEGGgraphs(pathways, edgemode = "directed"))
+
+merged <- mergeKEGGgraphs(pathways, edgemode = "directed")
