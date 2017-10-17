@@ -42,6 +42,7 @@ disease_association <- TRUE
 kegg_plots <- TRUE
 panther_analysis <- TRUE
 deseq2_part <- TRUE
+qlm_test <- TRUE
 
 pvalue_cutoff <- 0.05
 logfchigh_cutoff <- 0.5
@@ -118,26 +119,46 @@ pdf(file = "Ambigous.pdf", width = 12, height = 17, family = "Helvetica")
 ggplot(m1) + aes(x = variable, y = value) + geom_bar(stat = "identity")
 dev.off()
 
-normalized_lib_sizes <- calcNormFactors(y, method = "TMM")
-CountsTable <- as.data.frame(y$counts)
-raw_counts <- as.data.frame(y$counts)
-y <- estimateCommonDisp(y)
-y <- estimateTagwiseDisp(y)
-keep <- rowSums(cpm(y) > cpm_cutoff) >= ncol(sampleTable)
 row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "__too_low_aQual", "__not_aligned" )
-cpm <- cpm(y)
 cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ]
-cpm <- as.data.frame(cpm(y))
-cpm$rowsum <- rowSums(cpm)
-y <- y[keep, , keep.lib.sizes=FALSE]
 
-normalized_lib_sizes <- calcNormFactors(y, method = "TMM")
-logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes)
-et <- exactTest(y)
-top <- as.data.frame(topTags(et))
-et_annot <- as.data.frame(et$table)
-et_annot_non_filtered <- as.data.frame(et$table)
 
+
+### QLM TESTS!
+if (qlm_test == TRUE){
+      a <- DGEList(counts=y, group = sampleTable$condition)
+      cpm <- cpm(y)
+      cpm <- as.data.frame(cpm(y))
+      cpm$rowsum <- rowSums(cpm)
+      a <- a[keep, , keep.lib.sizes=FALSE]
+      keep <- rowSums(cpm(a) > cpm_cutoff) >= ncol(sampleTable)
+      a <- calcNormFactors(a)
+      design <- model.matrix(~sampleTable$condition)
+      a <- estimateDisp(a,design)
+      fit <- glmQLFit(a,design)
+      qlf <- glmQLFTest(fit,coef=2)
+      et_annot <- as.data.frame(qlf$table)
+      et_annot_non_filtered <- as.data.frame(qlf$table)
+
+} else if (qlm_test == FALSE){
+
+      normalized_lib_sizes <- calcNormFactors(y, method = "TMM")
+      CountsTable <- as.data.frame(y$counts)
+      raw_counts <- as.data.frame(y$counts)
+      y <- estimateCommonDisp(y)
+      y <- estimateTagwiseDisp(y)
+      keep <- rowSums(cpm(y) > cpm_cutoff) >= ncol(sampleTable)
+      cpm <- cpm(y)
+      cpm <- as.data.frame(cpm(y))
+      cpm$rowsum <- rowSums(cpm)
+      y <- y[keep, , keep.lib.sizes=FALSE]
+      normalized_lib_sizes <- calcNormFactors(y, method = "TMM")
+      logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes)
+      et <- exactTest(y)
+      top <- as.data.frame(topTags(et))
+      et_annot <- as.data.frame(et$table)
+      et_annot_non_filtered <- as.data.frame(et$table)
+}
 ### ANNOTATE
 
 y$genes$Symbol <- mapIds(org.Mm.eg.db, 

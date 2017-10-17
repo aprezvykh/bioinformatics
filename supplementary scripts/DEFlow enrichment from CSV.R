@@ -15,7 +15,7 @@ data(go.sets.mm)
 data(go.subs.mm)
 
 library("dplyr")
-dir <- "~/GitHub/counts/ALS Mice/new filtering/tg1-tg3/other/"
+dir <- "~/GitHub/counts/ALS Mice/new filtering/tg2-tg3/other/"
 file <- grep("deg", list.files(dir), value = TRUE)
 setwd(dir)
 et_annot <- read.csv(paste(file))
