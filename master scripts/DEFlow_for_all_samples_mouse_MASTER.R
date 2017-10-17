@@ -1,8 +1,5 @@
 zz <- file("error.log", open="wt")
 sink(zz, type="message")
-sink(type="message")
-close(zz)
-
 library(beepr)
 library(AnnotationDbi)
 library(Rcpp)
@@ -37,16 +34,16 @@ heatmaps <- TRUE
 custom_heatmap <- FALSE
 custom_genes_plots <- FALSE
 fisherGO <- FALSE
-analyze_all_samples <- FALSE
+analyze_all_samples <- TRUE
 disease_association <- TRUE
 kegg_plots <- TRUE
 panther_analysis <- TRUE
 deseq2_part <- TRUE
-qlm_test <- TRUE
+qlm_test <- FALSE
 
 pvalue_cutoff <- 0.05
-logfchigh_cutoff <- 0.5
-logfclow_cutoff <- -0.5
+logfchigh_cutoff <- 1
+logfclow_cutoff <- -1
 cpm_cutoff <- 0.5
 gr_control <- c("tg_1")
 gr_case <- c("tg_3")
@@ -120,7 +117,7 @@ ggplot(m1) + aes(x = variable, y = value) + geom_bar(stat = "identity")
 dev.off()
 
 row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "__too_low_aQual", "__not_aligned" )
-cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ]
+
 
 
 
@@ -128,10 +125,11 @@ cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ]
 if (qlm_test == TRUE){
       a <- DGEList(counts=y, group = sampleTable$condition)
       cpm <- cpm(y)
+      cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ]
       cpm <- as.data.frame(cpm(y))
       cpm$rowsum <- rowSums(cpm)
+      keep <- rowSums(cpm > cpm_cutoff) >= ncol(sampleTable)
       a <- a[keep, , keep.lib.sizes=FALSE]
-      keep <- rowSums(cpm(a) > cpm_cutoff) >= ncol(sampleTable)
       a <- calcNormFactors(a)
       design <- model.matrix(~sampleTable$condition)
       a <- estimateDisp(a,design)
@@ -269,7 +267,11 @@ hist(et_annot_non_filtered$logFC, main = "logFC distribution, non-filtered", fre
 dev.off()
 
 setwd(directory)
-setwd(stattest)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else if (analyze_all_samples == FALSE){
+  setwd(stattest)  
+}
 
 ### Simple summary
 all <- nrow(raw_counts)
@@ -280,6 +282,7 @@ down <- sum(et_annot$logFC < logfclow_cutoff, na.rm=TRUE)
 header <- c('all genes', 'mean of logCPM', 'padj<0,05', 'genes with > high', 'genes with < low')
 meaning <- c(print(all), print(avg_cpm), print(allpadj), print(up), print(down))
 df <- data.frame(header, meaning)
+
 
 write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append = TRUE)
 write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
@@ -865,4 +868,5 @@ pdf(file = "Sparsity(DESeq2).pdf", width = 12, height = 17, family = "Helvetica"
 plotSparsity(dds)
 dev.off()
 
-
+sink(type="message")
+close(zz)
