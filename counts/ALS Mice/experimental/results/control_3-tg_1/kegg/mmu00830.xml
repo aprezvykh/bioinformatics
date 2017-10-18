@@ -182,7 +182,7 @@
     </entry>
     <entry id="57" name="mmu:13076 mmu:13077" type="gene" reaction="rn:R08392"
         link="http://www.kegg.jp/dbget-bin/www_bget?mmu:13076+mmu:13077">
-        <graphics name="Cyp1a1, AHH, AHRR, CP11, Cyp1a2, P450-1..." fgcolor="#000000" bgcolor="#BFFFBF"
+        <graphics name="Cyp1a1, AHH, AHRR, CP11, CYPIA1, P450-1..." fgcolor="#000000" bgcolor="#BFFFBF"
              type="rectangle" x="642" y="198" width="46" height="17"/>
     </entry>
     <entry id="59" name="cpd:C16678" type="compound"
@@ -210,8 +210,8 @@
         <graphics name="Carotenoid biosynthesis" fgcolor="#000000" bgcolor="#FFFFFF"
              type="roundrectangle" x="360" y="162" width="75" height="34"/>
     </entry>
-    <entry id="67" name="mmu:103142 mmu:17252 mmu:19683 mmu:235033 mmu:77974 mmu:98711" type="gene" reaction="rn:R02124 rn:R08379"
-        link="http://www.kegg.jp/dbget-bin/www_bget?mmu:103142+mmu:17252+mmu:19683+mmu:235033+mmu:77974+mmu:98711">
+    <entry id="67" name="mmu:103142 mmu:107605 mmu:17252 mmu:19683 mmu:235033 mmu:54150 mmu:77974 mmu:98711" type="gene" reaction="rn:R02124 rn:R08379"
+        link="http://www.kegg.jp/dbget-bin/www_bget?mmu:103142+mmu:107605+mmu:17252+mmu:19683+mmu:235033+mmu:54150+mmu:77974+mmu:98711">
         <graphics name="Rdh9, AI121090, Crad3..." fgcolor="#000000" bgcolor="#BFFFBF"
              type="rectangle" x="252" y="280" width="46" height="17"/>
     </entry>
@@ -252,12 +252,12 @@
     </entry>
     <entry id="77" name="mmu:13076" type="gene" reaction="rn:R08390"
         link="http://www.kegg.jp/dbget-bin/www_bget?mmu:13076">
-        <graphics name="Cyp1a1, AHH, AHRR, CP11, Cyp1a2, P450-1" fgcolor="#000000" bgcolor="#BFFFBF"
+        <graphics name="Cyp1a1, AHH, AHRR, CP11, CYPIA1, P450-1" fgcolor="#000000" bgcolor="#BFFFBF"
              type="rectangle" x="593" y="262" width="46" height="17"/>
     </entry>
     <entry id="78" name="mmu:100040843 mmu:13117 mmu:13118 mmu:13119 mmu:230639 mmu:277753 mmu:435802 mmu:666168" type="gene" reaction="rn:R08390"
         link="http://www.kegg.jp/dbget-bin/www_bget?mmu:100040843+mmu:13117+mmu:13118+mmu:13119+mmu:230639+mmu:277753+mmu:435802+mmu:666168">
-        <graphics name="Cyp4a32, OTTMUSG00000008689..." fgcolor="#000000" bgcolor="#BFFFBF"
+        <graphics name="Cyp4a32..." fgcolor="#000000" bgcolor="#BFFFBF"
              type="rectangle" x="641" y="283" width="46" height="17"/>
     </entry>
     <entry id="79" name="mmu:107141 mmu:13085 mmu:13086 mmu:13087 mmu:13088 mmu:13089 mmu:13090 mmu:13094 mmu:13095 mmu:13096 mmu:13097 mmu:13098 mmu:13099 mmu:226105 mmu:226143 mmu:243881 mmu:404195 mmu:433247 mmu:69888 mmu:72082 mmu:72303" type="gene" reaction="rn:R08390"
@@ -267,7 +267,7 @@
     </entry>
     <entry id="80" name="mmu:13076 mmu:13077" type="gene"
         link="http://www.kegg.jp/dbget-bin/www_bget?mmu:13076+mmu:13077">
-        <graphics name="Cyp1a1, AHH, AHRR, CP11, Cyp1a2, P450-1..." fgcolor="#000000" bgcolor="#BFFFBF"
+        <graphics name="Cyp1a1, AHH, AHRR, CP11, CYPIA1, P450-1..." fgcolor="#000000" bgcolor="#BFFFBF"
              type="rectangle" x="804" y="198" width="46" height="17"/>
     </entry>
     <entry id="81" name="mmu:100041375 mmu:13112 mmu:13113 mmu:13114 mmu:337924 mmu:53973 mmu:56388" type="gene"

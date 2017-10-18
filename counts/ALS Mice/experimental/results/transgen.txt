@@ -1,0 +1,81 @@
+humanFUS_truncated(1-359) 1077 15672 0
+* 0 0 0
+174.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 9908 0
+* 0 0 0
+175.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 7538 0
+* 0 0 0
+176.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 1096 0
+* 0 0 0
+177.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 1062 0
+* 0 0 0
+178.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 755 0
+* 0 0 0
+182.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 32590 0
+* 0 0 0
+183.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 36536 0
+* 0 0 0
+184.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 18875 0
+* 0 0 0
+185.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 33635 0
+* 0 0 0
+204.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 38030 0
+* 0 0 0
+205.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 31583 0
+* 0 0 0
+212.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 28354 0
+* 0 0 0
+213.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 838 0
+* 0 0 0
+222.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 1335 0
+* 0 0 0
+223.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 1336 0
+* 0 0 0
+224.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 1169 0
+* 0 0 0
+225.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 950 0
+* 0 0 0
+226.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 43529 0
+* 0 0 0
+227.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 35624 0
+* 0 0 0
+228.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 19754 0
+* 0 0 0
+229.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 34663 0
+* 0 0 0
+230.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 869 0
+* 0 0 0
+243.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 24364 0
+* 0 0 0
+245.sam.sorted.bam
+humanFUS_truncated(1-359) 1077 666 0
+* 0 0 0
+
+171.sam.sorted.bam
+humanFUS_truncated(1-359)    1077   8510        0
+* 0     0   0
+173.sam.sorted.bam
+humanFUS_truncated(1-359)    1077   14240       0
+* 0     0   0

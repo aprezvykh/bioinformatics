@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!DOCTYPE pathway SYSTEM "http://www.kegg.jp/kegg/xml/KGML_v0.7.2_.dtd">
-<!-- Creation date: Sep 29, 2015 13:10:09 +0900 (GMT+9) -->
+<!-- Creation date: Oct 12, 2017 11:34:41 +0900 (GMT+9) -->
 <pathway name="path:mmu04630" org="mmu" number="04630"
          title="Jak-STAT signaling pathway"
          image="http://www.kegg.jp/kegg/pathway/mmu/mmu04630.png"
@@ -110,8 +110,8 @@
         <graphics name="TITLE:Jak-STAT signaling pathway" fgcolor="#000000" bgcolor="#FFFFFF"
              type="roundrectangle" x="164" y="58" width="248" height="25"/>
     </entry>
-    <entry id="22" name="mmu:100038993 mmu:100042555 mmu:100861969 mmu:12804 mmu:12982 mmu:12983 mmu:12984 mmu:12986 mmu:13857 mmu:14600 mmu:15975 mmu:15976 mmu:15979 mmu:15980 mmu:16154 mmu:16155 mmu:16157 mmu:16158 mmu:16161 mmu:16162 mmu:16164 mmu:16165 mmu:16169 mmu:16184 mmu:16185 mmu:16186 mmu:16188 mmu:16190 mmu:16192 mmu:16194 mmu:16195 mmu:16197 mmu:16199 mmu:16847 mmu:16880 mmu:17480 mmu:18414 mmu:19116 mmu:209590 mmu:213208 mmu:230828 mmu:237310 mmu:237313 mmu:242700 mmu:50931 mmu:57914 mmu:60504" type="gene"
-        link="http://www.kegg.jp/dbget-bin/www_bget?mmu:100038993+mmu:100042555+mmu:100861969+mmu:12804+mmu:12982+mmu:12983+mmu:12984+mmu:12986+mmu:13857+mmu:14600+mmu:15975+mmu:15976+mmu:15979+mmu:15980+mmu:16154+mmu:16155+mmu:16157+mmu:16158+mmu:16161+mmu:16162+mmu:16164+mmu:16165+mmu:16169+mmu:16184+mmu:16185+mmu:16186+mmu:16188+mmu:16190+mmu:16192+mmu:16194+mmu:16195+mmu:16197+mmu:16199+mmu:16847+mmu:16880+mmu:17480+mmu:18414+mmu:19116+mmu:209590+mmu:213208+mmu:230828+mmu:237310+mmu:237313+mmu:242700+mmu:50931+mmu:57914+mmu:60504">
+    <entry id="22" name="mmu:100038993 mmu:100042555 mmu:100861969 mmu:12804 mmu:12982 mmu:12983 mmu:12984 mmu:12986 mmu:13649 mmu:13857 mmu:14600 mmu:15975 mmu:15976 mmu:15979 mmu:15980 mmu:16154 mmu:16155 mmu:16157 mmu:16158 mmu:16161 mmu:16162 mmu:16164 mmu:16165 mmu:16169 mmu:16184 mmu:16185 mmu:16186 mmu:16188 mmu:16190 mmu:16192 mmu:16194 mmu:16195 mmu:16197 mmu:16199 mmu:16847 mmu:16880 mmu:17480 mmu:18414 mmu:18595 mmu:18596 mmu:19116 mmu:209590 mmu:213208 mmu:230828 mmu:237310 mmu:237313 mmu:242700 mmu:50931 mmu:57914 mmu:60504" type="gene"
+        link="http://www.kegg.jp/dbget-bin/www_bget?mmu:100038993+mmu:100042555+mmu:100861969+mmu:12804+mmu:12982+mmu:12983+mmu:12984+mmu:12986+mmu:13649+mmu:13857+mmu:14600+mmu:15975+mmu:15976+mmu:15979+mmu:15980+mmu:16154+mmu:16155+mmu:16157+mmu:16158+mmu:16161+mmu:16162+mmu:16164+mmu:16165+mmu:16169+mmu:16184+mmu:16185+mmu:16186+mmu:16188+mmu:16190+mmu:16192+mmu:16194+mmu:16195+mmu:16197+mmu:16199+mmu:16847+mmu:16880+mmu:17480+mmu:18414+mmu:18595+mmu:18596+mmu:19116+mmu:209590+mmu:213208+mmu:230828+mmu:237310+mmu:237313+mmu:242700+mmu:50931+mmu:57914+mmu:60504">
         <graphics name="Gm2002..." fgcolor="#000000" bgcolor="#BFFFBF"
              type="rectangle" x="180" y="240" width="46" height="17"/>
     </entry>
@@ -198,7 +198,7 @@
     <entry id="39" name="mmu:12803 mmu:12985 mmu:13856 mmu:14599 mmu:16846 mmu:19109 mmu:21832" type="gene"
         link="http://www.kegg.jp/dbget-bin/www_bget?mmu:12803+mmu:12985+mmu:13856+mmu:14599+mmu:16846+mmu:19109+mmu:21832">
         <graphics name="Cntf, AI429687..." fgcolor="#000000" bgcolor="#BFFFBF"
-             type="rectangle" x="99" y="266" width="46" height="17"/>
+             type="rectangle" x="99" y="247" width="46" height="17"/>
     </entry>
     <entry id="40" name="mmu:20846 mmu:20847 mmu:20848 mmu:20849 mmu:20850 mmu:20851 mmu:20852" type="gene"
         link="http://www.kegg.jp/dbget-bin/www_bget?mmu:20846+mmu:20847+mmu:20848+mmu:20849+mmu:20850+mmu:20851+mmu:20852">
@@ -210,13 +210,18 @@
         <graphics name="Stat1, 2010005J02Rik, AA408197..." fgcolor="#000000" bgcolor="#BFFFBF"
              type="rectangle" x="454" y="248" width="46" height="17"/>
     </entry>
-    <entry id="42" name="undefined" type="group">
+    <entry id="42" name="mmu:13645 mmu:18590 mmu:18591" type="gene"
+        link="http://www.kegg.jp/dbget-bin/www_bget?mmu:13645+mmu:18590+mmu:18591">
+        <graphics name="Egf, AI790464..." fgcolor="#000000" bgcolor="#BFFFBF"
+             type="rectangle" x="99" y="279" width="46" height="17"/>
+    </entry>
+    <entry id="43" name="undefined" type="group">
         <graphics fgcolor="#000000" bgcolor="#FFFFFF"
              type="rectangle" x="454" y="239" width="46" height="34"/>
         <component id="40"/>
         <component id="41"/>
     </entry>
-    <entry id="43" name="undefined" type="group">
+    <entry id="44" name="undefined" type="group">
         <graphics fgcolor="#000000" bgcolor="#FFFFFF"
              type="rectangle" x="346" y="360" width="46" height="34"/>
         <component id="29"/>
@@ -228,10 +233,10 @@
     <relation entry1="39" entry2="22" type="PPrel">
         <subtype name="activation" value="--&gt;"/>
     </relation>
-    <relation entry1="9" entry2="42" type="PPrel">
+    <relation entry1="9" entry2="43" type="PPrel">
         <subtype name="activation" value="--&gt;"/>
     </relation>
-    <relation entry1="43" entry2="4" type="PPrel">
+    <relation entry1="44" entry2="4" type="PPrel">
         <subtype name="activation" value="--&gt;"/>
     </relation>
     <relation entry1="4" entry2="32" type="PPrel">
@@ -260,52 +265,52 @@
         <subtype name="activation" value="--&gt;"/>
         <subtype name="indirect effect" value="..&gt;"/>
     </relation>
-    <relation entry1="11" entry2="42" type="PPrel">
+    <relation entry1="11" entry2="43" type="PPrel">
         <subtype name="state change" value="..."/>
     </relation>
-    <relation entry1="42" entry2="6" type="GErel">
+    <relation entry1="43" entry2="6" type="GErel">
         <subtype name="expression" value="--&gt;"/>
     </relation>
-    <relation entry1="42" entry2="7" type="GErel">
+    <relation entry1="43" entry2="7" type="GErel">
         <subtype name="expression" value="--&gt;"/>
     </relation>
-    <relation entry1="42" entry2="31" type="GErel">
+    <relation entry1="43" entry2="31" type="GErel">
         <subtype name="expression" value="--&gt;"/>
     </relation>
-    <relation entry1="42" entry2="1" type="GErel">
+    <relation entry1="43" entry2="1" type="GErel">
         <subtype name="expression" value="--&gt;"/>
     </relation>
-    <relation entry1="42" entry2="30" type="GErel">
+    <relation entry1="43" entry2="30" type="GErel">
         <subtype name="expression" value="--&gt;"/>
     </relation>
-    <relation entry1="42" entry2="34" type="GErel">
+    <relation entry1="43" entry2="34" type="GErel">
         <subtype name="expression" value="--&gt;"/>
     </relation>
-    <relation entry1="42" entry2="36" type="GErel">
+    <relation entry1="43" entry2="36" type="GErel">
         <subtype name="expression" value="--&gt;"/>
     </relation>
-    <relation entry1="42" entry2="8" type="GErel">
+    <relation entry1="43" entry2="8" type="GErel">
         <subtype name="expression" value="--&gt;"/>
     </relation>
-    <relation entry1="42" entry2="24" type="GErel">
+    <relation entry1="43" entry2="24" type="GErel">
         <subtype name="expression" value="--&gt;"/>
     </relation>
-    <relation entry1="42" entry2="27" type="GErel">
+    <relation entry1="43" entry2="27" type="GErel">
         <subtype name="expression" value="--&gt;"/>
     </relation>
-    <relation entry1="42" entry2="28" type="GErel">
+    <relation entry1="43" entry2="28" type="GErel">
         <subtype name="expression" value="--&gt;"/>
     </relation>
     <relation entry1="22" entry2="15" type="PPrel">
         <subtype name="binding/association" value="---"/>
     </relation>
-    <relation entry1="42" entry2="10" type="PPrel">
+    <relation entry1="43" entry2="10" type="PPrel">
         <subtype name="binding/association" value="---"/>
     </relation>
-    <relation entry1="12" entry2="42" type="PPrel">
+    <relation entry1="12" entry2="43" type="PPrel">
         <subtype name="inhibition" value="--|"/>
     </relation>
-    <relation entry1="23" entry2="42" type="PPrel">
+    <relation entry1="23" entry2="43" type="PPrel">
         <subtype name="inhibition" value="--|"/>
         <subtype name="dephosphorylation" value="-p"/>
     </relation>
@@ -317,7 +322,7 @@
         <subtype name="inhibition" value="--|"/>
         <subtype name="dephosphorylation" value="-p"/>
     </relation>
-    <relation entry1="19" entry2="42" type="PPrel">
+    <relation entry1="19" entry2="43" type="PPrel">
         <subtype name="ubiquitination" value="+u"/>
     </relation>
     <relation entry1="6" entry2="11" type="PPrel">
@@ -328,5 +333,7 @@
     </relation>
     <relation entry1="14" entry2="15" type="PPrel">
         <subtype name="activation" value="--&gt;"/>
+    </relation>
+    <relation entry1="42" entry2="22" type="PPrel">
     </relation>
 </pathway>

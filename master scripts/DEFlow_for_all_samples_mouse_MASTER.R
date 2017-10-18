@@ -1,5 +1,3 @@
-zz <- file("error.log", open="wt")
-sink(zz, type="message")
 library(beepr)
 library(AnnotationDbi)
 library(Rcpp)
@@ -40,13 +38,14 @@ kegg_plots <- TRUE
 panther_analysis <- TRUE
 deseq2_part <- TRUE
 qlm_test <- FALSE
+logging <- FALSE
 
 pvalue_cutoff <- 0.05
 logfchigh_cutoff <- 1
 logfclow_cutoff <- -1
 cpm_cutoff <- 0.5
-gr_control <- c("tg_1")
-gr_case <- c("tg_3")
+gr_control <- c("control_3")
+gr_case <- c("tg_1")
 gs_size <- 10
 diseases_set <- 50
 number_of_kegg_plots <- 50
@@ -56,6 +55,11 @@ genes_in_term <- 3
 
 
 ### Statistical analysis
+if (logging == TRUE){
+  zz <- file("error.log", open="wt")
+  sink(zz, type="message")
+}
+
 col.pan <- colorpanel(100, "blue", "white", "red")
 directory <- '~/GitHub/counts/ALS Mice/experimental/'
 setwd(directory)
@@ -157,6 +161,8 @@ if (qlm_test == TRUE){
       et_annot <- as.data.frame(et$table)
       et_annot_non_filtered <- as.data.frame(et$table)
 }
+
+plotSpliceDGE(y)
 ### ANNOTATE
 
 y$genes$Symbol <- mapIds(org.Mm.eg.db, 
@@ -243,27 +249,44 @@ if (stat == TRUE & lfgenefc < 0){
 
 
 ### Distribution
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
 dir.create("distributions")
 setwd("distributions")
 
 png(file = "logCPM distribution, filtered.png")
 hist(et_annot$logCPM, main = "logCPM distribution, filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "logCPM")
+abline(v=median(et_annot$logCPM), col = "red")
+abline(v=getmode(et_annot$logCPM), col = "blue")
 dev.off()
 png(file = "p-value distribution, filtered.png")
 hist(et_annot$PValue, main = "p-value distribution, filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "p-value")
+abline(v=median(et_annot$PValue), col = "red")
+abline(v=getmode(et_annot$PValue), col = "blue")
 dev.off()
 png(file = "LogFC distribution, filtered.png")
 hist(et_annot$logFC, main = "logFC distribution, filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "LogFC")
+abline(v=median(et_annot$logFC), col = "red")
+abline(v=getmode(et_annot$logFC), col = "blue")
 dev.off()
 
 png(file = "logCPM distribution, nonfiltered.png")
 hist(et_annot_non_filtered$logCPM, main = "logCPM distribution, non-filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "logCPM")
+abline(v=median(et_annot_non_filtered$logCPM), col = "red")
+abline(v=getmode(et_annot_non_filtered$logCPM), col = "blue")
 dev.off()
 png(file = "p-value distribution, nonfiltered.png")
 hist(et_annot_non_filtered$PValue, main = "p-value distribution, non-filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "p-value")
+abline(v=median(et_annot_non_filtered$PValue), col = "red")
+abline(v=getmode(et_annot_non_filtered$PValue), col = "blue")
 dev.off()
 png(file = "LogFC distribution, nonfiltered.png")
 hist(et_annot_non_filtered$logFC, main = "logFC distribution, non-filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "LogFC")
+abline(v=median(et_annot_non_filtered$logFC), col = "red")
+abline(v=getmode(et_annot_non_filtered$logFC), col = "blue")
 dev.off()
 
 setwd(directory)
@@ -368,7 +391,7 @@ rownames(go_for_heatmap) <- go_for_heatmap$term
 go_for_heatmap$term <- NULL
 
 go_for_heatmap <- t(scale(t(go_for_heatmap)))
-pdf(file = "GO heatmap", width = 12, height = 17, family = "Helvetica")
+pdf(file = "GO heatmap.pdf", width = 12, height = 17, family = "Helvetica")
 heatmap.2(go_for_heatmap, col=col.pan, Rowv=TRUE, scale="column",
           trace="none", dendrogram="both", cexRow=0.7, cexCol=0.7, density.info="none",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,15))
@@ -520,7 +543,7 @@ dev.off()
 pch <- c(0,1,2,15,16,17)
 colors <- rep(c("darkgreen", "red", "blue"), 2)
 # pdf(file = "PCAPlot.pdf", width = 12, height = 17, family = "Helvetica")
-png(file = "MDSPlot.png")
+pdf(file = "MDSPlot.pdf", width = 10, height = 10)
 plotMDS(y, col=colors[sampleTable$condition], pch = pch[sampleTable$condition])
 legend("topleft", legend=levels(sampleTable$condition), pch=pch, col=colors, ncol=2)
 dev.off()
@@ -530,7 +553,7 @@ dev.off()
 ### VOLCANO PLOT
 allgenes <- nrow(et_annot_non_filtered)
 et_annot_non_filtered$threshold = as.factor(abs(et_annot_non_filtered$logFC) > logfchigh_cutoff & et_annot_non_filtered$PValue < 0.05/allgenes)
-pdf(file = "Volcano plot.pdf", width = 12, height = 17, family = "Helvetica")
+pdf(file = "Volcano plot.pdf", width = 10, height = 10)
 g = ggplot(data=et_annot_non_filtered, aes(x=logFC, y=-log10(PValue), colour=threshold)) +
   geom_point(alpha=1, size=1) +
   labs(legend.position = "none") +
@@ -543,6 +566,7 @@ dev.off()
 ### REACTOME PART
 dfa <- as.character(et_annot$entrez)
 x <- enrichPathway(gene=dfa, organism = "mouse", minGSSize=gs_size, readable = TRUE )
+write.xlsx(x, "Reactome.xlsx", sheetName = "All reactome", append = TRUE)
 head(as.data.frame(x))
 dev.off()
 
@@ -562,6 +586,7 @@ dev.off()
 #HIGH
 df_high <- et_annot_high$entrez
 x <- enrichPathway(gene=df_high, organism = "mouse", minGSSize=gs_size, readable = TRUE )
+write.xlsx(x, "Reactome.xlsx", sheetName = "High", append = TRUE)
 head(as.data.frame(x))
 dev.off()
 
@@ -574,6 +599,7 @@ dev.off()
 
 df_low <- et_annot_low$entrez
 x <- enrichPathway(gene=df_low, organism = "mouse", minGSSize=gs_size, readable = TRUE )
+write.xlsx(x, "Reactome.xlsx", sheetName = "Low", append = TRUE)
 head(as.data.frame(x))
 dev.off()
 
@@ -665,7 +691,13 @@ pdf(file = "MDplot_common.pdf", width = 12, height = 17, family = "Helvetica")
 plotMD(y, values=c(1,-1), col=c("red","blue"),
        legend="topright")
 dev.off()
-setwd(stattest)
+
+setwd(directory)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else {
+  setwd(stattest)
+}
 ### SEARCH AND PLOT!
 if (custom_heatmap == TRUE) {
 logCPM$Name <- y$genes$Name
@@ -698,7 +730,11 @@ for (f in let){
 
 # KEGG PLOTS
 setwd(directory)
-setwd(stattest)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else {
+  setwd(stattest)
+}
 data(kegg.sets.mm)
 data(sigmet.idx.mm)
 kegg.sets.mm = kegg.sets.mm[sigmet.idx.mm]
@@ -735,10 +771,17 @@ pathview(gene.data=foldchanges,
 
 setwd(directory)
 ### DISEASE ASSOCIATION
-setwd(stattest)
+
 if (disease_association == TRUE){
 et_annot_high <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff))
 et_annot_low <- as.data.frame(subset(et_annot, logFC < logfclow_cutoff))
+
+setwd(directory)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else {
+  setwd(stattest)
+}
 
 table <- read.delim(file = '~/GitHub/data/curated_gene_disease_associations.tsv')
 table <- as.data.frame(table)
@@ -845,14 +888,19 @@ write.xlsx(pth_pan_down, file = "Top Pathways by PANTHER.xlsx", sheetName = "DOW
 
 ### DESEQ2 PART (ADDITIONAL)
 directory <- '~/GitHub/counts/ALS Mice/experimental/'
+setwd(directory)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else {
+  setwd(stattest)
+}
+
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
 res <- results(dds, tidy = FALSE )
 rld<- rlogTransformation(dds, blind=TRUE)
 
-setwd('~/GitHub/counts/ALS Mice/experimental/results/')
-setwd(stattest)
-png(file = "PCAPlot(DESeq2).png")
+pdf(file = "PCAPlot.pdf", width = 10, height = 10)
 print(plotPCA(rld, intgroup=c('condition')))
 dev.off()
 
@@ -868,5 +916,11 @@ pdf(file = "Sparsity(DESeq2).pdf", width = 12, height = 17, family = "Helvetica"
 plotSparsity(dds)
 dev.off()
 
+if (logging == TRUE){
 sink(type="message")
 close(zz)
+}
+beep()
+beep()
+beep()
+getwd()
