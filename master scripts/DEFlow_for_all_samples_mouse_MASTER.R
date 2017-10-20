@@ -53,11 +53,12 @@ number_of_kegg_plots <- 100
 go_terms_set <- 50
 pathways_set <- 30
 genes_in_term <- 3
-
+filter_thresh <- 5
+baseMean_cutoff <- 1.5
 
 
 ### GROUPS. FIRST GROUP WILL BE USED AS CONTROL!
-gr_control <- c("control_3")
+gr_control <- c("tg_1")
 gr_case <- c("tg_3")
 
 
@@ -160,6 +161,8 @@ if (qlm_test == TRUE){
       raw_counts <- as.data.frame(y$counts)
       y <- estimateCommonDisp(y)
       y <- estimateTagwiseDisp(y)
+      nf <- exactTest(y)
+      no_filtered <- as.data.frame(nf$table)
       keep <- rowSums(cpm(y) > cpm_cutoff) >= ncol(sampleTable)
       cpm <- cpm(y)
       cpm <- as.data.frame(cpm(y))
@@ -235,7 +238,8 @@ et_annot_non_filtered$Symbol <- mapIds(org.Mm.eg.db,
 
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
-et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
+et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff))
+et_annot <- as.data.frame(subset(et_annot, logFC < logfclow_cutoff))
 
 ### TESTING A HYPOTESIS
 counts_control <- CountsTable[,grep(gr_control, names(CountsTable))]
@@ -950,10 +954,49 @@ beep()
 beep()
 beep()
 
+### COMPARE DESEQ2 AND EDGER
+
+res_df <- as.data.frame(res)
+res_nf <- as.data.frame(res)
+res_df <- res_df[complete.cases(res_df), ]
+res_df <- as.data.frame(subset(res_df, res_df$baseMean > baseMean_cutoff))
+res_df <- as.data.frame(subset(res_df, res_df$padj < pvalue_cutoff))
+res_df <- as.data.frame(subset(res_df, res_df$log2FoldChange > logfchigh_cutoff | res_df$log2FoldChange < logfclow_cutoff))
+
+res_df_high <- as.data.frame(subset(res_df, res_df$log2FoldChange > 0))
+res_df_low <- as.data.frame(subset(res_df, res_df$log2FoldChange < 0))
+
+com_deseq_edger_high <- as.data.frame(intersect(rownames(res_df_high), rownames(et_annot_high)))
+com_deseq_edger_low <- as.data.frame(intersect(rownames(res_df_low), rownames(et_annot_low)))
+
+proc_high<- (nrow(com_deseq_edger_high)/nrow(et_annot_high))*100
+proc_low <- (nrow(com_deseq_edger_low)/nrow(et_annot_low))*100
+
+sum <- NULL
+sum <- data.frame(paste(proc_high), paste(proc_low))
+names(sum) <- c("Upreg common genes", "Downreg common genes")
+
+sign_proc_edger <- (nrow(et_annot)/nrow(et_annot_non_filtered))*100
+sign_proc_deseq <- (nrow(res_df)/nrow(res_nf))*100
+
+
+aproc <- data.frame(paste(sign_proc_edger), paste(sign_proc_deseq))
+names(aproc) <- c("edgeR, significance %", "DESeq2, significance %")
 
 
 
+### COMPARE EDGER AND DESEQ2
 
+com <- as.data.frame(intersect(rownames(res_nf), rownames(no_filtered)))
+names(com) <- c("sas")
+edger_com <- data.frame()
+deseq_com <- data.frame()
 
+edger_com <- no_filtered[(com$sas %in% rownames(no_filtered)),]
+deseq_com <- no_filtered[(com$sas %in% rownames(res_nf)),]
+
+common <- data.frame()
+common <- data.frame(edger_com$logFC, deseq_com$log2FoldChange)
+rownames(common) <- rownames(edger_com)
 
 
