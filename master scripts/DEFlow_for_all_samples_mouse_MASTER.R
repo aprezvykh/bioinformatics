@@ -26,13 +26,14 @@ library(GO.db)
 library(Hmisc)
 library(DESeq2)
 library(checkmate)
-### PASTE 1 IF YOU WANT TO ANALYZE ALL SAMPLES. PASTE 0 IF YOU WANT TO
+
+### CONFIGURATION BLOCK
 
 heatmaps <- TRUE
 custom_heatmap <- FALSE
 custom_genes_plots <- FALSE
-fisherGO <- FALSE
-analyze_all_samples <- TRUE
+fisherGO <- TRUE
+analyze_all_samples <- FALSE
 disease_association <- TRUE
 kegg_plots <- TRUE
 panther_analysis <- TRUE
@@ -40,21 +41,27 @@ deseq2_part <- TRUE
 qlm_test <- FALSE
 logging <- FALSE
 
+### CONSTANTS BLOCK
+
 pvalue_cutoff <- 0.05
-logfchigh_cutoff <- 1
-logfclow_cutoff <- -1
+logfchigh_cutoff <- 0.5
+logfclow_cutoff <- -0.5
 cpm_cutoff <- 0.5
-gr_control <- c("control_3")
-gr_case <- c("tg_1")
 gs_size <- 10
 diseases_set <- 50
-number_of_kegg_plots <- 50
+number_of_kegg_plots <- 100
 go_terms_set <- 50
 pathways_set <- 30
 genes_in_term <- 3
 
 
-### Statistical analysis
+
+### GROUPS. FIRST GROUP WILL BE USED AS CONTROL!
+gr_control <- c("control_3")
+gr_case <- c("tg_3")
+
+
+### BUILDING A SPECIFIC DESIGN TABLE
 if (logging == TRUE){
   zz <- file("error.log", open="wt")
   sink(zz, type="message")
@@ -97,6 +104,8 @@ setwd(stattest)
   setwd("all")
 }
 
+# PLOTTING HTSEQ QUALITY BARPLOTS
+
 readqual <- as.data.frame(tail(y$counts, 5))
 libsize <- as.data.frame(t(y$samples$lib.size))
 names(libsize) <- names(readqual)
@@ -125,7 +134,9 @@ row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "
 
 
 
-### QLM TESTS!
+### DIFFEXPRESSION STATISTICAL ANALYSIS - EXACT NEGATIVE-
+### BINOMIAL OR QLM TEST
+
 if (qlm_test == TRUE){
       a <- DGEList(counts=y, group = sampleTable$condition)
       cpm <- cpm(y)
@@ -162,7 +173,8 @@ if (qlm_test == TRUE){
       et_annot_non_filtered <- as.data.frame(et$table)
 }
 
-plotSpliceDGE(y)
+
+
 ### ANNOTATE
 
 y$genes$Symbol <- mapIds(org.Mm.eg.db, 
@@ -248,7 +260,8 @@ if (stat == TRUE & lfgenefc < 0){
 
 
 
-### Distribution
+### Distribution, with moda and median
+
 getmode <- function(v) {
   uniqv <- unique(v)
   uniqv[which.max(tabulate(match(v, uniqv)))]
@@ -445,7 +458,7 @@ write.xlsx(goccres, file = "GO.xlsx", sheetName = "GO_CC", append = TRUE)
 et_annot_high <- as.data.frame(subset(et_annot, logFC > 0))
 et_annot_low <- as.data.frame(subset(et_annot, logFC < 0))
 
-if (fisherGO == TRUE){
+#if (fisherGO == TRUE){
 
 GOFisherBP <- function(df, nodes, nrows, p){
   all_genes <- c(df$logFC)
@@ -500,13 +513,13 @@ gobp_l_100 <- GOFisherBP(et_annot_low, 5, 100, 0.05)
 gomf_l_100 <- GOFisherMF(et_annot_low, 5, 100, 0.05)
 gocc_l_100 <- GOFisherCC(et_annot_low, 5, 100, 0.05)
 
-gobp_h_1000 <- GOFisherBP(et_annot_high, 5, 1000, 0.05)
-gomf_h_1000 <- GOFisherMF(et_annot_high, 5, 1000, 0.05)
-gocc_h_1000 <- GOFisherCC(et_annot_high, 5, 1000, 0.05)
+gobp_h_250 <- GOFisherBP(et_annot_high, 5, 250, 0.05)
+gomf_h_250 <- GOFisherMF(et_annot_high, 5, 250, 0.05)
+gocc_h_250 <- GOFisherCC(et_annot_high, 5, 250, 0.05)
 
-gobp_l_1000 <- GOFisherBP(et_annot_low, 5, 1000, 0.05)
-gomf_l_1000 <- GOFisherMF(et_annot_low, 5, 1000, 0.05)
-gocc_l_1000 <- GOFisherCC(et_annot_low, 5, 1000, 0.05)
+gobp_l_250 <- GOFisherBP(et_annot_low, 5, 250, 0.05)
+gomf_l_250 <- GOFisherMF(et_annot_low, 5, 250, 0.05)
+gocc_l_250 <- GOFisherCC(et_annot_low, 5, 250, 0.05)
 
 
 write.xlsx(gobp_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 50", append = TRUE)
@@ -515,9 +528,9 @@ write.xlsx(gocc_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 50", a
 write.xlsx(gobp_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 100", append = TRUE)
 write.xlsx(gomf_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 100", append = TRUE)
 write.xlsx(gocc_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 100", append = TRUE)
-write.xlsx(gobp_h_1000, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 1000", append = TRUE)
-write.xlsx(gomf_h_1000, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 1000", append = TRUE)
-write.xlsx(gocc_h_1000, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 1000", append = TRUE)
+write.xlsx(gobp_h_250, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 250", append = TRUE)
+write.xlsx(gomf_h_250, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 250", append = TRUE)
+write.xlsx(gocc_h_250, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 250", append = TRUE)
 
 write.xlsx(gobp_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 50", append = TRUE)
 write.xlsx(gomf_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 50", append = TRUE)
@@ -525,20 +538,22 @@ write.xlsx(gocc_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 50",
 write.xlsx(gobp_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 100", append = TRUE)
 write.xlsx(gomf_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 100", append = TRUE)
 write.xlsx(gocc_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 100", append = TRUE)
-write.xlsx(gobp_l_1000, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 1000", append = TRUE)
-write.xlsx(gomf_l_1000, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 1000", append = TRUE)
-write.xlsx(gocc_l_1000, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 1000", append = TRUE)
-}
+write.xlsx(gobp_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 250", append = TRUE)
+write.xlsx(gomf_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 250", append = TRUE)
+write.xlsx(gocc_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 250", append = TRUE)
+# }
 
 
 
 ## CORELLATION MARIX WITH DESEQ2
 correl <- cpm(y)
 x <- cor(correl)
-png(file = "Corellation matrix.png")
-heatmap.2(x, margins = c(10,10))
+pdf(file = "Corellation matrix.pdf", width = 10, height = 10)
+heatmap.2(x, col=col.pan,Rowv=TRUE, scale="none",
+          trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
+          margin=c(10,10), lhei=c(2,10), lwid=c(2,6), main = "Corellation Matrix")
 dev.off()
-        
+#heatmap.2(x, margins = c(10,10))      
 ### MDS PLOT
 pch <- c(0,1,2,15,16,17)
 colors <- rep(c("darkgreen", "red", "blue"), 2)
@@ -555,10 +570,11 @@ allgenes <- nrow(et_annot_non_filtered)
 et_annot_non_filtered$threshold = as.factor(abs(et_annot_non_filtered$logFC) > logfchigh_cutoff & et_annot_non_filtered$PValue < 0.05/allgenes)
 pdf(file = "Volcano plot.pdf", width = 10, height = 10)
 g = ggplot(data=et_annot_non_filtered, aes(x=logFC, y=-log10(PValue), colour=threshold)) +
-  geom_point(alpha=1, size=1) +
+  geom_point(alpha=1, size=2) +
   labs(legend.position = "none") +
   xlim(c(-6, 6)) + ylim(c(1.30103, 30)) +
-  xlab("log2 fold change") + ylab("-log10 p-value")
+  xlab("log2 fold change") + ylab("-log10 p-value") +
+  theme_bw()
 g
 dev.off()
 
@@ -887,18 +903,28 @@ write.xlsx(pth_pan_down, file = "Top Pathways by PANTHER.xlsx", sheetName = "DOW
 }
 
 ### DESEQ2 PART (ADDITIONAL)
-directory <- '~/GitHub/counts/ALS Mice/experimental/'
+directory <- '~/GitHub/counts/ALS Mice/experimental/results'
 setwd(directory)
+
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else {
   setwd(stattest)
 }
 
+directory <- '~/GitHub/counts/ALS Mice/experimental/'
+
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
 res <- results(dds, tidy = FALSE )
 rld<- rlogTransformation(dds, blind=TRUE)
+
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else {
+  setwd(stattest)
+}
+
 
 pdf(file = "PCAPlot.pdf", width = 10, height = 10)
 print(plotPCA(rld, intgroup=c('condition')))
@@ -923,4 +949,11 @@ close(zz)
 beep()
 beep()
 beep()
-getwd()
+
+
+
+
+
+
+
+

@@ -9,13 +9,17 @@ library("reactome.db")
 library("topGO")
 library("clusterProfiler")
 library("xlsx")
-gs_size <- 2
+library("AnnotationDbi")
+library("org.Mm.eg.db")
+library("GO.db")
+gs_size <- 1
 kegg_plots <- TRUE
 data(go.sets.mm)
 data(go.subs.mm)
 
 library("dplyr")
-dir <- "~/GitHub/counts/ALS Mice/new filtering/tg2-tg3/other/"
+
+dir <- c("~/GitHub/counts/ALS Mice/new filtering/tg2-tg3/other/")
 file <- grep("deg", list.files(dir), value = TRUE)
 setwd(dir)
 et_annot <- read.csv(paste(file))
@@ -50,7 +54,9 @@ write.xlsx(goccres, file = "GO.xlsx", sheetName = "GO_CC", append = TRUE)
 
 dfa <- as.character(et_annot$entrez)
 x <- enrichPathway(gene=dfa, organism = "mouse", minGSSize=gs_size, readable = TRUE )
+write.xlsx(x, "Reactome.xlsx", sheetName = "All reactome", append = TRUE)
 head(as.data.frame(x))
+dev.off()
 dev.off()
 
 par(mar=c(1,1,1,1))
@@ -63,14 +69,13 @@ enrichMap(x, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7, n = 20,
 dev.off()
 
 pdf(file = "cnetplot.pdf", width = 12, height = 17, family = "Helvetica")
-cnetplot(x, foldChange = foldchanges, categorySize="pvalue", showCategory = 10)
+cnetplot(x, foldChange = foldchanges, categorySize="pvalue", showCategory = 20)
 dev.off()
 
 #HIGH
 df_high <- et_annot_high$entrez
 x <- enrichPathway(gene=df_high, organism = "mouse", minGSSize=gs_size, readable = TRUE )
-head(as.data.frame(x))
-dev.off()
+write.xlsx(x, "Reactome.xlsx", sheetName = "Up", append = TRUE)
 
 par(mar=c(1,1,1,1))
 pdf(file = "barplot_high.pdf", width = 12, height = 17, family = "Helvetica")
@@ -81,7 +86,7 @@ dev.off()
 
 df_low <- et_annot_low$entrez
 x <- enrichPathway(gene=df_low, organism = "mouse", minGSSize=gs_size, readable = TRUE )
-head(as.data.frame(x))
+write.xlsx(x, "Reactome.xlsx", sheetName = "Down", append = TRUE)
 
 par(mar=c(1,1,1,1))
 pdf(file = "barplot_low.pdf", width = 12, height = 17, family = "Helvetica")
