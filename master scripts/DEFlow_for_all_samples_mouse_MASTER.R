@@ -26,8 +26,17 @@ library(GO.db)
 library(Hmisc)
 library(DESeq2)
 library(checkmate)
+library(biomaRt)
+library(RcisTarget)
+library(devtools)
+library(enrichR)
+library(zoo)
 
-### CONFIGURATION BLOCK
+### TFES
+install.packages("http://scenic.aertslab.org/downloads/databases/RcisTarget.mm9.motifDatabases.20k_0.1.1.tar.gz",repos = NULL,type="source")
+library(RcisTarget.mm9.motifDatabases.20k)
+data("mm9_10kbpAroundTss_motifRanking")
+data("mm9_direct_motifAnnotation")
 
 heatmaps <- TRUE
 custom_heatmap <- FALSE
@@ -44,8 +53,8 @@ logging <- FALSE
 ### CONSTANTS BLOCK
 
 pvalue_cutoff <- 0.05
-logfchigh_cutoff <- 0.5
-logfclow_cutoff <- -0.5
+logfchigh_cutoff <- 1
+logfclow_cutoff <- -1
 cpm_cutoff <- 0.5
 gs_size <- 10
 diseases_set <- 50
@@ -176,6 +185,34 @@ if (qlm_test == TRUE){
       et_annot_non_filtered <- as.data.frame(et$table)
 }
 
+### MRNA TYPES 
+
+taxon = 'Mus Musculus'
+taxon = tolower(taxon)
+tmp = unlist(strsplit(x = taxon, split = ' '))
+dataset.name = tolower(sprintf('%s%s_gene_ensembl', substr(tmp[1],1,1), tmp[2]))
+
+cat('\nQuerying biomaRt for gene info and saving this data to disk...\n')
+mart <- useMart("ensembl", dataset="mmusculus_gene_ensembl") #, host="www.ensembl.org"
+
+needed.attributes = c("ensembl_gene_id","external_gene_name", "description","gene_biotype","entrezgene")
+if(use.official.gene.symbol){
+  gmt = getBM(attributes=needed.attributes,filters="external_gene_name",values=rownames(et_annot), mart=mart)
+  gmt = gmt[!(duplicated(gmt[,"external_gene_name"])),]
+  rownames(gmt) = gmt[,"external_gene_name"]
+} else {
+  gmt = getBM(attributes=needed.attributes,filters="ensembl_gene_id",values=rownames(et_annot), mart=mart)
+  gmt = gmt[!(duplicated(gmt[,"ensembl_gene_id"])),]
+  rownames(gmt) = gmt[,"ensembl_gene_id"]
+}
+gmt[,"description"] = gsub(pattern = "\\[Source:.*", replacement = "", x = gmt[,"description"], ignore.case = T,perl = FALSE)
+
+gmt_freq <- as.data.frame(table(unlist(gmt$gene_biotype)))
+gmt_freq$Perc <- (gmt_freq$Freq/nrow(et_annot_non_filtered))*100
+
+write.xlsx(gmt_freq, file = "Genes Biotypes distribution.xlsx", append = TRUE)
+
+
 
 
 ### ANNOTATE
@@ -235,12 +272,29 @@ et_annot_non_filtered$Symbol <- mapIds(org.Mm.eg.db,
                           keytype="ENSEMBL",
                           multiVals="first")
 ### FILTRATION
-
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
-et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff))
-et_annot <- as.data.frame(subset(et_annot, logFC < logfclow_cutoff))
+et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
+### BIOTYPE ANNOT
+if(use.official.gene.symbol){
+  gmt_flt = getBM(attributes=needed.attributes,filters="external_gene_name",values=rownames(et_annot), mart=mart)
+  gmt_flt = gmt_flt[!(duplicated(gmt_flt[,"external_gene_name"])),]
+  rownames(gmt_flt) = gmt_flt[,"external_gene_name"]
+} else {
+  gmt_flt = getBM(attributes=needed.attributes,filters="ensembl_gene_id",values=rownames(et_annot), mart=mart)
+  gmt_flt = gmt_flt[!(duplicated(gmt_flt[,"ensembl_gene_id"])),]
+  rownames(gmt_flt) = gmt_flt[,"ensembl_gene_id"]
+}
+gmt_flt[,"description"] = gsub(pattern = "\\[Source:.*", replacement = "", x = gmt[,"description"], ignore.case = T,perl = FALSE)
 
+et_annot$biotype <- gmt_flt$gene_biotype
+gmt_flt_freq <- as.data.frame(table(unlist(gmt$gene_biotype)))
+
+
+
+pdf(file = "Filtered genes biotype distribution.pdf", width = 12, height = 17, family = "Helvetica")
+pie(gmt_flt_freq$Freq, labels = gmt_flt_freq$Var1, radius = 0.5, main = "Filtered genes biotype distribution")
+dev.off()
 ### TESTING A HYPOTESIS
 counts_control <- CountsTable[,grep(gr_control, names(CountsTable))]
 counts_case <- CountsTable[,grep(gr_case, names(CountsTable))]
@@ -462,7 +516,7 @@ write.xlsx(goccres, file = "GO.xlsx", sheetName = "GO_CC", append = TRUE)
 et_annot_high <- as.data.frame(subset(et_annot, logFC > 0))
 et_annot_low <- as.data.frame(subset(et_annot, logFC < 0))
 
-#if (fisherGO == TRUE){
+if (fisherGO == TRUE){
 
 GOFisherBP <- function(df, nodes, nrows, p){
   all_genes <- c(df$logFC)
@@ -545,9 +599,20 @@ write.xlsx(gocc_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 100
 write.xlsx(gobp_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 250", append = TRUE)
 write.xlsx(gomf_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 250", append = TRUE)
 write.xlsx(gocc_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 250", append = TRUE)
-# }
+ }
 
 
+
+
+###ENRICHR
+
+
+
+dbs <- listEnrichrDbs()
+head(dbs)
+dbs <- c("GO_Molecular_Function_2015", "GO_Cellular_Component_2015", "GO_Biological_Process_2015")
+enriched <- enrichr(genes = rownames(et_annot), dbs)
+enriched[["GO_Biological_Process_2015"]]
 
 ## CORELLATION MARIX WITH DESEQ2
 correl <- cpm(y)
@@ -999,4 +1064,11 @@ common <- data.frame()
 common <- data.frame(edger_com$logFC, deseq_com$log2FoldChange)
 rownames(common) <- rownames(edger_com)
 
+geneList1 <- rownames(et_annot_high)
+geneLists <- list(geneListName=geneList1)
+motifRankings <- mm9_10kbpAroundTss_motifRanking
+motifEnrichmentTable_wGenes <- cisTarget(et_annot$symbol, motifRankings,
+                                motifAnnot_direct=mm9_direct_motifAnnotation)
 
+
+write.xlsx(motifEnrichmentTable_wGenes, file = "Transcription factor binding motif enrichment.xlsx")

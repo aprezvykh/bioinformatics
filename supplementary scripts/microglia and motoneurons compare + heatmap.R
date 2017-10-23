@@ -19,7 +19,7 @@ moto_notaff <- subset(moto_aff, moto_aff$compare.moto.affinity < 5)
 gl_aff <- subset(gl_aff, gl_aff$compare.glia.affinity > 5)
 moto_aff <- subset(moto_aff, moto_aff$compare.moto.affinity > 5)
 
-exp <- read.xlsx("~/GitHub/counts/ALS Mice/new filtering/tg1-tg3/manifestation_deg.xlsx", sheetIndex = 2)
+exp <- read.csv("~/GitHub/counts/ALS Mice/new filtering/tg1-tg3/manifestation_deg_13.csv")
 x <- read.xlsx(file = "~/GitHub/counts/ALS Mice/old diff/motoneurons marker.xlsx", sheetIndex = 1)
 
 in1 <- intersect(moto_aff$compare.glia.X, exp$NA.)
@@ -105,28 +105,32 @@ rownames(hm) <- hm$X
 
 hm$X <- NULL
 hm$X <- NULL
+
+
 hm <- as.matrix(hm)
 hm <- t(scale(t(hm)))
-
-
-hm$moto <- (hm$moto_1.counts + hm$moto_2.counts)/2
-hm$glia <- (hm$mouse_1.counts +
-              hm$mouse_2.counts +
-                hm$mouse_3.counts +
-                  hm$mouse_4.counts +
-                    hm$mouse_5.counts + 
-                      hm$mouse_6.counts)/6
-
-fit_hm <- data.frame(hm$moto, hm$glia)
-rownames(fit_hm) <- rownames(hm)
-fit_hm <- as.matrix(fit_hm)
-fit_hm <- t(scale(t(fit_hm)))
-
-hm <- as.data.frame(hm)
-hm <- data.frame(hm$moto, hm$glia)
-hm <- as.matrix(hm)
+setwd("~/")
+pdf(file = "Compare 2.pdf", width = 10, height = 10)
 heatmap.2(hm, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Genes differential expression")
 dev.off()
+#hm$moto <- (hm$moto_1.counts + hm$moto_2.counts)/2
+#hm$glia <- (hm$mouse_1.counts +
+#              hm$mouse_2.counts +
+#                hm$mouse_3.counts +
+#                  hm$mouse_4.counts +
+#                    hm$mouse_5.counts + 
+#                      hm$mouse_6.counts)/6
+
+#fit_hm <- data.frame(hm$moto, hm$glia)
+#rownames(fit_hm) <- rownames(hm)
+#fit_hm <- as.matrix(fit_hm)
+#fit_hm <- t(scale(t(fit_hm)))
+
+#hm <- as.data.frame(hm)
+#hm <- data.frame(hm$moto, hm$glia)
+#hm <- as.matrix(hm)
+
+
 
