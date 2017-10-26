@@ -366,10 +366,17 @@ df <- data.frame(header, meaning)
 
 ### TISSUE DISTRIBUTION
 for (f in et_annot$entrez){}
-doc.html <- read_xml('https://www.ncbi.nlm.nih.gov/gene/18040/?report=expression')
-data <- xmlParse(doc.html)
-xmltop <- xmlRoot(data)
-list <- xmlToList(xmltop,addAttributes = F)
+library(RCurl)
+library(XML)
+library(stringr)
+
+url <- 'https://www.ncbi.nlm.nih.gov/gene/18040/?report=expression'
+webpage <- readLines(url)
+htmlpage <- htmlParse(webpage, asText = TRUE)
+nodes <- getNodeSet(htmlpage, "//div[@class='rprt expression-rprt']")
+a <- laply(nodes, xmlValue)
+require(RJSONIO)
+json <- fromJSON(a)
 
 # WRITE RESULTS
 write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append = TRUE)
