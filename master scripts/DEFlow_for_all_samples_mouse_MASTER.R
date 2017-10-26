@@ -1,3 +1,8 @@
+library(ENCODExplorer)
+library(DT)
+library(reshape2)
+library(htmlwidgets)
+library(visNetwork)
 library(beepr)
 library(AnnotationDbi)
 library(Rcpp)
@@ -31,9 +36,13 @@ library(RcisTarget)
 library(devtools)
 library(enrichR)
 library(zoo)
+library(rvest)
+library(XML)
+library(plyr)
+library(AnnotationDbi)
+
 
 ### TFES
-install.packages("http://scenic.aertslab.org/downloads/databases/RcisTarget.mm9.motifDatabases.20k_0.1.1.tar.gz",repos = NULL,type="source")
 library(RcisTarget.mm9.motifDatabases.20k)
 data("mm9_10kbpAroundTss_motifRanking")
 data("mm9_direct_motifAnnotation")
@@ -64,7 +73,7 @@ pathways_set <- 30
 genes_in_term <- 3
 filter_thresh <- 5
 baseMean_cutoff <- 1.5
-
+significant_enriched_motif <- 5
 
 ### GROUPS. FIRST GROUP WILL BE USED AS CONTROL!
 gr_control <- c("tg_1")
@@ -147,72 +156,45 @@ row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "
 ### DIFFEXPRESSION STATISTICAL ANALYSIS - EXACT NEGATIVE-
 ### BINOMIAL OR QLM TEST
 
-if (qlm_test == TRUE){
-      a <- DGEList(counts=y, group = sampleTable$condition)
-      cpm <- cpm(y)
-      cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ]
-      cpm <- as.data.frame(cpm(y))
-      cpm$rowsum <- rowSums(cpm)
-      keep <- rowSums(cpm > cpm_cutoff) >= ncol(sampleTable)
-      a <- a[keep, , keep.lib.sizes=FALSE]
-      a <- calcNormFactors(a)
-      design <- model.matrix(~sampleTable$condition)
-      a <- estimateDisp(a,design)
-      fit <- glmQLFit(a,design)
-      qlf <- glmQLFTest(fit,coef=2)
-      et_annot <- as.data.frame(qlf$table)
-      et_annot_non_filtered <- as.data.frame(qlf$table)
-
-} else if (qlm_test == FALSE){
-
-      normalized_lib_sizes <- calcNormFactors(y, method = "TMM")
-      CountsTable <- as.data.frame(y$counts)
-      raw_counts <- as.data.frame(y$counts)
-      y <- estimateCommonDisp(y)
-      y <- estimateTagwiseDisp(y)
-      nf <- exactTest(y)
-      no_filtered <- as.data.frame(nf$table)
-      keep <- rowSums(cpm(y) > cpm_cutoff) >= ncol(sampleTable)
-      cpm <- cpm(y)
-      cpm <- as.data.frame(cpm(y))
-      cpm$rowsum <- rowSums(cpm)
-      y <- y[keep, , keep.lib.sizes=FALSE]
-      normalized_lib_sizes <- calcNormFactors(y, method = "TMM")
-      logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes)
-      et <- exactTest(y)
-      top <- as.data.frame(topTags(et))
-      et_annot <- as.data.frame(et$table)
-      et_annot_non_filtered <- as.data.frame(et$table)
+if (qlm_test == TRUE){ 
+  a <- DGEList(counts=y, group = sampleTable$condition) 
+  cpm <- cpm(y) 
+  cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ] 
+  cpm <- as.data.frame(cpm(y)) 
+  cpm$rowsum <- rowSums(cpm) 
+  keep <- rowSums(cpm > cpm_cutoff) >= ncol(sampleTable) 
+  a <- a[keep, , keep.lib.sizes=FALSE] 
+  a <- calcNormFactors(a, method = "TMM") 
+  design <- model.matrix(~sampleTable$condition) 
+  a <- estimateDisp(a,design) 
+  fit <- glmQLFit(a,design, robust = TRUE) 
+  qlf <- glmQLFTest(fit,coef=ncol(fit$design)) 
+  et_annot <- as.data.frame(qlf$table) 
+  et_annot_non_filtered <- as.data.frame(qlf$table) 
+  
+} else if (qlm_test == FALSE){ 
+  design <- model.matrix(~sampleTable$condition) 
+  normalized_lib_sizes <- calcNormFactors(y, method = "TMM") 
+  CountsTable <- as.data.frame(y$counts) 
+  raw_counts <- as.data.frame(y$counts) 
+  y <- estimateCommonDisp(y) 
+  y <- estimateTagwiseDisp(y) 
+  y <- estimateDisp(y, design = design) 
+  nf <- exactTest(y) 
+  no_filtered <- as.data.frame(nf$table) 
+  keep <- rowSums(cpm(y) > cpm_cutoff) >= ncol(sampleTable) 
+  cpm <- cpm(y) 
+  cpm <- as.data.frame(cpm(y)) 
+  cpm$rowsum <- rowSums(cpm) 
+  y <- y[keep, , keep.lib.sizes=FALSE] 
+  logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes) 
+  et <- exactTest(y) 
+  top <- as.data.frame(topTags(et)) 
+  et_annot <- as.data.frame(et$table) 
+  et_annot_non_filtered <- as.data.frame(et$table) 
 }
 
 ### MRNA TYPES 
-
-taxon = 'Mus Musculus'
-taxon = tolower(taxon)
-tmp = unlist(strsplit(x = taxon, split = ' '))
-dataset.name = tolower(sprintf('%s%s_gene_ensembl', substr(tmp[1],1,1), tmp[2]))
-
-cat('\nQuerying biomaRt for gene info and saving this data to disk...\n')
-mart <- useMart("ensembl", dataset="mmusculus_gene_ensembl") #, host="www.ensembl.org"
-
-needed.attributes = c("ensembl_gene_id","external_gene_name", "description","gene_biotype","entrezgene")
-if(use.official.gene.symbol){
-  gmt = getBM(attributes=needed.attributes,filters="external_gene_name",values=rownames(et_annot), mart=mart)
-  gmt = gmt[!(duplicated(gmt[,"external_gene_name"])),]
-  rownames(gmt) = gmt[,"external_gene_name"]
-} else {
-  gmt = getBM(attributes=needed.attributes,filters="ensembl_gene_id",values=rownames(et_annot), mart=mart)
-  gmt = gmt[!(duplicated(gmt[,"ensembl_gene_id"])),]
-  rownames(gmt) = gmt[,"ensembl_gene_id"]
-}
-gmt[,"description"] = gsub(pattern = "\\[Source:.*", replacement = "", x = gmt[,"description"], ignore.case = T,perl = FALSE)
-
-gmt_freq <- as.data.frame(table(unlist(gmt$gene_biotype)))
-gmt_freq$Perc <- (gmt_freq$Freq/nrow(et_annot_non_filtered))*100
-
-write.xlsx(gmt_freq, file = "Genes Biotypes distribution.xlsx", append = TRUE)
-
-
 
 
 ### ANNOTATE
@@ -275,9 +257,13 @@ et_annot_non_filtered$Symbol <- mapIds(org.Mm.eg.db,
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
 et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
-### BIOTYPE ANNOT
-if(use.official.gene.symbol){
-  gmt_flt = getBM(attributes=needed.attributes,filters="external_gene_name",values=rownames(et_annot), mart=mart)
+
+
+### BIOTYPE ANNOT FIX IT!
+use.official.gene.symbol <- TRUE
+
+if(use.official.gene.symbol == TRUE){
+  gmt_flt = getBM(attributes=needed.attributes,filters="external_gene_name",values=et_annot$symbol, mart=mart)
   gmt_flt = gmt_flt[!(duplicated(gmt_flt[,"external_gene_name"])),]
   rownames(gmt_flt) = gmt_flt[,"external_gene_name"]
 } else {
@@ -287,14 +273,14 @@ if(use.official.gene.symbol){
 }
 gmt_flt[,"description"] = gsub(pattern = "\\[Source:.*", replacement = "", x = gmt[,"description"], ignore.case = T,perl = FALSE)
 
-et_annot$biotype <- gmt_flt$gene_biotype
-gmt_flt_freq <- as.data.frame(table(unlist(gmt$gene_biotype)))
-
-
+# et_annot$biotype <- gmt_flt$gene_biotype
+gmt_flt_freq <- as.data.frame(table(unlist(gmt_flt$gene_biotype)))
 
 pdf(file = "Filtered genes biotype distribution.pdf", width = 12, height = 17, family = "Helvetica")
 pie(gmt_flt_freq$Freq, labels = gmt_flt_freq$Var1, radius = 0.5, main = "Filtered genes biotype distribution")
 dev.off()
+
+
 ### TESTING A HYPOTESIS
 counts_control <- CountsTable[,grep(gr_control, names(CountsTable))]
 counts_case <- CountsTable[,grep(gr_case, names(CountsTable))]
@@ -378,6 +364,14 @@ meaning <- c(print(all), print(avg_cpm), print(allpadj), print(up), print(down))
 df <- data.frame(header, meaning)
 
 
+### TISSUE DISTRIBUTION
+for (f in et_annot$entrez){}
+doc.html <- read_xml('https://www.ncbi.nlm.nih.gov/gene/18040/?report=expression')
+data <- xmlParse(doc.html)
+xmltop <- xmlRoot(data)
+list <- xmlToList(xmltop,addAttributes = F)
+
+# WRITE RESULTS
 write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append = TRUE)
 write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
 # write.xlsx(CountsTable, file = "Results edgeR.xlsx", sheetName = "Counts Table, logCPM>1", append = TRUE)
@@ -1064,11 +1058,50 @@ common <- data.frame()
 common <- data.frame(edger_com$logFC, deseq_com$log2FoldChange)
 rownames(common) <- rownames(edger_com)
 
-geneList1 <- rownames(et_annot_high)
+
+
+### MOTIV ENRICHMENT
+geneList1 <- rownames(et_annot)
 geneLists <- list(geneListName=geneList1)
 motifRankings <- mm9_10kbpAroundTss_motifRanking
-motifEnrichmentTable_wGenes <- cisTarget(et_annot$symbol, motifRankings,
+motifEnrichmentTable_wGenes <- cisTarget(geneLists, motifRankings,
                                 motifAnnot_direct=mm9_direct_motifAnnotation)
 
+motifEnrichmentTable_wGenes_wLogo <- addLogo(motifEnrichmentTable_wGenes)
+resultsSubset <- motifEnrichmentTable_wGenes_wLogo
+result <- datatable(resultsSubset[,-c("enrichedGenes", "TF_inferred"), with=FALSE], 
+                    escape = FALSE, # To show the logo
+                    filter="top", options=list(pageLength=5))
 
+
+saveWidget(result, file="TF enrichment.html")
+
+motifs_AUC <- calcAUC(geneLists, motifRankings, nCores=1)
+motifEnrichmentTable <- addMotifAnnotation(motifs_AUC, motifAnnot_direct=mm9_direct_motifAnnotation)
+
+signifMotifNames <- motifEnrichmentTable$motif[1:3]
+incidenceMatrix <- getSignificantGenes(geneLists, 
+                                       motifRankings,
+                                       signifRankingNames=signifMotifNames,
+                                       plotCurve=TRUE, maxRank=5000, 
+                                       genesFormat="incidMatrix",
+                                       method="aprox")$incidMatrix
+
+edges <- melt(incidenceMatrix)
+edges <- edges[which(edges[,3]==1),1:2]
+colnames(edges) <- c("from","to")
+
+
+motifs <- unique(as.character(edges[,1]))
+genes <- unique(as.character(edges[,2]))
+nodes <- data.frame(id=c(motifs, genes),   
+                    label=c(motifs, genes),    
+                    title=c(motifs, genes), # tooltip 
+                    shape=c(rep("diamond", length(motifs)), rep("elypse", length(genes))),
+                    color=c(rep("purple", length(motifs)), rep("skyblue", length(genes))))
+
+web <- visNetwork(nodes, edges) %>% visOptions(highlightNearest = TRUE, 
+                                               nodesIdSelection = TRUE)
+
+saveWidget(web, file="TF enrichment web.html")
 write.xlsx(motifEnrichmentTable_wGenes, file = "Transcription factor binding motif enrichment.xlsx")

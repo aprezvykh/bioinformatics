@@ -1,3 +1,6 @@
+### BASIC FILTERING
+
+
 library(xlsx)
 library(ggplot2)
 library(gplots)
@@ -19,10 +22,25 @@ moto_notaff <- subset(moto_aff, moto_aff$compare.moto.affinity < 5)
 gl_aff <- subset(gl_aff, gl_aff$compare.glia.affinity > 5)
 moto_aff <- subset(moto_aff, moto_aff$compare.moto.affinity > 5)
 
-exp <- read.csv("~/GitHub/counts/ALS Mice/new filtering/tg1-tg3/manifestation_deg_13.csv")
+exp <- as.data.frame(read.xlsx("~/GitHub/counts/ALS Mice/new filtering-0.5/exp_tg1_tg2.xlsx", sheetIndex = 2))
 x <- read.xlsx(file = "~/GitHub/counts/ALS Mice/old diff/motoneurons marker.xlsx", sheetIndex = 1)
 
-in1 <- intersect(moto_aff$compare.glia.X, exp$NA.)
+exp <- exp[complete.cases(exp), ]
+flt <- as.data.frame(read.xlsx("~/GitHub/counts/ALS Mice/tg1-tg2/manifestation_genes_only_12.xlsx", sheetIndex = 1))
+r <- data.frame()
+df <- data.frame()
+names(flt) <- c("id")
+
+for (f in flt$id){
+  a <- grepl(paste(f), exp$NA.)
+  df <- exp[a,]
+  r <- rbind(df, r)
+  
+}
+
+exp <- r
+in1 <- intersect(moto_aff$compare.glia.X, r$NA.)
+write.xlsx(r, "Filtered_only_13.xlsx", sheetName = "12")
 
 outersect <- function(x, y) {
   sort(c(setdiff(x, y),
@@ -60,14 +78,14 @@ for (f in sig_out$`intersect(a, b)`){
   deg_out <- rbind(r, deg_out)
 }
 
-setwd("~/GitHub/counts/ALS Mice/new filtering/tg2-tg3/")
+setwd("~/GitHub/counts/ALS Mice/tg1-tg2/")
 
 deg_moto <- deg_moto[complete.cases(deg_moto), ]
 deg_glia<- deg_glia[complete.cases(deg_glia), ]
 deg_out<- deg_out[complete.cases(deg_out), ]
-write.csv(deg_moto, file = "deg_moto_12.csv")
-write.csv(deg_glia, file = "deg_glia_12.csv")
-write.csv(deg_out, file = "deg_out_12.csv")
+write.csv(deg_moto, file = "deg_moto_13.csv")
+write.csv(deg_glia, file = "deg_glia_13.csv")
+write.csv(deg_out, file = "deg_out_13.csv")
 
 #################
 

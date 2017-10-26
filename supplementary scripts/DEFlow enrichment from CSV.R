@@ -19,7 +19,7 @@ data(go.subs.mm)
 
 library("dplyr")
 
-dir <- c("~/GitHub/counts/ALS Mice/new filtering/tg2-tg3/other/")
+dir <- c("~/GitHub/counts/ALS Mice/tg1-tg2/other/")
 file <- grep("deg", list.files(dir), value = TRUE)
 setwd(dir)
 et_annot <- read.csv(paste(file))
@@ -139,9 +139,5 @@ if (kegg_plots == TRUE){
   tmp = sapply(keggresids, function(pid) pathview(gene.data=foldchanges, pathway.id=pid, species="mmu"))
 }
 
-pathview(gene.data=foldchanges, 
-         pathway.id="mmu03050", 
-         species="mmu", 
-         new.signature=FALSE)
 
 

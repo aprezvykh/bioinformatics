@@ -1,0 +1,6 @@
+"","NA.","logFC","logCPM","PValue","symbol","name","entrez","GOID","term"
+"954","ENSMUSG00000044505",-1.57229352961522,4.08887649058877,2.04457597702502e-08,"Lingo4","leucine rich repeat and Ig domain containing 4","320747","GO:0003674","molecular_function"
+"809","ENSMUSG00000039385",-0.818698936884989,3.18970791388567,0.00111436468320388,"Cdh6","cadherin 6","12563","GO:0005509","calcium ion binding"
+"716","ENSMUSG00000036760",-1.02463558933464,4.2732695239248,2.65001479577552e-05,"Kcnk9","potassium channel, subfamily K, member 9","223604","GO:0005249","voltage-gated potassium channel activity"
+"568","ENSMUSG00000031760",0.887406265525943,7.95074535971104,5.69332799445986e-06,"Mt3","metallothionein 3","17751","GO:0006112","energy reserve metabolic process"
+"126","ENSMUSG00000017734",-0.843109462637629,6.67667830453448,2.05473413229228e-08,"Dbndd2","dysbindin (dystrobrevin binding protein 1) domain containing 2","52840","GO:0003674","molecular_function"
