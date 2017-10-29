@@ -56,7 +56,7 @@ disease_association <- TRUE
 kegg_plots <- TRUE
 panther_analysis <- TRUE
 deseq2_part <- TRUE
-qlm_test <- FALSE
+qlm_test <- TRUE
 logging <- FALSE
 
 ### CONSTANTS BLOCK
@@ -194,6 +194,7 @@ if (qlm_test == TRUE){
   et_annot_non_filtered <- as.data.frame(et$table) 
 }
 
+topTags(qlf)
 ### MRNA TYPES 
 
 
@@ -257,6 +258,7 @@ et_annot_non_filtered$Symbol <- mapIds(org.Mm.eg.db,
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
 et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
+a <- read.xlsx("~/GitHub/counts/ALS Mice/experimental/results/fc1/tg_1-tg_3/Results edgeR.xlsx", sheetIndex = 2)
 
 
 ### BIOTYPE ANNOT FIX IT!
@@ -606,16 +608,13 @@ write.xlsx(gocc_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 250
 
 
 ###ENRICHR
-
-
-
 dbs <- listEnrichrDbs()
 head(dbs)
 dbs <- c("GO_Molecular_Function_2015", "GO_Cellular_Component_2015", "GO_Biological_Process_2015")
 enriched <- enrichr(genes = rownames(et_annot), dbs)
 enriched[["GO_Biological_Process_2015"]]
 
-## CORELLATION MARIX WITH DESEQ2
+## CORELLATION MARIX
 correl <- cpm(y)
 x <- cor(correl)
 pdf(file = "Corellation matrix.pdf", width = 10, height = 10)

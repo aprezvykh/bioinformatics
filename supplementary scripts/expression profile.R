@@ -11,9 +11,9 @@ logfclow_cutoff <- -1
 cpm_cutoff <- 0.5
 
 ### Statistical analysis
-directory <- '~/GitHub/counts/ALS Mice/experimental/'
+directory <- '~/GitHub/counts/ALS Mice/CD19/'
 setwd(directory)
-sampleFiles <- grep('tg_2',list.files(directory),value=TRUE)
+sampleFiles <- grep('SRR',list.files(directory),value=TRUE)
 sampleCondition <- c('1', '1', '1', '1')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
@@ -35,9 +35,11 @@ cpm$Name <- mapIds(org.Mm.eg.db,
                        keytype="ENSEMBL",
                        multiVals="first")
 
+cpm$avg <- rowSums(cpm)
+
 write.csv(cpm, file = "tg2_expression_profile.csv")
 
-cpm <- cpm[order(cpm$mouse_SRR391076.counts, decreasing = TRUE),]
+cpm <- cpm[order(cpm$avg, decreasing = TRUE),]
 cpm <- cpm[seq(1:1000),]
 exp <- read.xlsx("~/GitHub/counts/ALS Mice/experimental/results/fc1/tg_1-tg_3/Results edgeR.xlsx", sheetIndex = 2)
 
