@@ -11,17 +11,18 @@ logfclow_cutoff <- -1
 cpm_cutoff <- 0.5
 
 ### Statistical analysis
-directory <- '~/GitHub/counts/ALS Mice/CD19/'
+directory <- '~/GitHub/counts/ALS Mice/experimental/'
 setwd(directory)
-sampleFiles <- grep('SRR',list.files(directory),value=TRUE)
-sampleCondition <- c('1', '1', '1', '1')
+sampleFiles <- grep('control_1',list.files(directory),value=TRUE)
+sampleCondition <- c('1', '1', '1', '1', '1')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
 y <- estimateCommonDisp(y)
 y <- estimateTagwiseDisp(y)
-keep <- rowSums(cpm > cpm_cutoff) >= ncol(sampleTable)
+keep <- rowSums(cpm(y) > cpm_cutoff) > 1
 y <- y[keep, ] 
 cpm <- as.data.frame(cpm(y))
+cpm$avg <- rowSums(cpm)
 ### ANNOTATE
 
 cpm$Symbol <- mapIds(org.Mm.eg.db, 
@@ -35,9 +36,7 @@ cpm$Name <- mapIds(org.Mm.eg.db,
                        keytype="ENSEMBL",
                        multiVals="first")
 
-cpm$avg <- rowSums(cpm)
-
-write.csv(cpm, file = "tg2_expression_profile.csv")
+write.csv(cpm, file = "control_1.csv")
 
 cpm <- cpm[order(cpm$avg, decreasing = TRUE),]
 cpm <- cpm[seq(1:1000),]

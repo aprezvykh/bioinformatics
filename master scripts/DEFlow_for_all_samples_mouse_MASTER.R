@@ -51,7 +51,7 @@ heatmaps <- TRUE
 custom_heatmap <- FALSE
 custom_genes_plots <- FALSE
 fisherGO <- TRUE
-analyze_all_samples <- FALSE
+analyze_all_samples <- TRUE
 disease_association <- TRUE
 kegg_plots <- TRUE
 panther_analysis <- TRUE
@@ -187,7 +187,7 @@ if (qlm_test == TRUE){
   cpm <- as.data.frame(cpm(y)) 
   cpm$rowsum <- rowSums(cpm) 
   y <- y[keep, , keep.lib.sizes=FALSE] 
-  logCPM <- cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes) 
+  logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
   et <- exactTest(y) 
   top <- as.data.frame(topTags(et)) 
   et_annot <- as.data.frame(et$table) 
@@ -786,13 +786,8 @@ if (analyze_all_samples == TRUE){
 ### SEARCH AND PLOT!
 if (custom_heatmap == TRUE) {
 logCPM$Name <- y$genes$Name
-let <- c("caspase", 
-         "apoptosis",
-         "neural",
-         "neuron",
-         "death",
-         "mitochondrial",
-         "ATP")
+let <- c("CD")
+
 for (f in let){
   sub <- logCPM[grepl(paste(f), logCPM$Name),]
   sub$Name <- NULL
@@ -1111,3 +1106,19 @@ web <- visNetwork(nodes, edges) %>% visOptions(highlightNearest = TRUE,
 
 saveWidget(web, file="TF enrichment web.html")
 write.xlsx(motifEnrichmentTable_wGenes, file = "Transcription factor binding motif enrichment.xlsx")
+
+
+
+logCPM$Symbol <- mapIds(org.Mm.eg.db, 
+                         keys=row.names(logCPM), 
+                         column="SYMBOL", 
+                         keytype="ENSEMBL",
+                         multiVals="first")
+
+logCPM$Name <- mapIds(org.Mm.eg.db, 
+                        keys=row.names(logCPM), 
+                        column="GENENAME", 
+                        keytype="ENSEMBL",
+                        multiVals="first")
+logCPM$Name <- NULL
+nrow(logCPM)
