@@ -194,8 +194,7 @@ if (qlm_test == TRUE){
   et_annot_non_filtered <- as.data.frame(et$table) 
 }
 
-topTags(qlf)
-### MRNA TYPES 
+
 
 
 ### ANNOTATE

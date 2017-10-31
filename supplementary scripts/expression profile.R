@@ -13,8 +13,12 @@ cpm_cutoff <- 0.5
 ### Statistical analysis
 directory <- '~/GitHub/counts/ALS Mice/experimental/'
 setwd(directory)
-sampleFiles <- grep('control_1',list.files(directory),value=TRUE)
-sampleCondition <- c('1', '1', '1', '1', '1')
+sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
+sampleCondition <- c('control_early', 'control_early', 'control_early', 'control_early', 'control_early', 
+                     'control_late', 'control_late', 'control_late', 'control_late', 'control_late', 
+                     'tg_early', 'tg_early', 'tg_early', 'tg_early', 'tg_early', 
+                     'tg_mid', 'tg_mid', 'tg_mid', 'tg_mid', 
+                     'tg_late', 'tg_late', 'tg_late', 'tg_late', 'tg_late')
 sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
 y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
 y <- estimateCommonDisp(y)
@@ -24,7 +28,7 @@ y <- y[keep, ]
 cpm <- as.data.frame(cpm(y))
 cpm$avg <- rowSums(cpm)
 ### ANNOTATE
-
+colnames(cpm) <- paste(y$samples$group, 1:2, sep="-")
 cpm$Symbol <- mapIds(org.Mm.eg.db, 
                          keys=row.names(cpm), 
                          column="SYMBOL", 
@@ -35,6 +39,14 @@ cpm$Name <- mapIds(org.Mm.eg.db,
                        column="GENENAME", 
                        keytype="ENSEMBL",
                        multiVals="first")
+
+
+a <- grep("CD", cpm$Name, ignore.case = TRUE)
+cd <- cpm[a,]
+cd <- cd[1,]
+
+cd <- t(cd)
+plot(cd)
 
 write.csv(cpm, file = "control_1.csv")
 
