@@ -1,10 +1,4 @@
-
-source("https://bioconductor.org/biocLite.R")
-biocLite("GenomicRanges")
 library(DOSE)
-install.packages("checkmate")
-install.packages("data.table")
-install.packages("tidyr")
 library("GenomicRanges")
 library(checkmate)
 library(org.Ce.eg.db)
@@ -55,11 +49,10 @@ custom_heatmap <- FALSE
 custom_genes_plots <- FALSE
 fisherGO <- TRUE
 analyze_all_samples <- FALSE
-disease_association <- TRUE
 kegg_plots <- TRUE
 panther_analysis <- TRUE
 deseq2_part <- TRUE
-qlm_test <- FALSE
+qlm_test <- TRUE
 logging <- FALSE
 
 ### CONSTANTS BLOCK
@@ -69,7 +62,6 @@ logfchigh_cutoff <- 1
 logfclow_cutoff <- -1
 cpm_cutoff <- 0.5
 gs_size <- 10
-number_of_kegg_plots <- 100
 go_terms_set <- 50
 pathways_set <- 30
 genes_in_term <- 3
@@ -89,7 +81,7 @@ if (logging == TRUE){
 }
 
 col.pan <- colorpanel(100, "blue", "white", "red")
-directory <- '~/GitHub/counts/worm_test/'
+directory <- '~/counts/worm_test/'
 setwd(directory)
 
 if (analyze_all_samples == TRUE){
@@ -110,7 +102,7 @@ if (analyze_all_samples == TRUE){
 }
 
 stattest <- paste(gr_control, gr_case, sep = "-")
-directory <- '~/GitHub/counts/worm_test/'
+directory <- '~/counts/worm_test/results'
 setwd(directory)
 
 if (analyze_all_samples == FALSE){
@@ -124,7 +116,8 @@ if (analyze_all_samples == FALSE){
 
 
 # PLOTTING HTSEQ QUALITY BARPLOTS
-
+dir.create("htseq-count quality plots")
+setwd("htseq-count quality plots")
 readqual <- as.data.frame(tail(y$counts, 5))
 libsize <- as.data.frame(t(y$samples$lib.size))
 names(libsize) <- names(readqual)
@@ -149,9 +142,16 @@ ggplot(m1) + aes(x = variable, y = value) + geom_bar(stat = "identity")
 dev.off()
 
 row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "__too_low_aQual", "__not_aligned" )
+setwd(directory)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else if (analyze_all_samples == FALSE){
+  setwd(stattest)  
+}
 
 if (qlm_test == TRUE){ 
-  #a <- DGEList(counts=y, group = sampleTable$condition) 
+  a <- DGEList(counts=y, group = sampleTable$condition) 
+  CountsTable <- as.data.frame(y$counts)
   cpm <- cpm(y) 
   cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ] 
   cpm <- as.data.frame(cpm(y)) 
@@ -164,8 +164,10 @@ if (qlm_test == TRUE){
   fit <- glmQLFit(a,design, robust = TRUE) 
   qlf <- glmQLFTest(fit,coef=ncol(fit$design))
   et_annot <- as.data.frame(qlf$table) 
-  et_annot_non_filtered <- as.data.frame(qlf$table) 
-  
+  et_annot_non_filtered <- as.data.frame(qlf$table)
+  top <- as.data.frame(topTags(qlf))
+  logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
+  et <- qlf
 } else if (qlm_test == FALSE){ 
   design <- model.matrix(~sampleTable$condition) 
   normalized_lib_sizes <- calcNormFactors(y, method = "TMM") 
@@ -187,7 +189,7 @@ if (qlm_test == TRUE){
   et_annot <- as.data.frame(et$table) 
   et_annot_non_filtered <- as.data.frame(et$table) 
 }
-top
+
 
 
 y$genes$Symbol <- mapIds(org.Ce.eg.db, 
@@ -238,6 +240,16 @@ et_annot$term <- mapIds(GO.db,
                         keytype="GOID",
                         multiVals="first")
 
+top$Symbol <- mapIds(org.Ce.eg.db, 
+                         keys=row.names(top), 
+                         column="SYMBOL", 
+                         keytype="WORMBASE",
+                         multiVals="first")
+top$Name <- mapIds(org.Ce.eg.db, 
+                       keys=row.names(top), 
+                       column="GENENAME", 
+                       keytype="WORMBASE",
+                       multiVals="first")
 
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
@@ -350,8 +362,8 @@ df <- data.frame(header, meaning)
 
 
 # WRITE RESULTS
-
 write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append = TRUE)
+write.xlsx(top, file = "Results edgeR.xlsx", sheetName = "Top Tags (with FDR)", append = TRUE)
 write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
 
 
@@ -467,12 +479,18 @@ CountsTable$name <- mapIds(org.Ce.eg.db,
 
 et_annot_high <- as.data.frame(subset(et_annot, logFC > 0))
 et_annot_low <- as.data.frame(subset(et_annot, logFC < 0))
+
 foldchanges = et_annot$logFC
 names(foldchanges) = et_annot$entrez
 
-if (fisherGO == TRUE){
+for_fisher <- as.data.frame(subset(et_annot_non_filtered, PValue < pvalue_cutoff))
+
+for_fisher_high <- as.data.frame(subset(et_annot_non_filtered, logFC > 0))
+for_fisher_low <- as.data.frame(subset(et_annot_non_filtered, logFC < 0))
+
+
   
-  GOFisherBP <- function(df, nodes, nrows, p){
+GOFisherBP <- function(df, nodes, nrows, p){
     all_genes <- c(df$logFC)
     names(all_genes) <- rownames(df)
     go_data <- new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = function(s) s < 
@@ -484,7 +502,7 @@ if (fisherGO == TRUE){
                          topNodes = nrows)
     return(go_table)
   }
-  GOFisherMF <- function(df, nodes, nrows, p){
+GOFisherMF <- function(df, nodes, nrows, p){
     all_genes <- c(df$logFC)
     names(all_genes) <- rownames(df)
     go_data <- new("topGOdata", ontology = "MF", allGenes = all_genes, geneSel = function(s) s < 
@@ -496,7 +514,7 @@ if (fisherGO == TRUE){
                          topNodes = nrows)
     return(go_table)
   }
-  GOFisherCC <- function(df, nodes, nrows, p){
+GOFisherCC <- function(df, nodes, nrows, p){
     all_genes <- c(df$logFC)
     names(all_genes) <- rownames(df)
     go_data <- new("topGOdata", ontology = "CC", allGenes = all_genes, geneSel = function(s) s < 
@@ -509,51 +527,52 @@ if (fisherGO == TRUE){
     return(go_table)
   }
 
-  gobp_h_50 <- GOFisherBP(et_annot_high, 5, 50, 0.05)
-  gomf_h_50 <- GOFisherMF(et_annot_high, 5, 50, 0.05)
-  gocc_h_50 <- GOFisherCC(et_annot_high, 5, 50, 0.05)
+gobp_h_50 <- GOFisherBP(for_fisher_high, 5, 50, 0.05)
+gomf_h_50 <- GOFisherMF(for_fisher_high, 5, 50, 0.05)
+gocc_h_50 <- GOFisherCC(for_fisher_high, 5, 50, 0.05)
   
-  gobp_l_50 <- GOFisherBP(et_annot_low, 5, 50, 0.05)
-  gomf_l_50 <- GOFisherMF(et_annot_low, 5, 50, 0.05)
-  gocc_l_50 <- GOFisherCC(et_annot_low, 5, 50, 0.05)
+gobp_l_50 <- GOFisherBP(for_fisher_low, 5, 50, 0.05)
+gomf_l_50 <- GOFisherMF(for_fisher_low, 5, 50, 0.05)
+gocc_l_50 <- GOFisherCC(for_fisher_low, 5, 50, 0.05)
   
-  gobp_h_100 <- GOFisherBP(et_annot_high, 5, 100, 0.05)
-  gomf_h_100 <- GOFisherMF(et_annot_high, 5, 100, 0.05)
-  gocc_h_100 <- GOFisherCC(et_annot_high, 5, 100, 0.05)
+gobp_h_100 <- GOFisherBP(for_fisher_high, 5, 100, 0.05)
+gomf_h_100 <- GOFisherMF(for_fisher_high, 5, 100, 0.05)
+gocc_h_100 <- GOFisherCC(for_fisher_high, 5, 100, 0.05)
   
-  gobp_l_100 <- GOFisherBP(et_annot_low, 5, 100, 0.05)
-  gomf_l_100 <- GOFisherMF(et_annot_low, 5, 100, 0.05)
-  gocc_l_100 <- GOFisherCC(et_annot_low, 5, 100, 0.05)
+gobp_l_100 <- GOFisherBP(for_fisher_low, 5, 100, 0.05)
+gomf_l_100 <- GOFisherMF(for_fisher_low, 5, 100, 0.05)
+gocc_l_100 <- GOFisherCC(for_fisher_low, 5, 100, 0.05)
   
-  gobp_h_250 <- GOFisherBP(et_annot_high, 5, 250, 0.05)
-  gomf_h_250 <- GOFisherMF(et_annot_high, 5, 250, 0.05)
-  gocc_h_250 <- GOFisherCC(et_annot_high, 5, 250, 0.05)
+gobp_h_250 <- GOFisherBP(for_fisher_high, 5, 250, 0.05)
+gomf_h_250 <- GOFisherMF(for_fisher_high, 5, 250, 0.05)
+gocc_h_250 <- GOFisherCC(for_fisher_high, 5, 250, 0.05)
   
-  gobp_l_250 <- GOFisherBP(et_annot_low, 5, 250, 0.05)
-  gomf_l_250 <- GOFisherMF(et_annot_low, 5, 250, 0.05)
-  gocc_l_250 <- GOFisherCC(et_annot_low, 5, 250, 0.05)
-  
-  
-  write.xlsx(gobp_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 50", append = TRUE)
-  write.xlsx(gomf_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 50", append = TRUE)
-  write.xlsx(gocc_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 50", append = TRUE)
-  write.xlsx(gobp_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 100", append = TRUE)
-  write.xlsx(gomf_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 100", append = TRUE)
-  write.xlsx(gocc_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 100", append = TRUE)
-  write.xlsx(gobp_h_250, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 250", append = TRUE)
-  write.xlsx(gomf_h_250, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 250", append = TRUE)
-  write.xlsx(gocc_h_250, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 250", append = TRUE)
-  
-  write.xlsx(gobp_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 50", append = TRUE)
-  write.xlsx(gomf_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 50", append = TRUE)
-  write.xlsx(gocc_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 50", append = TRUE)
-  write.xlsx(gobp_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 100", append = TRUE)
-  write.xlsx(gomf_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 100", append = TRUE)
-  write.xlsx(gocc_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 100", append = TRUE)
-  write.xlsx(gobp_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 250", append = TRUE)
-  write.xlsx(gomf_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 250", append = TRUE)
-  write.xlsx(gocc_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 250", append = TRUE)
-}
+gobp_l_250 <- GOFisherBP(for_fisher_low, 5, 250, 0.05)
+gomf_l_250 <- GOFisherMF(for_fisher_low, 5, 250, 0.05)
+gocc_l_250 <- GOFisherCC(for_fisher_low, 5, 250, 0.05)
+
+write.xlsx(gobp_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 50", append = TRUE)
+write.xlsx(gomf_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 50", append = TRUE)
+write.xlsx(gocc_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 50", append = TRUE) 
+write.xlsx(gobp_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 100", append = TRUE)
+write.xlsx(gomf_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 100", append = TRUE)
+write.xlsx(gocc_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 100", append = TRUE)
+write.xlsx(gobp_h_250, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 250", append = TRUE)
+write.xlsx(gomf_h_250, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 250", append = TRUE)
+write.xlsx(gocc_h_250, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 250", append = TRUE)
+    
+write.xlsx(gobp_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 50", append = TRUE)
+write.xlsx(gomf_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 50", append = TRUE)
+write.xlsx(gocc_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 50", append = TRUE)
+write.xlsx(gobp_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 100", append = TRUE)
+write.xlsx(gomf_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 100", append = TRUE)
+write.xlsx(gocc_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 100", append = TRUE)
+write.xlsx(gobp_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 250", append = TRUE)
+write.xlsx(gomf_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 250", append = TRUE)  
+write.xlsx(gocc_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 250", append = TRUE)
+
+
+
 
 ## CORELLATION MARIX
 correl <- cpm(y)
@@ -650,13 +669,11 @@ pdf(file = "KEGG_downreg.pdf", width = 12, height = 17, family = "Helvetica")
 barplot(kk_down, showCategory=30,  font.size = 9)
 dev.off()
 
-
 # TOP 100 PVALUE GENES
 if (heatmaps == TRUE){
-  
   logCPM <- as.data.frame(logCPM)
   rownames(logCPM) <- make.names(y$genes$Symbol, unique = TRUE)
-  # colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
+  colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
   o <- order(et$table$PValue)
   logCPMpval <- logCPM[o[1:100],]
   logCPMpval <- t(scale(t(logCPMpval)))
@@ -701,7 +718,7 @@ if (heatmaps == TRUE){
   dev.off()
   
 }
-getwd()
+
 dir.create("mdplots")
 setwd("mdplots")
 for (f in 1:ncol(y)){
@@ -710,10 +727,6 @@ for (f in 1:ncol(y)){
   abline(h=0, col="red", lty=2, lwd=2)
   dev.off()
 }
-pdf(file = "MDplot_common.pdf", width = 12, height = 17, family = "Helvetica")
-plotMD(y, values=c(1,-1), col=c("red","blue"),
-       legend="topright")
-dev.off()
 
 setwd(directory)
 if (analyze_all_samples == TRUE){
@@ -721,6 +734,7 @@ if (analyze_all_samples == TRUE){
 } else {
   setwd(stattest)
 }
+
 
 ### SEARCH AND PLOT!
 if (custom_heatmap == TRUE) {
