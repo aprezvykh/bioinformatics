@@ -239,6 +239,7 @@ et_annot$term <- mapIds(GO.db,
                         column="TERM", 
                         keytype="GOID",
                         multiVals="first")
+et_annot$term <- as.character(et_annot$term)
 
 top$Symbol <- mapIds(org.Ce.eg.db, 
                          keys=row.names(top), 
@@ -298,6 +299,8 @@ stat <- dfc$counts_control.rowsum.control > dfc$counts_case.rowsum.case
 if (stat == TRUE & lfgenefc < 0){
   print("No Correction Needed!")
 } else {
+  print("Correction protocol executer! All LogFC have been inverted!")
+  beep()
   et_annot$logFC <- et_annot$logFC*(-1)
 }
 
@@ -351,7 +354,7 @@ if (analyze_all_samples == TRUE){
 }
 
 ### Simple summary
-all <- nrow(raw_counts)
+all <- nrow(CountsTable)
 allpadj <- sum(et_annot$PValue < pvalue_cutoff, na.rm=TRUE)
 avg_cpm <- mean(et_annot$logCPM)
 up <- sum(et_annot$logFC > logfchigh_cutoff, na.rm=TRUE)
@@ -672,7 +675,7 @@ dev.off()
 # TOP 100 PVALUE GENES
 if (heatmaps == TRUE){
   logCPM <- as.data.frame(logCPM)
-  rownames(logCPM) <- make.names(y$genes$Symbol, unique = TRUE)
+  rownames(logCPM) <- make.names(et$genes$Symbol, unique = TRUE)
   colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
   o <- order(et$table$PValue)
   logCPMpval <- logCPM[o[1:100],]
@@ -838,12 +841,17 @@ write.xlsx(pth_pan_up, file = "Top Pathways by PANTHER.xlsx", sheetName = "UP", 
 write.xlsx(pth_pan_down, file = "Top Pathways by PANTHER.xlsx", sheetName = "DOWN", append = TRUE)
 }
 
-setwd(directory)
+
+###DESEQ2
+directory <- '~/counts/worm_test/'
 
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
 res <- results(dds, tidy = FALSE )
 rld<- rlogTransformation(dds, blind=TRUE)
+
+directory <- '~/counts/worm_test/results'
+setwd(directory)
 
 if (analyze_all_samples == TRUE){
   setwd("all")

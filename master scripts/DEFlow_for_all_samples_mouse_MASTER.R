@@ -157,7 +157,7 @@ row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "
 ### BINOMIAL OR QLM TEST
 
 if (qlm_test == TRUE){ 
-  a <- DGEList(counts=y, group = sampleTable$condition) 
+  A
   cpm <- cpm(y) 
   cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ] 
   cpm <- as.data.frame(cpm(y)) 

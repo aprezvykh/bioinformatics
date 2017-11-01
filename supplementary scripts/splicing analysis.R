@@ -2,6 +2,7 @@ library("gplots")
 library(edgeR)
 library("org.Mm.eg.db")
 library(stringr)
+library(GO.db)
 col.pan <- colorpanel(100, "blue", "white", "red")
 
 isoforms <- read.delim("~/counts/ALS Mice/experimental/splicing/Run_2017-10-23_14-14-03.isoforms.quantification.tsv")
@@ -40,26 +41,33 @@ et_annot$gene <- mapIds(org.Mm.eg.db,
                          keytype="ENSEMBLTRANS",
                          multiVals="first")
 
+et_annot$GOID <-   mapIds(org.Mm.eg.db, 
+                          keys=et_annot$gene, 
+                          column="GO", 
+                          keytype="ENSEMBL",
+                          multiVals="first")
+
+et_annot$term <- mapIds(GO.db, 
+                        keys=et_annot$GOID, 
+                        column="TERM", 
+                        keytype="GOID",
+                        multiVals="first")
+
+et_annot$term <- as.character(et_annot$term)
 et_annot <- et_annot[complete.cases(et_annot),]
-
 u <- as.data.frame(unique(et_annot$gene))
-
 df <- data.frame()
-
 diff.splice <- data.frame()
 
 for (f in u$`unique(et_annot$gene)`){
-    a <- grep(paste(f), et_annot$gene)
-    df <- et_annot[a,]
+    z <- grep(paste(f), et_annot$gene)
+    df <- et_annot[z,]
     df$disp <- var(df$logFC, na.rm = TRUE)
     diff.splice <- rbind(df, diff.splice)
 }
 
-
 diff.splice <- diff.splice[complete.cases(diff.splice),]
 diff.splice <- subset(diff.splice, disp > 1)
-
-
 
 diff.splice$symbol <- mapIds(org.Mm.eg.db, 
                         keys=diff.splice$gene, 
@@ -74,5 +82,11 @@ diff.splice$name <- mapIds(org.Mm.eg.db,
                              multiVals="first")
 
 
-
 write.xlsx(diff.splice, file = "DIFFSPLICETG1-TG3.xlsx")
+
+#HEATMAP
+
+cpm <- cpm(a, log = TRUE)
+h <- grep("igg", rownames(cpm), ignore.case = TRUE)
+hm <- scale(cpm[h,])
+heatmap.2(hm, col = col.pan)
