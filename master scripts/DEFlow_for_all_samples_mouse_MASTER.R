@@ -51,7 +51,7 @@ heatmaps <- TRUE
 custom_heatmap <- FALSE
 custom_genes_plots <- FALSE
 fisherGO <- TRUE
-analyze_all_samples <- TRUE
+analyze_all_samples <- FALSE
 disease_association <- TRUE
 kegg_plots <- TRUE
 panther_analysis <- TRUE
@@ -77,7 +77,7 @@ significant_enriched_motif <- 5
 
 ### GROUPS. FIRST GROUP WILL BE USED AS CONTROL!
 gr_control <- c("tg_1")
-gr_case <- c("tg_3")
+gr_case <- c("tg_2")
 
 
 ### BUILDING A SPECIFIC DESIGN TABLE
@@ -87,7 +87,7 @@ if (logging == TRUE){
 }
 
 col.pan <- colorpanel(100, "blue", "white", "red")
-directory <- '~/GitHub/counts/ALS Mice/experimental/'
+directory <- '~/counts/ALS Mice/experimental/'
 setwd(directory)
 
 if (analyze_all_samples == TRUE){
@@ -112,7 +112,7 @@ if (analyze_all_samples == TRUE){
 }
 
 stattest <- paste(gr_control, gr_case, sep = "-")
-directory <- '~/GitHub/counts/ALS Mice/experimental/results/'
+directory <- '~/counts/ALS Mice/experimental/results/'
 setwd(directory)
 
 if (analyze_all_samples == FALSE){
@@ -157,7 +157,8 @@ row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "
 ### BINOMIAL OR QLM TEST
 
 if (qlm_test == TRUE){ 
-  A
+  a <- DGEList(counts=y, group = sampleTable$condition) 
+  CountsTable <- as.data.frame(y$counts)
   cpm <- cpm(y) 
   cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ] 
   cpm <- as.data.frame(cpm(y)) 
@@ -168,9 +169,13 @@ if (qlm_test == TRUE){
   design <- model.matrix(~sampleTable$condition) 
   a <- estimateDisp(a,design) 
   fit <- glmQLFit(a,design, robust = TRUE) 
-  qlf <- glmQLFTest(fit,coef=ncol(fit$design)) 
+  qlf <- glmQLFTest(fit,coef=ncol(fit$design))
   et_annot <- as.data.frame(qlf$table) 
-  et_annot_non_filtered <- as.data.frame(qlf$table) 
+  et_annot_non_filtered <- as.data.frame(qlf$table)
+  top <- as.data.frame(topTags(qlf))
+  logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
+  logCPM <- logCPM[!(row.names(logCPM) %in% row.names.remove), ] 
+  et <- qlf
   
 } else if (qlm_test == FALSE){ 
   design <- model.matrix(~sampleTable$condition) 
@@ -257,12 +262,17 @@ et_annot_non_filtered$Symbol <- mapIds(org.Mm.eg.db,
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
 et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
-a <- read.xlsx("~/GitHub/counts/ALS Mice/experimental/results/fc1/tg_1-tg_3/Results edgeR.xlsx", sheetIndex = 2)
+et_annot <- et_annot[complete.cases(et_annot), ]
 
 
 ### BIOTYPE ANNOT FIX IT!
+taxon = 'Caenorhabditis elegans'
+taxon = tolower(taxon)
+tmp = unlist(strsplit(x = taxon, split = ' '))
+dataset.name = tolower(sprintf('%s%s_gene_ensembl', substr(tmp[1],1,1), tmp[2]))
+mart <- useMart("ensembl", dataset=dataset.name) #, host="www.ensembl.org"
 use.official.gene.symbol <- TRUE
-
+needed.attributes = c("ensembl_gene_id","external_gene_name", "description","gene_biotype","entrezgene")
 if(use.official.gene.symbol == TRUE){
   gmt_flt = getBM(attributes=needed.attributes,filters="external_gene_name",values=et_annot$symbol, mart=mart)
   gmt_flt = gmt_flt[!(duplicated(gmt_flt[,"external_gene_name"])),]
@@ -365,26 +375,10 @@ meaning <- c(print(all), print(avg_cpm), print(allpadj), print(up), print(down))
 df <- data.frame(header, meaning)
 
 
-### TISSUE DISTRIBUTION
-for (f in et_annot$entrez){}
-library(RCurl)
-library(XML)
-library(stringr)
-
-url <- 'https://www.ncbi.nlm.nih.gov/gene/18040/?report=expression'
-webpage <- readLines(url)
-htmlpage <- htmlParse(webpage, asText = TRUE)
-nodes <- getNodeSet(htmlpage, "//div[@class='rprt expression-rprt']")
-a <- laply(nodes, xmlValue)
-require(RJSONIO)
-json <- fromJSON(a)
-
 # WRITE RESULTS
 write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append = TRUE)
+write.xlsx(top, file = "Results edgeR.xlsx", sheetName = "Top Tags (with FDR)", append = TRUE)
 write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
-# write.xlsx(CountsTable, file = "Results edgeR.xlsx", sheetName = "Counts Table, logCPM>1", append = TRUE)
-
-
 
 ### MY GO TESTS
 tab <- as.data.frame(table(unlist(et_annot$GOID)))
@@ -518,15 +512,22 @@ write.xlsx(goccres, file = "GO.xlsx", sheetName = "GO_CC", append = TRUE)
 et_annot_high <- as.data.frame(subset(et_annot, logFC > 0))
 et_annot_low <- as.data.frame(subset(et_annot, logFC < 0))
 
-if (fisherGO == TRUE){
+foldchanges = et_annot$logFC
+names(foldchanges) = et_annot$entrez
 
-GOFisherBP <- function(df, nodes, nrows, p){
+for_fisher <- as.data.frame(subset(et_annot_non_filtered, PValue < pvalue_cutoff))
+
+for_fisher_high <- as.data.frame(subset(for_fisher, logFC > 0))
+for_fisher_low <- as.data.frame(subset(for_fisher, logFC < 0))
+
+
+GOFisherBP <- function(uni, df, nodes, nrows, p){
   all_genes <- c(df$logFC)
   names(all_genes) <- rownames(df)
   go_data <- new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = function(s) s < 
                    p, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", 
                  ID = "ENSEMBL", nodeSize = nodes)
-  go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
+  go_test <- runTest(go_data, algorithm = "weight", statistic = "fisher")
   go_table <- GenTable(go_data, weightFisher = go_test,
                        orderBy = "weightFisher", ranksOf = "weightFisher",
                        topNodes = nrows)
@@ -538,7 +539,7 @@ GOFisherMF <- function(df, nodes, nrows, p){
   go_data <- new("topGOdata", ontology = "MF", allGenes = all_genes, geneSel = function(s) s < 
                    p, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", 
                  ID = "ENSEMBL", nodeSize = nodes)
-  go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
+  go_test <- runTest(go_data, algorithm = "weight", statistic = "fisher")
   go_table <- GenTable(go_data, weightFisher = go_test,
                        orderBy = "weightFisher", ranksOf = "weightFisher",
                        topNodes = nrows)
@@ -550,41 +551,44 @@ GOFisherCC <- function(df, nodes, nrows, p){
   go_data <- new("topGOdata", ontology = "CC", allGenes = all_genes, geneSel = function(s) s < 
                    p, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", 
                  ID = "ENSEMBL", nodeSize = nodes)
-  go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
+  go_test <- runTest(go_data, algorithm = "weight", statistic = "fisher")
   go_table <- GenTable(go_data, weightFisher = go_test,
                        orderBy = "weightFisher", ranksOf = "weightFisher",
                        topNodes = nrows)
   return(go_table)
 }
 
-gobp_h_50 <- GOFisherBP(et_annot_high, 5, 50, 0.05)
-gomf_h_50 <- GOFisherMF(et_annot_high, 5, 50, 0.05)
-gocc_h_50 <- GOFisherCC(et_annot_high, 5, 50, 0.05)
 
-gobp_l_50 <- GOFisherBP(et_annot_low, 5, 50, 0.05)
-gomf_l_50 <- GOFisherMF(et_annot_low, 5, 50, 0.05)
-gocc_l_50 <- GOFisherCC(et_annot_low, 5, 50, 0.05)
 
-gobp_h_100 <- GOFisherBP(et_annot_high, 5, 100, 0.05)
-gomf_h_100 <- GOFisherMF(et_annot_high, 5, 100, 0.05)
-gocc_h_100 <- GOFisherCC(et_annot_high, 5, 100, 0.05)
 
-gobp_l_100 <- GOFisherBP(et_annot_low, 5, 100, 0.05)
-gomf_l_100 <- GOFisherMF(et_annot_low, 5, 100, 0.05)
-gocc_l_100 <- GOFisherCC(et_annot_low, 5, 100, 0.05)
 
-gobp_h_250 <- GOFisherBP(et_annot_high, 5, 250, 0.05)
-gomf_h_250 <- GOFisherMF(et_annot_high, 5, 250, 0.05)
-gocc_h_250 <- GOFisherCC(et_annot_high, 5, 250, 0.05)
+gobp_h_50 <- GOFisherBP(for_fisher_high, 10, 50, 0.05)
+gomf_h_50 <- GOFisherMF(for_fisher_high, 10, 50, 0.05)
+gocc_h_50 <- GOFisherCC(for_fisher_high, 10, 50, 0.05)
 
-gobp_l_250 <- GOFisherBP(et_annot_low, 5, 250, 0.05)
-gomf_l_250 <- GOFisherMF(et_annot_low, 5, 250, 0.05)
-gocc_l_250 <- GOFisherCC(et_annot_low, 5, 250, 0.05)
+gobp_l_50 <- GOFisherBP(for_fisher_low, 10, 50, 0.05)
+gomf_l_50 <- GOFisherMF(for_fisher_low, 10, 50, 0.05)
+gocc_l_50 <- GOFisherCC(for_fisher_low, 10, 50, 0.05)
 
+gobp_h_100 <- GOFisherBP(for_fisher_high, 10, 100, 0.05)
+gomf_h_100 <- GOFisherMF(for_fisher_high, 10, 100, 0.05)
+gocc_h_100 <- GOFisherCC(for_fisher_high, 10, 100, 0.05)
+
+gobp_l_100 <- GOFisherBP(for_fisher_low, 10, 100, 0.05)
+gomf_l_100 <- GOFisherMF(for_fisher_low, 10, 100, 0.05)
+gocc_l_100 <- GOFisherCC(for_fisher_low, 10, 100, 0.05)
+
+gobp_h_250 <- GOFisherBP(for_fisher_high, 10, 250, 0.05)
+gomf_h_250 <- GOFisherMF(for_fisher_high, 10, 250, 0.05)
+gocc_h_250 <- GOFisherCC(for_fisher_high, 10, 250, 0.05)
+
+gobp_l_250 <- GOFisherBP(for_fisher_low, 10, 250, 0.05)
+gomf_l_250 <- GOFisherMF(for_fisher_low, 10, 250, 0.05)
+gocc_l_250 <- GOFisherCC(for_fisher_low, 10, 250, 0.05)
 
 write.xlsx(gobp_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 50", append = TRUE)
 write.xlsx(gomf_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 50", append = TRUE)
-write.xlsx(gocc_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 50", append = TRUE)
+write.xlsx(gocc_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 50", append = TRUE) 
 write.xlsx(gobp_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 100", append = TRUE)
 write.xlsx(gomf_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 100", append = TRUE)
 write.xlsx(gocc_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 100", append = TRUE)
@@ -599,19 +603,10 @@ write.xlsx(gobp_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 100
 write.xlsx(gomf_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 100", append = TRUE)
 write.xlsx(gocc_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 100", append = TRUE)
 write.xlsx(gobp_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 250", append = TRUE)
-write.xlsx(gomf_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 250", append = TRUE)
+write.xlsx(gomf_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 250", append = TRUE)  
 write.xlsx(gocc_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 250", append = TRUE)
- }
 
 
-
-
-###ENRICHR
-dbs <- listEnrichrDbs()
-head(dbs)
-dbs <- c("GO_Molecular_Function_2015", "GO_Cellular_Component_2015", "GO_Biological_Process_2015")
-enriched <- enrichr(genes = rownames(et_annot), dbs)
-enriched[["GO_Biological_Process_2015"]]
 
 ## CORELLATION MARIX
 correl <- cpm(y)
@@ -844,7 +839,7 @@ tmp = sapply(keggresids, function(pid) pathview(gene.data=foldchanges, pathway.i
 }
 
 pathview(gene.data=foldchanges, 
-         pathway.id="mmu03050", 
+         pathway.id="mmu04728", 
          species="mmu", 
          new.signature=FALSE)
 
@@ -966,7 +961,14 @@ write.xlsx(pth_pan_down, file = "Top Pathways by PANTHER.xlsx", sheetName = "DOW
 }
 
 ### DESEQ2 PART (ADDITIONAL)
-directory <- '~/GitHub/counts/ALS Mice/experimental/results'
+
+directory <- '~/counts/ALS Mice/experimental/'
+
+ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
+dds<-DESeq(ddsHTSeq)
+res <- results(dds, tidy = FALSE )
+rld<- rlogTransformation(dds, blind=TRUE)
+directory <- '~/counts/ALS Mice/experimental/results'
 setwd(directory)
 
 if (analyze_all_samples == TRUE){
@@ -975,18 +977,6 @@ if (analyze_all_samples == TRUE){
   setwd(stattest)
 }
 
-directory <- '~/GitHub/counts/ALS Mice/experimental/'
-
-ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
-dds<-DESeq(ddsHTSeq)
-res <- results(dds, tidy = FALSE )
-rld<- rlogTransformation(dds, blind=TRUE)
-
-if (analyze_all_samples == TRUE){
-  setwd("all")
-} else {
-  setwd(stattest)
-}
 
 
 pdf(file = "PCAPlot.pdf", width = 10, height = 10)
@@ -1038,32 +1028,52 @@ names(sum) <- c("Upreg common genes", "Downreg common genes")
 sign_proc_edger <- (nrow(et_annot)/nrow(et_annot_non_filtered))*100
 sign_proc_deseq <- (nrow(res_df)/nrow(res_nf))*100
 
-
 aproc <- data.frame(paste(sign_proc_edger), paste(sign_proc_deseq))
+
 names(aproc) <- c("edgeR, significance %", "DESeq2, significance %")
 
-
+write.xlsx(sum, file = "DESeq and edgeR comparsion.xlsx", sheetName = "Common genes of upreg and downreg", append = TRUE)
+write.xlsx(aproc, file = "DESeq and edgeR comparsion.xlsx", sheetName = "Percent of significance, w.filtering", append = TRUE)
 
 ### COMPARE EDGER AND DESEQ2
-
-com <- as.data.frame(intersect(rownames(res_nf), rownames(no_filtered)))
+com <- as.data.frame(intersect(rownames(res_nf), rownames(et_annot_non_filtered)))
 names(com) <- c("sas")
 edger_com <- data.frame()
 deseq_com <- data.frame()
 
-edger_com <- no_filtered[(com$sas %in% rownames(no_filtered)),]
-deseq_com <- no_filtered[(com$sas %in% rownames(res_nf)),]
+edger_com <- et_annot_non_filtered[(rownames(et_annot_non_filtered))%in% com$sas ,]
+deseq_com <- res_nf[(rownames(res_nf))%in% com$sas ,]
 
 common <- data.frame()
 common <- data.frame(edger_com$logFC, deseq_com$log2FoldChange)
 rownames(common) <- rownames(edger_com)
+common <- transform(common, SD=apply(common,1, sd, na.rm = TRUE))
 
+common <- common[order(common$SD, decreasing = TRUE),]
 
+png(file = "Deviance between edgeR and deseq2.png")
+plot(common$SD, type= "l", main= "Deviance between edgeR and deseq2(should be approximately zero)")
+dev.off()
 
+deviant <- common[seq(1:10),]
+
+deviant$Symbol <- mapIds(org.Mm.eg.db, 
+                         keys=row.names(deviant), 
+                         column="SYMBOL", 
+                         keytype="ENSEMBL",
+                         multiVals="first")
+deviant$Name <- mapIds(org.Mm.eg.db, 
+                         keys=row.names(deviant), 
+                         column="GENENAME", 
+                         keytype="ENSEMBL",
+                         multiVals="first")
+
+write.xlsx(deviant, file = "Top 10 deviant genes between deseq2 and edgeR.xlsx")
 ### MOTIV ENRICHMENT
-geneList1 <- rownames(et_annot)
+geneList1 <- et_annot$symbol
 geneLists <- list(geneListName=geneList1)
 motifRankings <- mm9_10kbpAroundTss_motifRanking
+
 motifEnrichmentTable_wGenes <- cisTarget(geneLists, motifRankings,
                                 motifAnnot_direct=mm9_direct_motifAnnotation)
 
@@ -1108,16 +1118,8 @@ write.xlsx(motifEnrichmentTable_wGenes, file = "Transcription factor binding mot
 
 
 
-logCPM$Symbol <- mapIds(org.Mm.eg.db, 
-                         keys=row.names(logCPM), 
-                         column="SYMBOL", 
-                         keytype="ENSEMBL",
-                         multiVals="first")
+###CD HEATMAP
 
-logCPM$Name <- mapIds(org.Mm.eg.db, 
-                        keys=row.names(logCPM), 
-                        column="GENENAME", 
-                        keytype="ENSEMBL",
-                        multiVals="first")
-logCPM$Name <- NULL
-nrow(logCPM)
+
+
+

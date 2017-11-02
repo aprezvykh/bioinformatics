@@ -620,7 +620,7 @@ dev.off()
 
 par(mar=c(1,1,1,1))
 pdf(file = "barplot.pdf", width = 12, height = 17, family = "Helvetica")
-barplot(x, showCategory=30,  font.size = 9)
+barplot(x, showCategory=30,  font.size = 9, legend.text = "Top 30 Reactome pathways")
 dev.off()
 
 pdf(file = "enrichmap.pdf", width = 12, height = 17, family = "Helvetica")

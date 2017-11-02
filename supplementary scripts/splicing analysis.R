@@ -8,11 +8,18 @@ col.pan <- colorpanel(100, "blue", "white", "red")
 isoforms <- read.delim("~/counts/ALS Mice/experimental/splicing/Run_2017-10-23_14-14-03.isoforms.quantification.tsv")
 names(isoforms) <- c("tg3_1", "tg3_2", "tg3_3", "tg3_4", "tg3_5", "cnt1_1", "cnt1_2", "cnt1_3", "tg1_1", "tg1_2", "tg1_3", "tg1_4", "tg2_1", "tg2_2", "tg1_5", "cnt1_4", "cnt3_1", "cnt3_2", "cnt3_3", "cnt1_5", "tg2_3", "tg2_4", "nth_1", "nth_2", "nth_3", "cnt3_5")
 genes <- read.delim("~/counts/ALS Mice/experimental/splicing/Run_2017-10-23_14-14-03.genes.quantification.tsv")
+tg2 <- grep("tg3", colnames(isoforms))
+sub2 <- isoforms[,tg2]
+tg1 <- grep("tg2", colnames(isoforms))
+sub <- isoforms[,tg1]
 
 
-sampleCondition <- c("case", "case", "case", "case", "case", 
-                     "control", "control", "control", "control", "control")
-
+sub2 <- cbind(sub, sub2)
+sub <- sub2
+sub$tg3_1 <- NULL
+sampleCondition <- c("control", "control", "control", "control",
+                     "case", "case", "case", "case")
+rownames(sub) <- isoforms$tg3_1
 sampleNames <- colnames(sub)
 sampleTable <- data.frame(sampleName = sampleNames, sampleCondition= sampleCondition)
 
@@ -54,6 +61,7 @@ et_annot$term <- mapIds(GO.db,
                         multiVals="first")
 
 et_annot$term <- as.character(et_annot$term)
+et_annot$GOID <- as.character(et_annot$GOID)
 et_annot <- et_annot[complete.cases(et_annot),]
 u <- as.data.frame(unique(et_annot$gene))
 df <- data.frame()
@@ -82,11 +90,7 @@ diff.splice$name <- mapIds(org.Mm.eg.db,
                              multiVals="first")
 
 
-write.xlsx(diff.splice, file = "DIFFSPLICETG1-TG3.xlsx")
+write.xlsx(diff.splice, file = "DIFFSPLICETG2-TG3.xlsx")
 
 #HEATMAP
 
-cpm <- cpm(a, log = TRUE)
-h <- grep("igg", rownames(cpm), ignore.case = TRUE)
-hm <- scale(cpm[h,])
-heatmap.2(hm, col = col.pan)
