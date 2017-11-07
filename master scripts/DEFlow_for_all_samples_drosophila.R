@@ -1,7 +1,7 @@
 library(DOSE)
 library("GenomicRanges")
 library(checkmate)
-library(org.Ce.eg.db)
+library(org.Dm.eg.db)
 library(ENCODExplorer)
 library(DT)
 library(reshape2)
@@ -70,8 +70,8 @@ baseMean_cutoff <- 1.5
 
 
 ### GROUPS. FIRST GROUP WILL BE USED AS CONTROL!
-gr_control <- c("control")
-gr_case <- c("case")
+gr_control <- c("K")
+gr_case <- c("F")
 
 
 ### BUILDING A SPECIFIC DESIGN TABLE
@@ -81,11 +81,11 @@ if (logging == TRUE){
 }
 
 col.pan <- colorpanel(100, "blue", "white", "red")
-directory <- '~/counts/worm_test/'
+directory <- '~/counts/dr_multimap/'
 setwd(directory)
 
 if (analyze_all_samples == TRUE){
-  sampleFiles <- grep('worm',list.files(directory),value=TRUE)
+  sampleFiles <- grep('fly',list.files(directory),value=TRUE)
   sampleCondition <- c('control', 'conrol', 'exp', 'exp')
   
   sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
@@ -102,7 +102,7 @@ if (analyze_all_samples == TRUE){
 }
 
 stattest <- paste(gr_control, gr_case, sep = "-")
-directory <- '~/counts/worm_test/results'
+directory <- '~/counts/dr_multimap/results/'
 setwd(directory)
 
 if (analyze_all_samples == FALSE){
@@ -113,9 +113,6 @@ if (analyze_all_samples == FALSE){
   setwd("all")
 }
 
-
-
-# PLOTTING HTSEQ QUALITY BARPLOTS
 dir.create("htseq-count quality plots")
 setwd("htseq-count quality plots")
 readqual <- as.data.frame(tail(y$counts, 5))
@@ -148,6 +145,8 @@ if (analyze_all_samples == TRUE){
 } else if (analyze_all_samples == FALSE){
   setwd(stattest)  
 }
+
+
 
 if (qlm_test == TRUE){ 
   a <- DGEList(counts=y, group = sampleTable$condition) 
@@ -192,47 +191,47 @@ if (qlm_test == TRUE){
 
 
 
-y$genes$Symbol <- mapIds(org.Ce.eg.db, 
+y$genes$Symbol <- mapIds(org.Dm.eg.db, 
                          keys=row.names(et_annot_non_filtered), 
                          column="SYMBOL", 
-                         keytype="WORMBASE",
+                         keytype="FLYBASE",
                          multiVals="first")
-y$genes$Name <- mapIds(org.Ce.eg.db, 
+y$genes$Name <- mapIds(org.Dm.eg.db, 
                        keys=row.names(et_annot_non_filtered), 
                        column="GENENAME", 
-                       keytype="WORMBASE",
+                       keytype="FLYBASE",
                        multiVals="first")
 
-et_annot$symbol <- mapIds(org.Ce.eg.db, 
+et_annot$symbol <- mapIds(org.Dm.eg.db, 
                           keys=row.names(et_annot), 
                           column="SYMBOL", 
-                          keytype="WORMBASE",
+                          keytype="FLYBASE",
                           multiVals="first")
 
-et_annot$name <- mapIds(org.Ce.eg.db, 
+et_annot$name <- mapIds(org.Dm.eg.db, 
                         keys=row.names(et_annot), 
                         column="GENENAME", 
-                        keytype="WORMBASE",
+                        keytype="FLYBASE",
                         multiVals="first")
 
 
-et_annot$entrez <- mapIds(org.Ce.eg.db, 
+et_annot$entrez <- mapIds(org.Dm.eg.db, 
                           keys=row.names(et_annot), 
                           column="ENTREZID", 
-                          keytype="WORMBASE",
+                          keytype="FLYBASE",
                           multiVals="first")
-et_annot$uniprot <-mapIds(org.Ce.eg.db, 
-                       keys=row.names(et_annot), 
-                       column="UNIPROT", 
-                       keytype="WORMBASE",
-                       multiVals="first")
+et_annot$uniprot <-mapIds(org.Dm.eg.db, 
+                          keys=row.names(et_annot), 
+                          column="UNIPROT", 
+                          keytype="FLYBASE",
+                          multiVals="first")
 
 
-et_annot$GOID <-   mapIds(org.Ce.eg.db, 
-                            keys=row.names(et_annot), 
-                            column="GO", 
-                            keytype="WORMBASE",
-                            multiVals="first")
+et_annot$GOID <-   mapIds(org.Dm.eg.db, 
+                          keys=row.names(et_annot), 
+                          column="GO", 
+                          keytype="FLYBASE",
+                          multiVals="first")
 
 et_annot$term <- mapIds(GO.db, 
                         keys=et_annot$GOID, 
@@ -241,24 +240,23 @@ et_annot$term <- mapIds(GO.db,
                         multiVals="first")
 et_annot$term <- as.character(et_annot$term)
 
-top$Symbol <- mapIds(org.Ce.eg.db, 
-                         keys=row.names(top), 
-                         column="SYMBOL", 
-                         keytype="WORMBASE",
-                         multiVals="first")
-top$Name <- mapIds(org.Ce.eg.db, 
-                       keys=row.names(top), 
-                       column="GENENAME", 
-                       keytype="WORMBASE",
-                       multiVals="first")
+top$Symbol <- mapIds(org.Dm.eg.db, 
+                     keys=row.names(top), 
+                     column="SYMBOL", 
+                     keytype="FLYBASE",
+                     multiVals="first")
+top$Name <- mapIds(org.Dm.eg.db, 
+                   keys=row.names(top), 
+                   column="GENENAME", 
+                   keytype="FLYBASE",
+                   multiVals="first")
 
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
 et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
 et_annot <- et_annot[complete.cases(et_annot), ]
 
-### BIOTYPE ANNOT FIX IT!
-taxon = 'Caenorhabditis elegans'
+taxon = 'Drosophila Melanogaster'
 taxon = tolower(taxon)
 tmp = unlist(strsplit(x = taxon, split = ' '))
 dataset.name = tolower(sprintf('%s%s_gene_ensembl', substr(tmp[1],1,1), tmp[2]))
@@ -275,11 +273,11 @@ if(use.official.gene.symbol == TRUE){
   rownames(gmt_flt) = gmt_flt[,"ensembl_gene_id"]
 }
 
-gmt_flt[,"description"] = gsub(pattern = "\\[Source:.*", replacement = "", x = gmt[,"description"], ignore.case = T,perl = FALSE)
 gmt_flt_freq <- as.data.frame(table(unlist(gmt_flt$gene_biotype)))
 pdf(file = "Filtered genes biotype distribution.pdf", width = 12, height = 17, family = "Helvetica")
 pie(gmt_flt_freq$Freq, labels = gmt_flt_freq$Var1, radius = 0.5, main = "Filtered genes biotype distribution")
 dev.off()
+getwd()
 
 #TESTING A HYPOTESIS
 counts_control <- CountsTable[,grep(gr_control, names(CountsTable))]
@@ -303,6 +301,7 @@ if (stat == TRUE & lfgenefc < 0){
   beep()
   et_annot$logFC <- et_annot$logFC*(-1)
 }
+
 
 ### Distribution, with moda and median
 
@@ -369,7 +368,6 @@ write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append
 write.xlsx(top, file = "Results edgeR.xlsx", sheetName = "Top Tags (with FDR)", append = TRUE)
 write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
 
-
 ### MY GO TESTS
 setwd(directory)
 if (analyze_all_samples == TRUE){
@@ -407,10 +405,10 @@ write.xlsx(my_go, file = "My GO.xlsx", sheetName = "GO classes", append = TRUE)
 ## FIX IT MUTAFUKA
 cpmfgh <- as.data.frame(logCPM)
 
-cpmfgh$GOID <-            mapIds(org.Ce.eg.db, 
+cpmfgh$GOID <-            mapIds(org.Dm.eg.db, 
                                  keys=row.names(cpmfgh), 
                                  column="GO", 
-                                 keytype="WORMBASE",
+                                 keytype="FLYBASE",
                                  multiVals="first")
 
 
@@ -450,8 +448,6 @@ go_for_heatmap$term <- mapIds(GO.db,
                               multiVals="first")
 
 
-
-
 rownames(go_for_heatmap) <- go_for_heatmap$term
 go_for_heatmap$term <- NULL
 
@@ -465,20 +461,19 @@ dev.off()
 
 ### ANNOTATE COUNTS
 
-CountsTable$symbol <- mapIds(org.Ce.eg.db, 
+CountsTable$symbol <- mapIds(org.Dm.eg.db, 
                              keys=row.names(CountsTable), 
                              column="SYMBOL", 
-                             keytype="WORMBASE",
+                             keytype="FLYBASE",
                              multiVals="first")
 
-CountsTable$name <- mapIds(org.Ce.eg.db, 
+CountsTable$name <- mapIds(org.Dm.eg.db, 
                            keys=row.names(CountsTable), 
                            column="GENENAME", 
-                           keytype="WORMBASE",
+                           keytype="FLYBASE",
                            multiVals="first")
-
-
 ### FISHER GO TESTS
+
 
 et_annot_high <- as.data.frame(subset(et_annot, logFC > 0))
 et_annot_low <- as.data.frame(subset(et_annot, logFC < 0))
@@ -492,64 +487,64 @@ for_fisher_high <- as.data.frame(subset(et_annot_non_filtered, logFC > 0))
 for_fisher_low <- as.data.frame(subset(et_annot_non_filtered, logFC < 0))
 
 
-  
+
 GOFisherBP <- function(df, nodes, nrows, p){
-    all_genes <- c(df$logFC)
-    names(all_genes) <- rownames(df)
-    go_data <- new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = function(s) s < 
-                     p, description = "Test", annot = annFUN.org, mapping = "org.Ce.eg.db", 
-                   ID = "ENSEMBL", nodeSize = nodes)
-    go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
-    go_table <- GenTable(go_data, weightFisher = go_test,
-                         orderBy = "weightFisher", ranksOf = "weightFisher",
-                         topNodes = nrows)
-    return(go_table)
-  }
+  all_genes <- c(df$logFC)
+  names(all_genes) <- rownames(df)
+  go_data <- new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = function(s) s < 
+                   p, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", 
+                 ID = "ENSEMBL", nodeSize = nodes)
+  go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
+  go_table <- GenTable(go_data, weightFisher = go_test,
+                       orderBy = "weightFisher", ranksOf = "weightFisher",
+                       topNodes = nrows)
+  return(go_table)
+}
 GOFisherMF <- function(df, nodes, nrows, p){
-    all_genes <- c(df$logFC)
-    names(all_genes) <- rownames(df)
-    go_data <- new("topGOdata", ontology = "MF", allGenes = all_genes, geneSel = function(s) s < 
-                     p, description = "Test", annot = annFUN.org, mapping = "org.Ce.eg.db", 
-                   ID = "ENSEMBL", nodeSize = nodes)
-    go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
-    go_table <- GenTable(go_data, weightFisher = go_test,
-                         orderBy = "weightFisher", ranksOf = "weightFisher",
-                         topNodes = nrows)
-    return(go_table)
-  }
+  all_genes <- c(df$logFC)
+  names(all_genes) <- rownames(df)
+  go_data <- new("topGOdata", ontology = "MF", allGenes = all_genes, geneSel = function(s) s < 
+                   p, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", 
+                 ID = "ENSEMBL", nodeSize = nodes)
+  go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
+  go_table <- GenTable(go_data, weightFisher = go_test,
+                       orderBy = "weightFisher", ranksOf = "weightFisher",
+                       topNodes = nrows)
+  return(go_table)
+}
 GOFisherCC <- function(df, nodes, nrows, p){
-    all_genes <- c(df$logFC)
-    names(all_genes) <- rownames(df)
-    go_data <- new("topGOdata", ontology = "CC", allGenes = all_genes, geneSel = function(s) s < 
-                     p, description = "Test", annot = annFUN.org, mapping = "org.Ce.eg.db", 
-                   ID = "ENSEMBL", nodeSize = nodes)
-    go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
-    go_table <- GenTable(go_data, weightFisher = go_test,
-                         orderBy = "weightFisher", ranksOf = "weightFisher",
-                         topNodes = nrows)
-    return(go_table)
-  }
+  all_genes <- c(df$logFC)
+  names(all_genes) <- rownames(df)
+  go_data <- new("topGOdata", ontology = "CC", allGenes = all_genes, geneSel = function(s) s < 
+                   p, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", 
+                 ID = "ENSEMBL", nodeSize = nodes)
+  go_test <- runTest(go_data, algorithm = "weight01", statistic = "fisher")
+  go_table <- GenTable(go_data, weightFisher = go_test,
+                       orderBy = "weightFisher", ranksOf = "weightFisher",
+                       topNodes = nrows)
+  return(go_table)
+}
 
 gobp_h_50 <- GOFisherBP(for_fisher_high, 5, 50, 0.05)
 gomf_h_50 <- GOFisherMF(for_fisher_high, 5, 50, 0.05)
 gocc_h_50 <- GOFisherCC(for_fisher_high, 5, 50, 0.05)
-  
+
 gobp_l_50 <- GOFisherBP(for_fisher_low, 5, 50, 0.05)
 gomf_l_50 <- GOFisherMF(for_fisher_low, 5, 50, 0.05)
 gocc_l_50 <- GOFisherCC(for_fisher_low, 5, 50, 0.05)
-  
+
 gobp_h_100 <- GOFisherBP(for_fisher_high, 5, 100, 0.05)
 gomf_h_100 <- GOFisherMF(for_fisher_high, 5, 100, 0.05)
 gocc_h_100 <- GOFisherCC(for_fisher_high, 5, 100, 0.05)
-  
+
 gobp_l_100 <- GOFisherBP(for_fisher_low, 5, 100, 0.05)
 gomf_l_100 <- GOFisherMF(for_fisher_low, 5, 100, 0.05)
 gocc_l_100 <- GOFisherCC(for_fisher_low, 5, 100, 0.05)
-  
+
 gobp_h_250 <- GOFisherBP(for_fisher_high, 5, 250, 0.05)
 gomf_h_250 <- GOFisherMF(for_fisher_high, 5, 250, 0.05)
 gocc_h_250 <- GOFisherCC(for_fisher_high, 5, 250, 0.05)
-  
+
 gobp_l_250 <- GOFisherBP(for_fisher_low, 5, 250, 0.05)
 gomf_l_250 <- GOFisherMF(for_fisher_low, 5, 250, 0.05)
 gocc_l_250 <- GOFisherCC(for_fisher_low, 5, 250, 0.05)
@@ -563,7 +558,7 @@ write.xlsx(gocc_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 100",
 write.xlsx(gobp_h_250, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 250", append = TRUE)
 write.xlsx(gomf_h_250, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 250", append = TRUE)
 write.xlsx(gocc_h_250, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 250", append = TRUE)
-    
+
 write.xlsx(gobp_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 50", append = TRUE)
 write.xlsx(gomf_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 50", append = TRUE)
 write.xlsx(gocc_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 50", append = TRUE)
@@ -574,10 +569,6 @@ write.xlsx(gobp_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 250
 write.xlsx(gomf_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 250", append = TRUE)  
 write.xlsx(gocc_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 250", append = TRUE)
 
-
-
-
-## CORELLATION MARIX
 correl <- cpm(y)
 x <- cor(correl)
 pdf(file = "Corellation matrix.pdf", width = 10, height = 10)
@@ -610,13 +601,11 @@ dev.off()
 
 
 
-### REACTOME PART
-
+## REACTOME PART
 dfa <- as.character(et_annot$entrez)
-x <- enrichPathway(gene=dfa, organism = "celegans", minGSSize=gs_size, readable = TRUE )
+x <- enrichPathway(gene=dfa, organism = "fly", minGSSize=gs_size, readable = TRUE )
 write.xlsx(x, "Reactome.xlsx", sheetName = "All reactome", append = TRUE)
 head(as.data.frame(x))
-dev.off()
 
 par(mar=c(1,1,1,1))
 pdf(file = "barplot.pdf", width = 12, height = 17, family = "Helvetica")
@@ -633,7 +622,7 @@ dev.off()
 
 #HIGH
 df_high <- et_annot_high$entrez
-x <- enrichPathway(gene=df_high, organism = "celegans", minGSSize=gs_size, readable = TRUE )
+x <- enrichPathway(gene=df_high, organism = "fly", minGSSize=gs_size, readable = TRUE )
 write.xlsx(x, "Reactome.xlsx", sheetName = "High", append = TRUE)
 head(as.data.frame(x))
 dev.off()
@@ -646,7 +635,7 @@ dev.off()
 #LOW
 
 df_low <- et_annot_low$entrez
-x <- enrichPathway(gene=df_low, organism = "celegans", minGSSize=gs_size, readable = TRUE )
+x <- enrichPathway(gene=df_low, organism = "fly", minGSSize=gs_size, readable = TRUE )
 write.xlsx(x, "Reactome.xlsx", sheetName = "Low", append = TRUE)
 head(as.data.frame(x))
 dev.off()
@@ -658,7 +647,7 @@ dev.off()
 
 ###KEGG expression profile (without lfc, but with generatio)
 df_high <- et_annot_high$uniprot
-kk_up <- enrichKEGG(gene = df_high, organism = "cel", pvalueCutoff = 0.05, keyType = "uniprot")
+kk_up <- enrichKEGG(gene = df_high, organism = "dme", pvalueCutoff = 0.05, keyType = "uniprot")
 write.xlsx(kk_up, file = "KEGG.xlsx", sheetName = "KEGG_upreg", append = TRUE)
 pdf(file = "KEGG_upreg.pdf", width = 12, height = 17, family = "Helvetica")
 barplot(kk_up, showCategory=30,  font.size = 9)
@@ -666,7 +655,7 @@ dev.off()
 
 
 df_low <- et_annot_low$uniprot
-kk_down <- enrichKEGG(gene = df_low, organism = "cel", pvalueCutoff = 0.05, keyType = "uniprot")
+kk_down <- enrichKEGG(gene = df_low, organism = "dme", pvalueCutoff = 0.05, keyType = "uniprot")
 write.xlsx(kk_down, file = "KEGG.xlsx", sheetName = "KEGG_downreg", append = TRUE)
 pdf(file = "KEGG_downreg.pdf", width = 12, height = 17, family = "Helvetica")
 barplot(kk_down, showCategory=30,  font.size = 9)
@@ -764,14 +753,12 @@ if (custom_heatmap == TRUE) {
   }
 }
 
-
-# KEGG PLOTS
 dir.create("kegg")
 setwd("kegg")
 plot_pathway = function(pid){
   pathview(gene.data=foldchanges, 
            pathway.id=pid, 
-           species="cel", 
+           species="dme", 
            new.signature=FALSE)
 }
 
@@ -781,76 +768,76 @@ for (f in kk_down$ID){plot_pathway(paste(f))}
 
 ### PANTHER.DB
 setwd(directory)
-if (analyze_all_samples == TRUE){
+  if (analyze_all_samples == TRUE){
   setwd("all")
 } else {
   setwd(stattest)
 }
 
 if (panther_analysis == TRUE){
-pan_up <- et_annot_high
-pan_down <- et_annot_low
-
-pan_up$goslim <- mapIds(PANTHER.db, 
-                        keys=et_annot_high$entrez, 
-                        column="GOSLIM_ID", 
-                        keytype="ENTREZ",
-                        multiVals="first")
-
-pan_up$pathway <- mapIds(PANTHER.db, 
-                         keys=et_annot_high$entrez, 
-                         column="PATHWAY_ID", 
-                         keytype="ENTREZ",
-                         multiVals="first")
-pan_down$goslim <- mapIds(PANTHER.db, 
-                          keys=et_annot_low$entrez, 
+  pan_up <- et_annot_high
+  pan_down <- et_annot_low
+  
+  pan_up$goslim <- mapIds(PANTHER.db, 
+                          keys=et_annot_high$entrez, 
                           column="GOSLIM_ID", 
                           keytype="ENTREZ",
                           multiVals="first")
-
-pan_down$pathway <- mapIds(PANTHER.db, 
-                           keys=et_annot_low$entrez, 
+  
+  pan_up$pathway <- mapIds(PANTHER.db, 
+                           keys=et_annot_high$entrez, 
                            column="PATHWAY_ID", 
                            keytype="ENTREZ",
                            multiVals="first")
-
-go_pan_up <- as.data.frame(table(unlist(pan_up$goslim)))
-go_pan_up <- go_pan_up[order(go_pan_up$Freq, decreasing = TRUE),]
-go_pan_up <- go_pan_up[seq(1:go_terms_set),]
-names(go_pan_up) <- c("GO term", "Frequency")
-
-go_pan_down <- as.data.frame(table(unlist(pan_down$goslim)))
-go_pan_down <- go_pan_down[order(go_pan_down$Freq, decreasing = TRUE),]
-go_pan_down <- go_pan_down[seq(1:go_terms_set),]
-names(go_pan_down) <- c("GO term", "Frequency")
-
-pth_pan_up <- as.data.frame(table(unlist(pan_up$pathway)))
-pth_pan_up <- pth_pan_up[order(pth_pan_up$Freq, decreasing = TRUE),]
-pth_pan_up <- pth_pan_up[seq(1:pathways_set),]
-names(pth_pan_up) <- c("Pathway ID", "Frequency")
-
-pth_pan_down <- as.data.frame(table(unlist(pan_down$pathway)))
-pth_pan_down <- pth_pan_down[order(pth_pan_down$Freq, decreasing = TRUE),]
-pth_pan_down <- pth_pan_down[seq(1:pathways_set),]
-names(pth_pan_down) <- c("Pathway ID", "Frequency")
-
-write.xlsx(go_pan_up, file = "GOSlim Terms by PANTHER.xlsx", sheetName = "UP", append = TRUE)
-write.xlsx(go_pan_down, file = "GOSlim Terms by PANTHER.xlsx", sheetName = "DOWN", append = TRUE)
-
-write.xlsx(pth_pan_up, file = "Top Pathways by PANTHER.xlsx", sheetName = "UP", append = TRUE)
-write.xlsx(pth_pan_down, file = "Top Pathways by PANTHER.xlsx", sheetName = "DOWN", append = TRUE)
+  pan_down$goslim <- mapIds(PANTHER.db, 
+                            keys=et_annot_low$entrez, 
+                            column="GOSLIM_ID", 
+                            keytype="ENTREZ",
+                            multiVals="first")
+  
+  pan_down$pathway <- mapIds(PANTHER.db, 
+                             keys=et_annot_low$entrez, 
+                             column="PATHWAY_ID", 
+                             keytype="ENTREZ",
+                             multiVals="first")
+  
+  go_pan_up <- as.data.frame(table(unlist(pan_up$goslim)))
+  go_pan_up <- go_pan_up[order(go_pan_up$Freq, decreasing = TRUE),]
+  go_pan_up <- go_pan_up[seq(1:go_terms_set),]
+  names(go_pan_up) <- c("GO term", "Frequency")
+  
+  go_pan_down <- as.data.frame(table(unlist(pan_down$goslim)))
+  go_pan_down <- go_pan_down[order(go_pan_down$Freq, decreasing = TRUE),]
+  go_pan_down <- go_pan_down[seq(1:go_terms_set),]
+  names(go_pan_down) <- c("GO term", "Frequency")
+  
+  pth_pan_up <- as.data.frame(table(unlist(pan_up$pathway)))
+  pth_pan_up <- pth_pan_up[order(pth_pan_up$Freq, decreasing = TRUE),]
+  pth_pan_up <- pth_pan_up[seq(1:pathways_set),]
+  names(pth_pan_up) <- c("Pathway ID", "Frequency")
+  
+  pth_pan_down <- as.data.frame(table(unlist(pan_down$pathway)))
+  pth_pan_down <- pth_pan_down[order(pth_pan_down$Freq, decreasing = TRUE),]
+  pth_pan_down <- pth_pan_down[seq(1:pathways_set),]
+  names(pth_pan_down) <- c("Pathway ID", "Frequency")
+  
+  write.xlsx(go_pan_up, file = "GOSlim Terms by PANTHER.xlsx", sheetName = "UP", append = TRUE)
+  write.xlsx(go_pan_down, file = "GOSlim Terms by PANTHER.xlsx", sheetName = "DOWN", append = TRUE)
+  
+  write.xlsx(pth_pan_up, file = "Top Pathways by PANTHER.xlsx", sheetName = "UP", append = TRUE)
+  write.xlsx(pth_pan_down, file = "Top Pathways by PANTHER.xlsx", sheetName = "DOWN", append = TRUE)
 }
 
 
 ###DESEQ2
-directory <- '~/counts/worm_test/'
+directory <- '~/counts/dr_multimap/'
 
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
 res <- results(dds, tidy = FALSE )
 rld<- rlogTransformation(dds, blind=TRUE)
 
-directory <- '~/counts/worm_test/results'
+directory <- '~/counts/dr_multimap/results/'
 setwd(directory)
 
 if (analyze_all_samples == TRUE){
@@ -935,15 +922,15 @@ dev.off()
 deviant <- common[seq(1:10),]
 
 
-deviant$Symbol <- mapIds(org.Ce.eg.db, 
+deviant$Symbol <- mapIds(org.Dm.eg.db, 
                          keys=row.names(deviant), 
                          column="SYMBOL", 
-                         keytype="ENSEMBL",
+                         keytype="FLYBASE",
                          multiVals="first")
-deviant$Name <- mapIds(org.Mm.eg.db, 
+deviant$Name <- mapIds(org.Dm.eg.db, 
                        keys=row.names(deviant), 
                        column="GENENAME", 
-                       keytype="ENSEMBL",
+                       keytype="FLYBASE",
                        multiVals="first")
 
 write.xlsx(deviant, file = "Top 10 deviant genes between deseq2 and edgeR.xlsx")
