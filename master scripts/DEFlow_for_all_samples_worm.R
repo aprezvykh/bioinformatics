@@ -478,8 +478,8 @@ CountsTable$name <- mapIds(org.Ce.eg.db,
                            multiVals="first")
 
 
-### FISHER GO TESTS
 
+### SPLITTING DATA
 et_annot_high <- as.data.frame(subset(et_annot, logFC > 0))
 et_annot_low <- as.data.frame(subset(et_annot, logFC < 0))
 
@@ -492,6 +492,32 @@ for_fisher_high <- as.data.frame(subset(et_annot_non_filtered, logFC > 0))
 for_fisher_low <- as.data.frame(subset(et_annot_non_filtered, logFC < 0))
 
 
+
+### GOANA
+
+goana_up <- goana(de = et_annot_high$entrez, species = "Ce")
+go_up_30 <- topGO(goana_up, n=30)
+go_up_100 <- topGO(goana_up, n=100)
+go_up_500 <- topGO(goana_up, n=500)
+
+goana_down <- goana(de = et_annot_low$entrez, species = "Ce")
+go_down_30 <- topGO(goana_down, n=30)
+go_down_100 <- topGO(goana_down, n=100)
+go_down_500 <- topGO(goana_down, n=500)
+
+
+write.xlsx(go_up_30, file = "Goana GO tests, upreg.xlsx", sheetName = "top30", append = TRUE)
+write.xlsx(go_up_100, file = "Goana GO tests, upreg.xlsx", sheetName = "top100", append = TRUE)
+write.xlsx(go_up_500, file = "Goana GO tests, upreg.xlsx", sheetName = "top500", append = TRUE)
+
+write.xlsx(go_down_30, file = "Goana GO tests, downreg.xlsx", sheetName = "top30", append = TRUE)
+write.xlsx(go_down_100, file = "Goana GO tests, downreg.xlsx", sheetName = "top100", append = TRUE)
+write.xlsx(go_down_500, file = "Goana GO tests, downreg.xlsx", sheetName = "top500", append = TRUE)
+
+
+
+
+### FISHER GO TESTS
   
 GOFisherBP <- function(df, nodes, nrows, p){
     all_genes <- c(df$logFC)
@@ -671,6 +697,24 @@ write.xlsx(kk_down, file = "KEGG.xlsx", sheetName = "KEGG_downreg", append = TRU
 pdf(file = "KEGG_downreg.pdf", width = 12, height = 17, family = "Helvetica")
 barplot(kk_down, showCategory=30,  font.size = 9)
 dev.off()
+
+
+### KEGGA
+keg_com <- kegga(de = et_annot$entrez, species="Ce")
+tk_common <- topKEGG(keg_com, n=100)
+write.xlsx(tk_common, file = "kegga.xlsx", sheetName = "all Kegg", append = TRUE)
+
+keg_up <- kegga(de = et_annot_high$entrez, species="Ce")
+tk_up <- topKEGG(keg_up, n=30)
+write.xlsx(tk_up, file = "kegga.xlsx", sheetName = "Upreg", append = TRUE)
+
+
+keg_down <- kegga(de = et_annot_low$entrez, species="Ce")
+tk_down <- topKEGG(keg_down, n=30)
+write.xlsx(tk_down, file = "kegga.xlsx", sheetName = "Downreg", append = TRUE)
+
+rownames(tk_common) <- substring(rownames(tk_common), 6)
+
 
 # TOP 100 PVALUE GENES
 if (heatmaps == TRUE){

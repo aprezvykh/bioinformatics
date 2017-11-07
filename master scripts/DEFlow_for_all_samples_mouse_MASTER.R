@@ -41,7 +41,6 @@ library(XML)
 library(plyr)
 library(AnnotationDbi)
 
-
 ### TFES
 library(RcisTarget.mm9.motifDatabases.20k)
 data("mm9_10kbpAroundTss_motifRanking")
@@ -76,8 +75,8 @@ baseMean_cutoff <- 1.5
 significant_enriched_motif <- 5
 
 ### GROUPS. FIRST GROUP WILL BE USED AS CONTROL!
-gr_control <- c("tg_1")
-gr_case <- c("tg_2")
+gr_control <- c("tg_2")
+gr_case <- c("tg_3")
 
 
 ### BUILDING A SPECIFIC DESIGN TABLE
@@ -508,6 +507,29 @@ goccres <- goccres[complete.cases(goccres), ]
 write.xlsx(goccres, file = "GO.xlsx", sheetName = "GO_CC", append = TRUE)
 
 
+### GOANA
+goana_up <- goana(de = et_annot_high$entrez, species = "Mm")
+go_up_30 <- topGO(go, n=30)
+go_up_100 <- topGO(go, n=100)
+go_up_500 <- topGO(go, n=500)
+
+goana_down <- goana(de = et_annot_low$entrez, species = "Mm")
+go_down_30 <- topGO(go, n=30)
+go_down_100 <- topGO(go, n=100)
+go_down_500 <- topGO(go, n=500)
+
+
+write.xlsx(go_up_30, file = "Goana GO tests, upreg.xlsx", sheetName = "top30", append = TRUE)
+write.xlsx(go_up_100, file = "Goana GO tests, upreg.xlsx", sheetName = "top100", append = TRUE)
+write.xlsx(go_up_500, file = "Goana GO tests, upreg.xlsx", sheetName = "top500", append = TRUE)
+
+write.xlsx(go_down_30, file = "Goana GO tests, downreg.xlsx", sheetName = "top30", append = TRUE)
+write.xlsx(go_down_100, file = "Goana GO tests, downreg.xlsx", sheetName = "top100", append = TRUE)
+write.xlsx(go_down_500, file = "Goana GO tests, downreg.xlsx", sheetName = "top500", append = TRUE)
+
+
+
+
 ### FISHER GO TESTS
 et_annot_high <- as.data.frame(subset(et_annot, logFC > 0))
 et_annot_low <- as.data.frame(subset(et_annot, logFC < 0))
@@ -703,6 +725,21 @@ pdf(file = "KEGG_downreg.pdf", width = 12, height = 17, family = "Helvetica")
 barplot(kk, showCategory=30,  font.size = 9)
 dev.off()
 
+###KEGGA
+keg_com <- kegga(de = et_annot$entrez, species="Mm")
+tk_common <- topKEGG(keg_com, n=100)
+write.xlsx(tk_common, file = "kegga.xlsx", sheetName = "all Kegg", append = TRUE)
+
+keg_up <- kegga(de = et_annot_high$entrez, species="Mm")
+tk_up <- topKEGG(keg_up, n=30)
+write.xlsx(tk_up, file = "kegga.xlsx", sheetName = "Upreg", append = TRUE)
+
+
+keg_down <- kegga(de = et_annot_low$entrez, species="Mm")
+tk_down <- topKEGG(keg_down, n=30)
+write.xlsx(tk_down, file = "kegga.xlsx", sheetName = "Downreg", append = TRUE)
+
+rownames(tk_common) <- substring(rownames(tk_common), 6)
 
 # TOP 100 PVALUE GENES
 if (heatmaps == TRUE){
@@ -844,6 +881,17 @@ pathview(gene.data=foldchanges,
          new.signature=FALSE)
 
 setwd(directory)
+
+
+dir.create("another kegg plots")
+setwd("another kegg plots")
+
+for (f in rownames(tk_common)){
+  plot_pathway(f)
+}
+
+setwd(directory)
+
 ### DISEASE ASSOCIATION
 
 if (disease_association == TRUE){
@@ -1117,8 +1165,6 @@ saveWidget(web, file="TF enrichment web.html")
 write.xlsx(motifEnrichmentTable_wGenes, file = "Transcription factor binding motif enrichment.xlsx")
 
 
-
-###CD HEATMAP
 
 
 
