@@ -497,13 +497,21 @@ for_fisher_low <- as.data.frame(subset(et_annot_non_filtered, logFC < 0))
 
 goana_up <- goana(de = et_annot_high$entrez, species = "Ce")
 go_up_30 <- topGO(goana_up, n=30)
+go_up_30$perc = (go_up_30$DE/go_up_30$N)*100
 go_up_100 <- topGO(goana_up, n=100)
+go_up_100$perc = (go_up_100$DE/go_up_100$N)*100
 go_up_500 <- topGO(goana_up, n=500)
+go_up_500$perc = (go_up_500$DE/go_up_500$N)*100
+
+
 
 goana_down <- goana(de = et_annot_low$entrez, species = "Ce")
 go_down_30 <- topGO(goana_down, n=30)
+go_down_30$perc = (go_down_30$DE/go_down_30$N)*100
 go_down_100 <- topGO(goana_down, n=100)
+go_down_100$perc = (go_down_100$DE/go_down_100$N)*100
 go_down_500 <- topGO(goana_down, n=500)
+go_down_500$perc = (go_down_500$DE/go_down_500$N)*100
 
 
 write.xlsx(go_up_30, file = "Goana GO tests, upreg.xlsx", sheetName = "top30", append = TRUE)
@@ -515,6 +523,121 @@ write.xlsx(go_down_100, file = "Goana GO tests, downreg.xlsx", sheetName = "top1
 write.xlsx(go_down_500, file = "Goana GO tests, downreg.xlsx", sheetName = "top500", append = TRUE)
 
 
+###ANNOTATE LOGCPM FOR GO HEATMAPS
+for_go_heatmap <- logCPM
+
+for_go_heatmap$entrez <- mapIds(org.Ce.eg.db, 
+                                keys=row.names(for_go_heatmap), 
+                                column="ENTREZID", 
+                                keytype="WORMBASE",
+                                multiVals="first")
+
+for_go_heatmap$symbol <- mapIds(org.Ce.eg.db, 
+                                keys=row.names(for_go_heatmap), 
+                                column="SYMBOL", 
+                                keytype="WORMBASE",
+                                multiVals="first")
+
+
+
+### GO HEATMAPS OF VARIOUS GENES
+
+all_genes = c(et_annot$logFC)
+names(all_genes) <- et_annot$entrez
+GOdata = new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = function(s) s < 
+               0.05, description = "Test", annot = annFUN.org, mapping = "org.Ce.eg.db", nodeSize = 2)
+
+allGO <- genesInTerm(GOdata)
+
+##UP
+remove <- c("MF", "CC")
+dir.create("GO heatmap plots upregulated")
+setwd("GO heatmap plots upregulated")
+go_up_subset <- go_up_500[order(go_up_500$perc, decreasing = TRUE),]
+go_up_subset <- subset(go_up_subset, go_up_subset$N > 20)
+go_up_subset <- go_up_subset[seq(1:go_heatmap_count),]
+go_up_subset <- go_up_subset[!(go_up_subset$Ont %in% remove), ] 
+up_terms <- data.frame(go_up_subset$Term)
+rownames(up_terms) <- rownames(go_up_subset)
+
+
+for (f in seq(1:nrow(go_up_subset))){
+  z <- allGO[paste(rownames(up_terms))[f]]
+  z <- as.data.frame(z)
+  goid <- names(z)
+  goname <- go_up_subset[f,1]
+  goperc <- go_up_subset[f,6]
+  gopvalue <- go_up_subset[f,5]
+  statperc <- paste("Percent of involved genes", goperc, sep = ":")
+  name <-paste(goid, goname, sep = ":")
+  name <- as.character(name)
+  name <- gsub('[.]', "", name)
+  name <- paste(name, statperc, sep = "\n")
+  names(z) <- c("sus")
+  mat <- for_go_heatmap[(for_go_heatmap$entrez %in% z$sus),]
+  rownames(mat) <- mat$symbol
+  mat$symbol <- NULL
+  mat$entrez <- NULL
+  mat <- t(scale(t(mat)))
+  pdf(file = paste(goid,"upreg_GO.pdf",sep=""), width = 12, height = 17, family = "Helvetica")
+  heatmap.2(mat, col=col.pan, Rowv=TRUE, scale="none",
+            trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
+            margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = paste(name))
+  dev.off()
+  
+}
+
+##DOWN
+
+setwd(directory)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else {
+  setwd(stattest)
+}
+
+dir.create("GO heatmap plots downregulated")
+setwd("GO heatmap plots downregulated")
+go_down_subset <- go_down_500[order(go_down_500$perc, decreasing = TRUE),]
+go_down_subset <- subset(go_down_subset, go_down_subset$N > 20)
+go_down_subset <- go_down_subset[seq(1:go_heatmap_count),]
+go_down_subset <- go_down_subset[!(go_down_subset$Ont %in% remove), ] 
+down_terms <- data.frame(go_down_subset$Term)
+rownames(down_terms) <- rownames(go_down_subset)
+
+
+for (f in seq(1:nrow(go_down_subset))){
+  z <- allGO[paste(rownames(down_terms))[f]]
+  z <- as.data.frame(z)
+  goid <- names(z)
+  goname <- go_down_subset[f,1]
+  goperc <- go_down_subset[f,6]
+  gopvalue <- go_down_subset[f,5]
+  statperc <- paste("Percent of involved genes", goperc, sep = ":")
+  name <-paste(goid, goname, sep = ":")
+  name <- as.character(name)
+  name <- gsub('[.]', "", name)
+  name <- paste(name, statperc, sep = "\n")
+  names(z) <- c("sus")
+  mat <- for_go_heatmap[(for_go_heatmap$entrez %in% z$sus),]
+  rownames(mat) <- mat$symbol
+  mat$symbol <- NULL
+  mat$entrez <- NULL
+  mat <- t(scale(t(mat)))
+  pdf(file = paste(goid,"downreg_GO.pdf",sep=""), width = 12, height = 17, family = "Helvetica")
+  heatmap.2(mat, col=col.pan, Rowv=TRUE, scale="none",
+            trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
+            margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = paste(name))
+  dev.off()
+  
+}
+
+setwd(directory)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else {
+  setwd(stattest)
+}
 
 
 ### FISHER GO TESTS
