@@ -70,8 +70,8 @@ baseMean_cutoff <- 1.5
 
 
 ### GROUPS. FIRST GROUP WILL BE USED AS CONTROL!
-gr_control <- c("K")
-gr_case <- c("N")
+gr_control <- c("F")
+gr_case <- c("M")
 
 
 ### BUILDING A SPECIFIC DESIGN TABLE
@@ -937,6 +937,11 @@ for (f in kk_up$ID){plot_pathway(paste(f))}
 for (f in kk_down$ID){plot_pathway(paste(f))}
 
 setwd(directory)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else {
+  setwd(stattest)
+}
 
 dir.create("another kegg plots")
 setwd("another kegg plots")
@@ -948,7 +953,7 @@ for (f in rownames(tk_common)){
 setwd(directory)
 ### PANTHER.DB
 setwd(directory)
-  if (analyze_all_samples == TRUE){
+if (analyze_all_samples == TRUE){
   setwd("all")
 } else {
   setwd(stattest)
