@@ -44,11 +44,12 @@ library(AnnotationDbi)
 library(gage)
 library(gageData)
 library(DESeq2)
+library(gridExtra)
 heatmaps <- TRUE
 custom_heatmap <- FALSE
 custom_genes_plots <- FALSE
 fisherGO <- TRUE
-analyze_all_samples <- FALSE
+analyze_all_samples <- TRUE
 kegg_plots <- TRUE
 panther_analysis <- TRUE
 deseq2_part <- TRUE
@@ -58,8 +59,8 @@ logging <- FALSE
 ### CONSTANTS BLOCK
 
 pvalue_cutoff <- 0.05
-logfchigh_cutoff <- 1
-logfclow_cutoff <- -1
+logfchigh_cutoff <- 0.5
+logfclow_cutoff <- -0.5
 cpm_cutoff <- 0.5
 gs_size <- 10
 go_terms_set <- 50
@@ -67,10 +68,10 @@ pathways_set <- 30
 genes_in_term <- 3
 filter_thresh <- 5
 baseMean_cutoff <- 1.5
-
+go_heatmap_count <- 20
 
 ### GROUPS. FIRST GROUP WILL BE USED AS CONTROL!
-gr_control <- c("F")
+gr_control <- c("N")
 gr_case <- c("M")
 
 
@@ -86,7 +87,7 @@ setwd(directory)
 
 if (analyze_all_samples == TRUE){
   sampleFiles <- grep('fly',list.files(directory),value=TRUE)
-  sampleCondition <- c('control', 'conrol', 'exp', 'exp')
+  sampleCondition <- c('K', 'K', 'N', 'N', 'F', 'F', 'M', 'M')
   
   sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
   y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
@@ -360,11 +361,12 @@ up <- sum(et_annot$logFC > logfchigh_cutoff, na.rm=TRUE)
 down <- sum(et_annot$logFC < logfclow_cutoff, na.rm=TRUE)
 header <- c('all genes', 'mean of logCPM', 'padj<0,05', 'genes with > high', 'genes with < low')
 meaning <- c(print(all), print(avg_cpm), print(allpadj), print(up), print(down))
-df <- data.frame(header, meaning)
+report <- data.frame(header, meaning)
+report$meaning <- round(report$meaning, digits = 2)
 
 
 # WRITE RESULTS
-write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append = TRUE)
+write.xlsx(report, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append = TRUE)
 write.xlsx(top, file = "Results edgeR.xlsx", sheetName = "Top Tags (with FDR)", append = TRUE)
 write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
 
@@ -810,7 +812,11 @@ pdf(file = "KEGG_downreg.pdf", width = 12, height = 17, family = "Helvetica")
 barplot(kk_down, showCategory=30,  font.size = 9)
 dev.off()
 
+kk_up <- as.data.frame(kk_up)
+kk_up <- subset(kk_up, kk_up$pvalue < 0.05)
 
+kk_down <- as.data.frame(kk_down)
+kk_down <- subset(kk_down, kk_down$pvalue < 0.05)
 
 ###KEGGA
 keg_com <- kegga(de = et_annot$entrez, species="Dm")
@@ -829,13 +835,12 @@ write.xlsx(tk_down, file = "kegga.xlsx", sheetName = "Downreg", append = TRUE)
 rownames(tk_common) <- substring(rownames(tk_common), 6)
 
 
-
-
+tk_common <- subset(tk_common, tk_common$P.DE <0.05)
 
 # TOP 100 PVALUE GENES
 if (heatmaps == TRUE){
   logCPM <- as.data.frame(logCPM)
-  rownames(logCPM) <- make.names(et$genes$Symbol, unique = TRUE)
+  rownames(logCPM) <- make.names(y$genes$Symbol, unique = TRUE)
   colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
   o <- order(et$table$PValue)
   logCPMpval <- logCPM[o[1:100],]
@@ -865,11 +870,11 @@ if (heatmaps == TRUE){
   topcpm <- topcpm[1:100,]
   topcpm$rowsum <- NULL
   topcpm <- as.data.frame(topcpm)
-  # colnames(topcpm) <- paste(y$samples$group, 1:2, sep="-")
-  topcpm$Symbol <- mapIds(org.Ce.eg.db, 
+  colnames(topcpm) <- paste(y$samples$group, 1:2, sep="-")
+  topcpm$Symbol <- mapIds(org.Dm.eg.db, 
                           keys=row.names(topcpm), 
                           column="SYMBOL", 
-                          keytype="WORMBASE",
+                          keytype="FLYBASE",
                           multiVals="first")
   rownames(topcpm) <- make.names(topcpm$Symbol, unique=TRUE)
   topcpm$Symbol <- NULL
@@ -897,32 +902,44 @@ if (analyze_all_samples == TRUE){
 } else {
   setwd(stattest)
 }
+getwd()
+
+
+
+
+
+logCPM$name <- mapIds(org.Dm.eg.db, 
+                        keys=row.names(logCPM), 
+                        column="GENENAME", 
+                        keytype="FLYBASE",
+                        multiVals="first")
+
+logCPM$symbol <- mapIds(org.Dm.eg.db, 
+                        keys=row.names(logCPM), 
+                        column="SYMBOL", 
+                        keytype="FLYBASE",
+                        multiVals="first")
+
+
+
+
 
 
 ### SEARCH AND PLOT!
 if (custom_heatmap == TRUE) {
-  logCPM$Name <- y$genes$Name
-  let <- c("CD")
-  
-  for (f in let){
-    sub <- logCPM[grepl(paste(f), logCPM$Name),]
-    sub$Name <- NULL
-    sub <- t(scale(t(sub)))
-    pdf(file = paste(f,"_query_heatmap.pdf",sep=""), width = 12, height = 17, family = "Helvetica")
-    heatmap.2(sub, col=col.pan, Rowv=TRUE, scale="column",
+  let <- c("memo")
+  sub <- logCPM[grep(paste(let), logCPM$name, ignore.case = TRUE),]
+  rownames(sub) <- sub$symbol
+  sub$symbol <- NULL
+  sub$name <- NULL
+  sub <- t(scale(t(sub)))
+  png(file = "Ribosomal.png")
+  heatmap.2(sub, col=col.pan, Rowv=TRUE, scale="column",
               trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
               margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
-    dev.off()
-    if (custom_genes_plots == TRUE){
-      logdf <- as.data.frame(sub)
-      for (i in seq(1:nrow(logdf))){
-        png(file = paste(rownames(logdf[i,]), "_CPM.png", sep=""))
-        boxplot.default(logdf[i,],outline = TRUE,  main = paste(rownames(logdf[i,])))
-        dev.off()}
-    }
-    
-  }
+  dev.off()
 }
+
 
 dir.create("kegg")
 setwd("kegg")
@@ -933,8 +950,27 @@ plot_pathway = function(pid){
            new.signature=FALSE)
 }
 
-for (f in kk_up$ID){plot_pathway(paste(f))}
-for (f in kk_down$ID){plot_pathway(paste(f))}
+
+nrow(kk_up) > 0
+
+if (nrow(kk_up) > 0){
+for (f in kk_up$ID){
+  plot_pathway(paste(f))
+  }
+
+  } else if (nrow(kk_up == 0)){
+  print("No significant upregulated KEGG pathways!")
+}
+
+if (nrow(kk_down > 0)){
+for (f in kk_down$ID){
+    plot_pathway(paste(f))
+    }
+  
+} else if (nrow(kk_down) == 0){
+  print("No significant downregulated KEGG pathways!")
+}
+
 
 setwd(directory)
 if (analyze_all_samples == TRUE){
@@ -946,11 +982,13 @@ if (analyze_all_samples == TRUE){
 dir.create("another kegg plots")
 setwd("another kegg plots")
 
+
+
 for (f in rownames(tk_common)){
   plot_pathway(f)
 }
 
-setwd(directory)
+
 ### PANTHER.DB
 setwd(directory)
 if (analyze_all_samples == TRUE){
@@ -1119,3 +1157,6 @@ deviant$Name <- mapIds(org.Dm.eg.db,
                        multiVals="first")
 
 write.xlsx(deviant, file = "Top 10 deviant genes between deseq2 and edgeR.xlsx")
+
+
+
