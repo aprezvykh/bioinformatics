@@ -4,7 +4,7 @@ library("org.Dm.eg.db")
 library(stringr)
 library(GO.db)
 col.pan <- colorpanel(100, "blue", "white", "red")
-
+setwd("~/counts/dr_multimap/splicing/")
 isoforms <- read.delim("~/counts/dr_multimap/splicing/Run_2017-11-10_12-25-53.isoforms.quantification.tsv")
 names(isoforms) <- c( "id","F1", "M1", "M2", "F2", "K1", "K2", "N1", "N2")
 #names(isoforms) <- c("tg3_1", "tg3_2", "tg3_3", "tg3_4", "tg3_5", "cnt1_1", "cnt1_2", "cnt1_3", "tg1_1", "tg1_2", "tg1_3", "tg1_4", "tg2_1", "tg2_2", "tg1_5", "cnt1_4", "cnt3_1", "cnt3_2", "cnt3_3", "cnt1_5", "tg2_3", "tg2_4", "nth_1", "nth_2", "nth_3", "cnt3_5")
@@ -41,6 +41,14 @@ et <- qlf
 
 et_annot <- subset(et_annot, PValue < 0.05)
 et_annot$name <- rownames(et_annot)
+
+
+
+et_annot$exp <- rownames(et_annot)
+strsplit(et_annot$exp, "[_]", "[-]")
+z <- strsplit("FBtr0084640_nAChRalpha2-RB", "[_]", "[-]")
+
+
 rownames(et_annot) <- sub("(.*?)_.*", "\\1", rownames(et_annot))
 et_annot <- subset(et_annot, logFC > 0,5 | logFC < -0.5)
 
