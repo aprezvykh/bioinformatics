@@ -1,25 +1,25 @@
 library("gplots")
 library(edgeR)
-library("org.Mm.eg.db")
+library("org.Dm.eg.db")
 library(stringr)
 library(GO.db)
 col.pan <- colorpanel(100, "blue", "white", "red")
 
-isoforms <- read.delim("~/counts/ALS Mice/experimental/splicing/Run_2017-10-23_14-14-03.isoforms.quantification.tsv")
-names(isoforms) <- c("tg3_1", "tg3_2", "tg3_3", "tg3_4", "tg3_5", "cnt1_1", "cnt1_2", "cnt1_3", "tg1_1", "tg1_2", "tg1_3", "tg1_4", "tg2_1", "tg2_2", "tg1_5", "cnt1_4", "cnt3_1", "cnt3_2", "cnt3_3", "cnt1_5", "tg2_3", "tg2_4", "nth_1", "nth_2", "nth_3", "cnt3_5")
-genes <- read.delim("~/counts/ALS Mice/experimental/splicing/Run_2017-10-23_14-14-03.genes.quantification.tsv")
-tg2 <- grep("tg3", colnames(isoforms))
+isoforms <- read.delim("~/counts/dr_multimap/splicing/Run_2017-11-10_12-25-53.isoforms.quantification.tsv")
+names(isoforms) <- c( "id","F1", "M1", "M2", "F2", "K1", "K2", "N1", "N2")
+#names(isoforms) <- c("tg3_1", "tg3_2", "tg3_3", "tg3_4", "tg3_5", "cnt1_1", "cnt1_2", "cnt1_3", "tg1_1", "tg1_2", "tg1_3", "tg1_4", "tg2_1", "tg2_2", "tg1_5", "cnt1_4", "cnt3_1", "cnt3_2", "cnt3_3", "cnt1_5", "tg2_3", "tg2_4", "nth_1", "nth_2", "nth_3", "cnt3_5")
+genes <- read.delim("~/counts/dr_multimap/splicing/Run_2017-11-10_12-25-53.genes.quantification.tsv")
+names(genes) <- c( "id","F1", "M1", "M2", "F2", "K1", "K2", "N1", "N2")
+tg2 <- grep("K", colnames(isoforms))
 sub2 <- isoforms[,tg2]
-tg1 <- grep("tg2", colnames(isoforms))
+tg1 <- grep("M", colnames(isoforms))
 sub <- isoforms[,tg1]
-
 
 sub2 <- cbind(sub, sub2)
 sub <- sub2
-sub$tg3_1 <- NULL
-sampleCondition <- c("control", "control", "control", "control",
-                     "case", "case", "case", "case")
-rownames(sub) <- isoforms$tg3_1
+sampleCondition <- c("memory", "memory", 
+                     "control", "control")
+rownames(sub) <- isoforms$id
 sampleNames <- colnames(sub)
 sampleTable <- data.frame(sampleName = sampleNames, sampleCondition= sampleCondition)
 
@@ -40,15 +40,19 @@ logCPM <- as.data.frame(cpm(a, log = TRUE, lib.size = colSums(counts) * normaliz
 et <- qlf
 
 et_annot <- subset(et_annot, PValue < 0.05)
+et_annot$name <- rownames(et_annot)
 rownames(et_annot) <- sub("(.*?)_.*", "\\1", rownames(et_annot))
+et_annot <- subset(et_annot, logFC > 0,5 | logFC < -0.5)
 
-et_annot$gene <- mapIds(org.Mm.eg.db, 
+columns(org.Dm.eg.db)
+keytypes(org.Dm.eg.db)
+et_annot$gene <- mapIds(org.Dm.eg.db, 
                          keys=row.names(et_annot), 
-                         column="ENSEMBL", 
-                         keytype="ENSEMBLTRANS",
+                         column="GENENAME", 
+                         keytype="ENSEMBL",
                          multiVals="first")
 
-et_annot$GOID <-   mapIds(org.Mm.eg.db, 
+et_annot$GOID <-   mapIds(org.Dm.eg.db, 
                           keys=et_annot$gene, 
                           column="GO", 
                           keytype="ENSEMBL",

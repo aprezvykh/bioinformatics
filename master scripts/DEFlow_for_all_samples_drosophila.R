@@ -71,7 +71,7 @@ baseMean_cutoff <- 1.5
 go_heatmap_count <- 20
 
 ### GROUPS. FIRST GROUP WILL BE USED AS CONTROL!
-gr_control <- c("N")
+gr_control <- c("K")
 gr_case <- c("M")
 
 
@@ -82,13 +82,13 @@ if (logging == TRUE){
 }
 
 col.pan <- colorpanel(100, "blue", "white", "red")
-directory <- '~/counts/dr_multimap/'
+###DIRECTORY WHERE SAMPLES ARE LOCATED
+directory <- '~/counts/dr_multimap_diff_grouping/'
 setwd(directory)
 
 if (analyze_all_samples == TRUE){
   sampleFiles <- grep('fly',list.files(directory),value=TRUE)
-  sampleCondition <- c('K', 'K', 'N', 'N', 'F', 'F', 'M', 'M')
-  
+  sampleCondition <- c('1', '1', '1', '1', '2', '2', '2', '2')
   sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
   y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
 } else if (analyze_all_samples == FALSE){
@@ -102,9 +102,10 @@ if (analyze_all_samples == TRUE){
   y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
 }
 
+
+results.dir <- paste(directory, "results", sep = "")
+setwd(results.dir)
 stattest <- paste(gr_control, gr_case, sep = "-")
-directory <- '~/counts/dr_multimap/results/'
-setwd(directory)
 
 if (analyze_all_samples == FALSE){
   dir.create(stattest)
@@ -140,7 +141,7 @@ ggplot(m1) + aes(x = variable, y = value) + geom_bar(stat = "identity")
 dev.off()
 
 row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "__too_low_aQual", "__not_aligned" )
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else if (analyze_all_samples == FALSE){
@@ -346,7 +347,7 @@ abline(v=median(et_annot_non_filtered$logFC), col = "red")
 abline(v=getmode(et_annot_non_filtered$logFC), col = "blue")
 dev.off()
 
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else if (analyze_all_samples == FALSE){
@@ -371,7 +372,7 @@ write.xlsx(top, file = "Results edgeR.xlsx", sheetName = "Top Tags (with FDR)", 
 write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
 
 ### MY GO TESTS
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else if (analyze_all_samples == FALSE){
@@ -584,7 +585,7 @@ for (f in seq(1:nrow(go_up_subset))){
 
 ##DOWN
 
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else {
@@ -627,7 +628,7 @@ for (f in seq(1:nrow(go_down_subset))){
   
 }
 
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else {
@@ -721,8 +722,9 @@ write.xlsx(gomf_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 250
 write.xlsx(gocc_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 250", append = TRUE)
 
 correl <- cpm(y)
-x <- cor(correl)
-pdf(file = "Corellation matrix.pdf", width = 10, height = 10)
+x <- cor(correl, method = )
+png(file = "cor_spearman.png")
+#pdf(file = "Corellation matrix.pdf", width = 10, height = 10)
 heatmap.2(x, col=col.pan,Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
           margin=c(10,10), lhei=c(2,10), lwid=c(2,6), main = "Corellation Matrix")
@@ -863,11 +865,11 @@ if (heatmaps == TRUE){
             margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top Log2FoldChange genes, p < 0.05")
   dev.off()
   
-  
+}
   ### High Expressed Genes
   topcpm <- cpm[order(cpm$rowsum, decreasing = TRUE),]
   topcpm <- topcpm[complete.cases(topcpm), ]
-  topcpm <- topcpm[1:100,]
+  topcpm <- topcpm[1:50,]
   topcpm$rowsum <- NULL
   topcpm <- as.data.frame(topcpm)
   colnames(topcpm) <- paste(y$samples$group, 1:2, sep="-")
@@ -885,7 +887,7 @@ if (heatmaps == TRUE){
             margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Highest expressed genes")
   dev.off()
   
-}
+
 
 dir.create("mdplots")
 setwd("mdplots")
@@ -896,7 +898,7 @@ for (f in 1:ncol(y)){
   dev.off()
 }
 
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else {
@@ -972,7 +974,7 @@ for (f in kk_down$ID){
 }
 
 
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else {
@@ -990,7 +992,7 @@ for (f in rownames(tk_common)){
 
 
 ### PANTHER.DB
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else {
@@ -1053,15 +1055,15 @@ if (panther_analysis == TRUE){
 
 
 ###DESEQ2
-directory <- '~/counts/dr_multimap/'
+directory <- '~/counts/dr_multimap_diff_grouping/'
 
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
 res <- results(dds, tidy = FALSE )
 rld<- rlogTransformation(dds, blind=TRUE)
 
-directory <- '~/counts/dr_multimap/results/'
-setwd(directory)
+
+setwd(results.dir)
 
 if (analyze_all_samples == TRUE){
   setwd("all")

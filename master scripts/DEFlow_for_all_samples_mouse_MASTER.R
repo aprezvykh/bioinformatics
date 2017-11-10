@@ -86,6 +86,7 @@ if (logging == TRUE){
 }
 
 col.pan <- colorpanel(100, "blue", "white", "red")
+###DIRECTORY WHERE SAMPLES ARE LOCATED
 directory <- '~/counts/ALS Mice/experimental/'
 setwd(directory)
 
@@ -111,8 +112,11 @@ if (analyze_all_samples == TRUE){
 }
 
 stattest <- paste(gr_control, gr_case, sep = "-")
-directory <- '~/counts/ALS Mice/experimental/results/'
-setwd(directory)
+results.dir <- paste(directory, "results", sep = "")
+setwd(results.dir)
+
+
+
 
 if (analyze_all_samples == FALSE){
 dir.create(stattest)
@@ -356,7 +360,7 @@ abline(v=median(et_annot_non_filtered$logFC), col = "red")
 abline(v=getmode(et_annot_non_filtered$logFC), col = "blue")
 dev.off()
 
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else if (analyze_all_samples == FALSE){
@@ -602,7 +606,7 @@ for (f in seq(1:nrow(go_up_subset))){
 
 ##DOWN
 
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else {
@@ -645,7 +649,7 @@ for (f in seq(1:nrow(go_down_subset))){
   
 }
 
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else {
@@ -937,7 +941,7 @@ plotMD(y, values=c(1,-1), col=c("red","blue"),
        legend="topright")
 dev.off()
 
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else {
@@ -969,7 +973,7 @@ for (f in let){
 }
 
 # KEGG PLOTS
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else {
@@ -1009,7 +1013,7 @@ pathview(gene.data=foldchanges,
          species="mmu", 
          new.signature=FALSE)
 
-setwd(directory)
+setwd(results.dir)
 
 
 dir.create("another kegg plots")
@@ -1019,7 +1023,7 @@ for (f in rownames(tk_common)){
   plot_pathway(f)
 }
 
-setwd(directory)
+setwd(results.dir)
 
 ### DISEASE ASSOCIATION
 
@@ -1027,7 +1031,7 @@ if (disease_association == TRUE){
 et_annot_high <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff))
 et_annot_low <- as.data.frame(subset(et_annot, logFC < logfclow_cutoff))
 
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else {
@@ -1139,14 +1143,12 @@ write.xlsx(pth_pan_down, file = "Top Pathways by PANTHER.xlsx", sheetName = "DOW
 
 ### DESEQ2 PART (ADDITIONAL)
 
-directory <- '~/counts/ALS Mice/experimental/'
 
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
 res <- results(dds, tidy = FALSE )
 rld<- rlogTransformation(dds, blind=TRUE)
-directory <- '~/counts/ALS Mice/experimental/results'
-setwd(directory)
+setwd(results.dir)
 
 if (analyze_all_samples == TRUE){
   setwd("all")

@@ -81,6 +81,7 @@ if (logging == TRUE){
 }
 
 col.pan <- colorpanel(100, "blue", "white", "red")
+###DIRECTORY WHERE SAMPLES ARE LOCATED
 directory <- '~/counts/worm_test/'
 setwd(directory)
 
@@ -101,9 +102,9 @@ if (analyze_all_samples == TRUE){
   y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
 }
 
+results.dir <- paste(directory, "results", sep = "")
+setwd(results.dir)
 stattest <- paste(gr_control, gr_case, sep = "-")
-directory <- '~/counts/worm_test/results'
-setwd(directory)
 
 if (analyze_all_samples == FALSE){
   dir.create(stattest)
@@ -142,7 +143,7 @@ ggplot(m1) + aes(x = variable, y = value) + geom_bar(stat = "identity")
 dev.off()
 
 row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "__too_low_aQual", "__not_aligned" )
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else if (analyze_all_samples == FALSE){
@@ -346,7 +347,7 @@ abline(v=median(et_annot_non_filtered$logFC), col = "red")
 abline(v=getmode(et_annot_non_filtered$logFC), col = "blue")
 dev.off()
 
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else if (analyze_all_samples == FALSE){
@@ -371,7 +372,7 @@ write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, l
 
 
 ### MY GO TESTS
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else if (analyze_all_samples == FALSE){
@@ -589,7 +590,7 @@ for (f in seq(1:nrow(go_up_subset))){
 
 ##DOWN
 
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else {
@@ -632,7 +633,7 @@ for (f in seq(1:nrow(go_down_subset))){
   
 }
 
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else {
@@ -898,7 +899,7 @@ for (f in 1:ncol(y)){
   dev.off()
 }
 
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else {
@@ -947,7 +948,7 @@ for (f in kk_down$ID){plot_pathway(paste(f))}
 
 
 ### PANTHER.DB
-setwd(directory)
+setwd(results.dir)
 if (analyze_all_samples == TRUE){
   setwd("all")
 } else {
@@ -1010,15 +1011,14 @@ write.xlsx(pth_pan_down, file = "Top Pathways by PANTHER.xlsx", sheetName = "DOW
 
 
 ###DESEQ2
-directory <- '~/counts/worm_test/'
+
 
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
 res <- results(dds, tidy = FALSE )
 rld<- rlogTransformation(dds, blind=TRUE)
 
-directory <- '~/counts/worm_test/results'
-setwd(directory)
+setwd(results.dir)
 
 if (analyze_all_samples == TRUE){
   setwd("all")
