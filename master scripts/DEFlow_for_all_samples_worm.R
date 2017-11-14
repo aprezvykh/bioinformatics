@@ -48,7 +48,7 @@ heatmaps <- TRUE
 custom_heatmap <- FALSE
 custom_genes_plots <- FALSE
 fisherGO <- TRUE
-analyze_all_samples <- FALSE
+analyze_all_samples <- TRUE
 kegg_plots <- TRUE
 panther_analysis <- TRUE
 deseq2_part <- TRUE
@@ -87,7 +87,7 @@ setwd(directory)
 
 if (analyze_all_samples == TRUE){
   sampleFiles <- grep('worm',list.files(directory),value=TRUE)
-  sampleCondition <- c('control', 'conrol', 'exp', 'exp')
+  sampleCondition <- c('case', 'caes', 'control', 'control')
   
   sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
   y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
@@ -168,6 +168,7 @@ if (qlm_test == TRUE){
   et_annot_non_filtered <- as.data.frame(qlf$table)
   top <- as.data.frame(topTags(qlf))
   logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
+  logCPM <- logCPM[keep,]
   et <- qlf
 } else if (qlm_test == FALSE){ 
   design <- model.matrix(~sampleTable$condition) 
@@ -276,7 +277,6 @@ if(use.official.gene.symbol == TRUE){
   rownames(gmt_flt) = gmt_flt[,"ensembl_gene_id"]
 }
 
-gmt_flt[,"description"] = gsub(pattern = "\\[Source:.*", replacement = "", x = gmt[,"description"], ignore.case = T,perl = FALSE)
 gmt_flt_freq <- as.data.frame(table(unlist(gmt_flt$gene_biotype)))
 pdf(file = "Filtered genes biotype distribution.pdf", width = 12, height = 17, family = "Helvetica")
 pie(gmt_flt_freq$Freq, labels = gmt_flt_freq$Var1, radius = 0.5, main = "Filtered genes biotype distribution")
@@ -523,7 +523,8 @@ write.xlsx(go_down_30, file = "Goana GO tests, downreg.xlsx", sheetName = "top30
 write.xlsx(go_down_100, file = "Goana GO tests, downreg.xlsx", sheetName = "top100", append = TRUE)
 write.xlsx(go_down_500, file = "Goana GO tests, downreg.xlsx", sheetName = "top500", append = TRUE)
 
-
+write.xlsx(go_up_100, file = "Results edgeR.xlsx", sheetName = "top 1oo Upreg GO terms", append = TRUE)
+write.xlsx(go_down_100, file = "Results edgeR.xlsx", sheetName = "top 1oo Downreg GO terms", append = TRUE)
 ###ANNOTATE LOGCPM FOR GO HEATMAPS
 for_go_heatmap <- logCPM
 
@@ -785,6 +786,7 @@ dev.off()
 df_high <- et_annot_high$entrez
 x <- enrichPathway(gene=df_high, organism = "celegans", minGSSize=gs_size, readable = TRUE )
 write.xlsx(x, "Reactome.xlsx", sheetName = "High", append = TRUE)
+write.xlsx(x, file = "Results edgeR.xlsx", sheetName = "Reactome upreg", append = TRUE)
 head(as.data.frame(x))
 dev.off()
 
@@ -798,6 +800,7 @@ dev.off()
 df_low <- et_annot_low$entrez
 x <- enrichPathway(gene=df_low, organism = "celegans", minGSSize=gs_size, readable = TRUE )
 write.xlsx(x, "Reactome.xlsx", sheetName = "Low", append = TRUE)
+write.xlsx(x, file = "Results edgeR.xlsx", sheetName = "Reactome downreg", append = TRUE)
 head(as.data.frame(x))
 dev.off()
 
@@ -826,69 +829,100 @@ dev.off()
 ### KEGGA
 keg_com <- kegga(de = et_annot$entrez, species="Ce")
 tk_common <- topKEGG(keg_com, n=100)
+tk_common <- subset(tk_common, tk_common$P.DE < 0.05)
+tk_common$perc <- (tk_common$DE/tk_common$N)*100
+tk_common <- tk_common[order(tk_common$perc, decreasing = TRUE),]
 write.xlsx(tk_common, file = "kegga.xlsx", sheetName = "all Kegg", append = TRUE)
 
 keg_up <- kegga(de = et_annot_high$entrez, species="Ce")
-tk_up <- topKEGG(keg_up, n=30)
+tk_up <- topKEGG(keg_up, n=100)
+tk_up <- subset(tk_up, tk_up$P.DE < 0.05)
+tk_up$perc <- (tk_up$DE/tk_up$N)*100
+tk_up <- tk_up[order(tk_up$perc, decreasing = TRUE),]
 write.xlsx(tk_up, file = "kegga.xlsx", sheetName = "Upreg", append = TRUE)
 
 
 keg_down <- kegga(de = et_annot_low$entrez, species="Ce")
-tk_down <- topKEGG(keg_down, n=30)
+tk_down <- topKEGG(keg_down, n=100)
+tk_down <- subset(tk_down, tk_down$P.DE < 0.05)
+tk_down$perc <- (tk_down$DE/tk_down$N)*100
+tk_down <- tk_down[order(tk_down$perc, decreasing = TRUE),]
 write.xlsx(tk_down, file = "kegga.xlsx", sheetName = "Downreg", append = TRUE)
-
+getwd()
 rownames(tk_common) <- substring(rownames(tk_common), 6)
 
 
+write.xlsx(tk_up, file = "Results edgeR.xlsx", sheetName = "top 100 Upregulated KEGG pathways", append = TRUE)
+write.xlsx(tk_down, file = "Results edgeR.xlsx", sheetName = "top 100 Downregulated KEGG pathways", append = TRUE)
 # TOP 100 PVALUE GENES
-if (heatmaps == TRUE){
-  logCPM <- as.data.frame(logCPM)
-  rownames(logCPM) <- make.names(et$genes$Symbol, unique = TRUE)
-  colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
-  o <- order(et$table$PValue)
-  logCPMpval <- logCPM[o[1:100],]
-  logCPMpval <- t(scale(t(logCPMpval)))
-  col.pan <- colorpanel(100, "blue", "white", "red")
-  pdf(file = "Top 100 Pvalue Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
-  heatmap.2(logCPMpval, col=col.pan, Rowv=TRUE, scale="none",
+
+logCPM <- as.data.frame(logCPM)
+logCPM$name <- mapIds(org.Ce.eg.db, 
+                          keys=row.names(logCPM), 
+                          column="SYMBOL", 
+                          keytype="WORMBASE",
+                          multiVals="first")
+rownames(logCPM) <- make.names(logCPM$name, unique = TRUE)
+logCPM$name <- NULL
+colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
+o <- order(et$table$PValue)
+logCPMpval <- logCPM[o[1:100],]
+logCPMpval <- t(scale(t(logCPMpval)))
+col.pan <- colorpanel(100, "blue", "white", "red")
+pdf(file = "Top 100 Pvalue Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
+heatmap.2(logCPMpval, col=col.pan, Rowv=TRUE, scale="none",
             trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
             margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top FDR genes, p < 0.05")
-  dev.off()
+dev.off()
   
-  # TOP 100 LOGFC GENES
-  o <- order(et$table$logFC)
-  logCPMfc <- logCPM[o[1:100],]
-  logCPMfc <- t(scale(t(logCPMfc)))
-  col.pan <- colorpanel(100, "blue", "white", "red")
-  pdf(file = "Top 100 logFC Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
-  heatmap.2(logCPMfc, col=col.pan, Rowv=TRUE, scale="none",
+# TOP 100 LOGFC GENES
+o <- order(et$table$logFC)
+logCPMfc <- logCPM[o[1:100],]
+logCPMfc <- t(scale(t(logCPMfc)))
+col.pan <- colorpanel(100, "blue", "white", "red")
+pdf(file = "Top 100 logFC Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
+heatmap.2(logCPMfc, col=col.pan, Rowv=TRUE, scale="none",
             trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
             margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top Log2FoldChange genes, p < 0.05")
-  dev.off()
+dev.off()
   
   
   ### High Expressed Genes
-  topcpm <- cpm[order(cpm$rowsum, decreasing = TRUE),]
-  topcpm <- topcpm[complete.cases(topcpm), ]
-  topcpm <- topcpm[1:100,]
-  topcpm$rowsum <- NULL
-  topcpm <- as.data.frame(topcpm)
-  # colnames(topcpm) <- paste(y$samples$group, 1:2, sep="-")
-  topcpm$Symbol <- mapIds(org.Ce.eg.db, 
+topcpm <- cpm[order(cpm$rowsum, decreasing = TRUE),]
+topcpm <- topcpm[complete.cases(topcpm), ]
+topcpm <- topcpm[1:100,]
+topcpm$rowsum <- NULL
+topcpm <- as.data.frame(topcpm)
+colnames(topcpm) <- paste(y$samples$group, 1:2, sep="-")
+topcpm$Symbol <- mapIds(org.Ce.eg.db, 
                           keys=row.names(topcpm), 
                           column="SYMBOL", 
                           keytype="WORMBASE",
                           multiVals="first")
-  rownames(topcpm) <- make.names(topcpm$Symbol, unique=TRUE)
-  topcpm$Symbol <- NULL
-  topcpm <- t(scale(t(topcpm)))
-  pdf(file = "Top 100 high expressed genes.pdf", width = 12, height = 17, family = "Helvetica")
-  heatmap.2(topcpm, col=col.pan, Rowv=TRUE, scale="column",
+rownames(topcpm) <- make.names(topcpm$Symbol, unique=TRUE)
+topcpm$Symbol <- NULL
+topcpm <- t(scale(t(topcpm)))
+pdf(file = "Top 100 high expressed genes.pdf", width = 12, height = 17, family = "Helvetica")
+heatmap.2(topcpm, col=col.pan, Rowv=TRUE, scale="column",
             trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
             margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Highest expressed genes")
+dev.off()
+
+
+if (analyze_all_samples == TRUE){
+  topcpm <- cpm[order(cpm$rowsum, decreasing = TRUE),]
+  topcpm$rowsum <- NULL
+  topcpm <- topcpm[complete.cases(topcpm), ]
+  topcpm <- topcpm[1:5000,]
+  topcpm <- t(scale(t(topcpm)))
+  pdf(file = "Top 5000 expressed genes.pdf", width = 12, height = 17, family = "Helvetica")
+  heatmap.2(topcpm, col = col.pan, Rowv=TRUE, scale="column",
+            trace="none", dendrogram="column", cexRow=1, cexCol=1.4, density.info="none",
+            margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Highest expressed genes",
+            labRow = FALSE)
   dev.off()
-  
 }
+
 
 dir.create("mdplots")
 setwd("mdplots")

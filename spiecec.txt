@@ -1,0 +1,7 @@
+spiecec.id.types:
+key.type(ENSEMBL, FLYBASE, WORMBASE)
+database.type (Org.Mm/Dm.Ce.db)
+taxon.id (mmusculus, celegans, dmelanogaster)
+goana.id/kegga.id id (Mm, Ce, Dm)
+reactome.id (mouse, fly, worm)
+kegg.id (mmu, dme, cel)

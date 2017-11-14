@@ -74,10 +74,18 @@ filter_thresh <- 5
 baseMean_cutoff <- 1.5
 significant_enriched_motif <- 5
 go_heatmap_count <- 20
-### GROUPS. FIRST GROUP WILL BE USED AS CONTROL!
+stattest_number <- 1
+
+
+#a <- read.xlsx("tests.xlsx", sheetIndex = 1)
+#a <- data.frame(a$control, a$case)
+#gr_control <- as.character(a[1,1])
+#gr_case <- as.character(a[1,2])
+
+directory <- '~/counts/ALS Mice/experimental/'
+setwd(directory)
 gr_control <- c("tg_2")
 gr_case <- c("tg_3")
-
 
 ### BUILDING A SPECIFIC DESIGN TABLE
 if (logging == TRUE){
@@ -87,8 +95,7 @@ if (logging == TRUE){
 
 col.pan <- colorpanel(100, "blue", "white", "red")
 ###DIRECTORY WHERE SAMPLES ARE LOCATED
-directory <- '~/counts/ALS Mice/experimental/'
-setwd(directory)
+library(dplyr)
 
 if (analyze_all_samples == TRUE){
         sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
@@ -114,8 +121,6 @@ if (analyze_all_samples == TRUE){
 stattest <- paste(gr_control, gr_case, sep = "-")
 results.dir <- paste(directory, "results", sep = "")
 setwd(results.dir)
-
-
 
 
 if (analyze_all_samples == FALSE){
@@ -177,7 +182,8 @@ if (qlm_test == TRUE){
   et_annot_non_filtered <- as.data.frame(qlf$table)
   top <- as.data.frame(topTags(qlf))
   logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
-  logCPM <- logCPM[!(row.names(logCPM) %in% row.names.remove), ] 
+  logCPM <- logCPM[!(row.names(logCPM) %in% row.names.remove), ]
+  logCPM <- logCPM[keep,]
   et <- qlf
   
 } else if (qlm_test == FALSE){ 
@@ -285,7 +291,6 @@ if(use.official.gene.symbol == TRUE){
   gmt_flt = gmt_flt[!(duplicated(gmt_flt[,"ensembl_gene_id"])),]
   rownames(gmt_flt) = gmt_flt[,"ensembl_gene_id"]
 }
-gmt_flt[,"description"] = gsub(pattern = "\\[Source:.*", replacement = "", x = gmt[,"description"], ignore.case = T,perl = FALSE)
 
 # et_annot$biotype <- gmt_flt$gene_biotype
 gmt_flt_freq <- as.data.frame(table(unlist(gmt_flt$gene_biotype)))
@@ -314,6 +319,7 @@ if (stat == TRUE & lfgenefc < 0){
   print("No Correction Needed!")
 } else {
   et_annot$logFC <- et_annot$logFC*(-1)
+  print("Correction protocol executed, logFC have been inverted!")
 }
 
 
@@ -328,37 +334,43 @@ getmode <- function(v) {
 dir.create("distributions")
 setwd("distributions")
 
+png(file = "logCPM distribution, nonfiltered.png")
+hist(et_annot_non_filtered$logCPM, main = "logCPM distribution, non-filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "logCPM", breaks = 50)
+abline(v=median(et_annot_non_filtered$logCPM), col = "red")
+abline(v=getmode(et_annot_non_filtered$logCPM), col = "blue")
+
+dev.off()
 png(file = "logCPM distribution, filtered.png")
-hist(et_annot$logCPM, main = "logCPM distribution, filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "logCPM")
+hist(et_annot$logCPM, main = "logCPM distribution, filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "logCPM", breaks = 50)
 abline(v=median(et_annot$logCPM), col = "red")
 abline(v=getmode(et_annot$logCPM), col = "blue")
+
+dev.off()
+png(file = "p-value distribution, nonfiltered.png")
+hist(et_annot_non_filtered$PValue, main = "p-value distribution, non-filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "p-value", breaks = 50)
+abline(v=median(et_annot_non_filtered$PValue), col = "red")
+abline(v=getmode(et_annot_non_filtered$PValue), col = "blue")
+
 dev.off()
 png(file = "p-value distribution, filtered.png")
-hist(et_annot$PValue, main = "p-value distribution, filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "p-value")
+hist(et_annot$PValue, main = "p-value distribution, filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "p-value", breaks = 50)
 abline(v=median(et_annot$PValue), col = "red")
 abline(v=getmode(et_annot$PValue), col = "blue")
+
+dev.off()
+png(file = "LogFC distribution, nonfiltered.png")
+hist(et_annot_non_filtered$logFC, main = "logFC distribution, non-filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "LogFC", breaks = 50)
+abline(v=median(et_annot_non_filtered$logFC), col = "red")
+abline(v=getmode(et_annot_non_filtered$logFC), col = "blue")
+
 dev.off()
 png(file = "LogFC distribution, filtered.png")
-hist(et_annot$logFC, main = "logFC distribution, filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "LogFC")
+hist(et_annot$logFC, main = "logFC distribution, filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "LogFC", breaks = 50)
 abline(v=median(et_annot$logFC), col = "red")
 abline(v=getmode(et_annot$logFC), col = "blue")
 dev.off()
 
-png(file = "logCPM distribution, nonfiltered.png")
-hist(et_annot_non_filtered$logCPM, main = "logCPM distribution, non-filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "logCPM")
-abline(v=median(et_annot_non_filtered$logCPM), col = "red")
-abline(v=getmode(et_annot_non_filtered$logCPM), col = "blue")
-dev.off()
-png(file = "p-value distribution, nonfiltered.png")
-hist(et_annot_non_filtered$PValue, main = "p-value distribution, non-filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "p-value")
-abline(v=median(et_annot_non_filtered$PValue), col = "red")
-abline(v=getmode(et_annot_non_filtered$PValue), col = "blue")
-dev.off()
-png(file = "LogFC distribution, nonfiltered.png")
-hist(et_annot_non_filtered$logFC, main = "logFC distribution, non-filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "LogFC")
-abline(v=median(et_annot_non_filtered$logFC), col = "red")
-abline(v=getmode(et_annot_non_filtered$logFC), col = "blue")
-dev.off()
+
 
 setwd(results.dir)
 if (analyze_all_samples == TRUE){
@@ -368,7 +380,7 @@ if (analyze_all_samples == TRUE){
 }
 
 ### Simple summary
-all <- nrow(raw_counts)
+all <- nrow(y$counts)
 allpadj <- sum(et_annot$PValue < pvalue_cutoff, na.rm=TRUE)
 avg_cpm <- mean(et_annot$logCPM)
 up <- sum(et_annot$logFC > logfchigh_cutoff, na.rm=TRUE)
@@ -512,6 +524,8 @@ write.xlsx(goccres, file = "GO.xlsx", sheetName = "GO_CC", append = TRUE)
 
 
 ### GOANA
+et_annot_high <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff))
+et_annot_low <- as.data.frame(subset(et_annot, logFC < logfclow_cutoff))
 goana_up <- goana(de = et_annot_high$entrez, species = "Mm")
 go_up_30 <- topGO(goana_up, n=30)
 go_up_30$perc = (go_up_30$DE/go_up_30$N)*100
@@ -538,7 +552,9 @@ write.xlsx(go_down_30, file = "Goana GO tests, downreg.xlsx", sheetName = "top30
 write.xlsx(go_down_100, file = "Goana GO tests, downreg.xlsx", sheetName = "top100", append = TRUE)
 write.xlsx(go_down_500, file = "Goana GO tests, downreg.xlsx", sheetName = "top500", append = TRUE)
 
-getwd()
+
+write.xlsx(go_up_100, file = "Results edgeR.xlsx", sheetName = "top 100 Upregulated GO terms", append = TRUE)
+write.xlsx(go_down_100, file = "Results edgeR.xlsx", sheetName = "top 100 Downregulated GO terms", append = TRUE)
 
 ###ANNOTATE LOGCPM FOR GO HEATMAPS
 for_go_heatmap <- logCPM
@@ -821,6 +837,7 @@ dev.off()
 df_high <- et_annot_high$entrez
 x <- enrichPathway(gene=df_high, organism = "mouse", minGSSize=gs_size, readable = TRUE )
 write.xlsx(x, "Reactome.xlsx", sheetName = "High", append = TRUE)
+write.xlsx(x, file = "Results edgeR.xlsx", sheetName = "top 100 Upregulated Reactome pathways", append = TRUE)
 head(as.data.frame(x))
 dev.off()
 
@@ -834,6 +851,7 @@ dev.off()
 df_low <- et_annot_low$entrez
 x <- enrichPathway(gene=df_low, organism = "mouse", minGSSize=gs_size, readable = TRUE )
 write.xlsx(x, "Reactome.xlsx", sheetName = "Low", append = TRUE)
+write.xlsx(x, file = "Results edgeR.xlsx", sheetName = "top 100 Downregulated Reactome pathways", append = TRUE)
 head(as.data.frame(x))
 dev.off()
 
@@ -861,25 +879,38 @@ dev.off()
 ###KEGGA
 keg_com <- kegga(de = et_annot$entrez, species="Mm")
 tk_common <- topKEGG(keg_com, n=100)
+tk_common <- subset(tk_common, tk_common$P.DE < 0.05)
+tk_common$perc <- (tk_common$DE/tk_common$N)*100
+tk_common <- tk_common[order(tk_common$perc, decreasing = TRUE),]
 write.xlsx(tk_common, file = "kegga.xlsx", sheetName = "all Kegg", append = TRUE)
 
 keg_up <- kegga(de = et_annot_high$entrez, species="Mm")
-tk_up <- topKEGG(keg_up, n=30)
+tk_up <- topKEGG(keg_up, n=100)
+tk_up <- subset(tk_up, tk_up$P.DE < 0.05)
+tk_up$perc <- (tk_up$DE/tk_up$N)*100
+tk_up <- tk_up[order(tk_up$perc, decreasing = TRUE),]
 write.xlsx(tk_up, file = "kegga.xlsx", sheetName = "Upreg", append = TRUE)
 
 
 keg_down <- kegga(de = et_annot_low$entrez, species="Mm")
-tk_down <- topKEGG(keg_down, n=30)
+tk_down <- topKEGG(keg_down, n=100)
+tk_down <- subset(tk_down, tk_down$P.DE < 0.05)
+tk_down$perc <- (tk_down$DE/tk_down$N)*100
+tk_down <- tk_down[order(tk_down$perc, decreasing = TRUE),]
 write.xlsx(tk_down, file = "kegga.xlsx", sheetName = "Downreg", append = TRUE)
-
+getwd()
 rownames(tk_common) <- substring(rownames(tk_common), 6)
 
-# TOP 100 PVALUE GENES
-if (heatmaps == TRUE){
 
+write.xlsx(tk_up, file = "Results edgeR.xlsx", sheetName = "top 100 Upregulated KEGG pathways", append = TRUE)
+write.xlsx(tk_down, file = "Results edgeR.xlsx", sheetName = "top 100 Downregulated KEGG pathways", append = TRUE)
+
+
+# TOP 100 PVALUE GENES
 logCPM <- as.data.frame(logCPM)
+nrow(logCPM)
 rownames(logCPM) <- make.names(y$genes$Symbol, unique = TRUE)
-# colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
+colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
 o <- order(et$table$PValue)
 logCPMpval <- logCPM[o[1:100],]
 logCPMpval <- t(scale(t(logCPMpval)))
@@ -893,6 +924,7 @@ dev.off()
 # TOP 100 LOGFC GENES
 o <- order(et$table$logFC)
 logCPMfc <- logCPM[o[1:100],]
+logCPMfc <- logCPMfc[complete.cases(logCPMfc),]
 logCPMfc <- t(scale(t(logCPMfc)))
 col.pan <- colorpanel(100, "blue", "white", "red")
 pdf(file = "Top 100 logFC Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
@@ -923,9 +955,20 @@ heatmap.2(topcpm, col=col.pan, Rowv=TRUE, scale="column",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Highest expressed genes")
 dev.off()
 
-}
+### heatmap with all samples
+topcpm <- cpm[order(cpm$rowsum, decreasing = TRUE),]
+topcpm$rowsum <- NULL
+topcpm <- topcpm[complete.cases(topcpm), ]
+topcpm <- topcpm[1:10000,]
+topcpm <- t(scale(t(topcpm)))
+pdf(file = "Top 5000 expressed genes.pdf", width = 12, height = 17, family = "Helvetica")
+heatmap.2(topcpm, col = col.pan, Rowv=TRUE, scale="column",
+            trace="none", dendrogram="column", cexRow=1, cexCol=1.4, density.info="none",
+            margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Highest expressed genes",
+            labRow = FALSE)
+dev.off()
 
-
+getwd()
 
 ### Multiple MDPlots
 dir.create("mdplots")
@@ -1018,6 +1061,7 @@ setwd(results.dir)
 
 dir.create("another kegg plots")
 setwd("another kegg plots")
+
 
 for (f in rownames(tk_common)){
   plot_pathway(f)
@@ -1294,6 +1338,8 @@ web <- visNetwork(nodes, edges) %>% visOptions(highlightNearest = TRUE,
 
 saveWidget(web, file="TF enrichment web.html")
 write.xlsx(motifEnrichmentTable_wGenes, file = "Transcription factor binding motif enrichment.xlsx")
-
 #gene.data <- getBM(attributes = c("ensembl_gene_id", 'go_id'), filters = 'go', mart = mart, values = 'GO:0007507')
-                  
+              
+
+getwd()
+plot_pathway("mmu00100")

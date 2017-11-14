@@ -46,8 +46,8 @@ et_annot$name <- rownames(et_annot)
 
 et_annot$exp <- rownames(et_annot)
 strsplit(et_annot$exp, "[_]", "[-]")
-z <- strsplit("FBtr0084640_nAChRalpha2-RB", "[_]", "[-]")
-
+z <- strsplit("FBtr0084640_nAChRalpha2-RB", "[_]", "[-]", useBytes = TRUE)
+z
 
 rownames(et_annot) <- sub("(.*?)_.*", "\\1", rownames(et_annot))
 et_annot <- subset(et_annot, logFC > 0,5 | logFC < -0.5)
