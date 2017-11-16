@@ -8,7 +8,6 @@ library(AnnotationDbi)
 library(Rcpp)
 library(gplots)
 library(edgeR)
-library(org.Mm.eg.db)
 library(gplots)
 library(pheatmap)
 library(xlsx)
@@ -40,17 +39,14 @@ library(rvest)
 library(XML)
 library(plyr)
 library(AnnotationDbi)
+library(dplyr)
 
-### TFES
-library(RcisTarget.mm9.motifDatabases.20k)
-data("mm9_10kbpAroundTss_motifRanking")
-data("mm9_direct_motifAnnotation")
-
+#BOOL BLOCK
 heatmaps <- TRUE
 custom_heatmap <- FALSE
 custom_genes_plots <- FALSE
 fisherGO <- TRUE
-analyze_all_samples <- TRUE
+analyze_all_samples <- FALSE
 disease_association <- TRUE
 kegg_plots <- TRUE
 panther_analysis <- TRUE
@@ -76,26 +72,62 @@ significant_enriched_motif <- 5
 go_heatmap_count <- 20
 stattest_number <- 1
 
-
-#a <- read.xlsx("tests.xlsx", sheetIndex = 1)
-#a <- data.frame(a$control, a$case)
-#gr_control <- as.character(a[1,1])
-#gr_case <- as.character(a[1,2])
+#SPICES CAN BE: mouse, worm, fly.
 
 directory <- '~/counts/ALS Mice/experimental/'
-setwd(directory)
 gr_control <- c("tg_2")
 gr_case <- c("tg_3")
+spices <- c("mouse")
+setwd(directory)
+getwd()
+if (spices == "mouse"){
+  print("You choose a mouse!")
+  key.type <- c("ENSEMBL")
+  database.type <- c("Org.Mm.eg.db")
+  taxon.id <- c("Mus Musculus")
+  limma.id <- c("Mm")
+  reactome.id <- c("mouse")
+  kegg.id <- c("mmu")
+  ###ADD SOME SPIECES - SPECIFIC PACKAGES
+  library(RcisTarget.mm9.motifDatabases.20k)
+  data("mm9_10kbpAroundTss_motifRanking")
+  data("mm9_direct_motifAnnotation")
+  library(org.Mm.eg.db)
+  
+} else if (spices == "fly"){
+  print("You choose a fly!")
+  key.type <- c("FLYBASE")
+  database.type <- c("Org.Dm.eg.db")
+  taxon.id <- c("Drosophila Melanogaster")
+  limma.id <- c("Dm")
+  reactome.id <- c("fly")
+  kegg.id <- c("dme")
+  ###ADD SOME SPIECES - SPECIFIC PACKAGES
+  library(org.Dm.eg.db)
+}
+if (spices == "fly"){
+  print("You choose a worm!")
+  key.type <- c("WORMBASE")
+  database.type <- c("Org.Ce.eg.db")
+  taxon.id <- c("Caenorhabditis elegans")
+  limma.id <- c("Ce")
+  reactome.id <- c("worm")
+  kegg.id <- c("cel")
+  ###ADD SOME SPIECES - SPECIFIC PACKAGES
+  library(org.Ce.eg.db)  
+} else {
+  print("Spices you entered are not correct! Check your spices!")
+}
+
+
 
 ### BUILDING A SPECIFIC DESIGN TABLE
 if (logging == TRUE){
   zz <- file("error.log", open="wt")
   sink(zz, type="message")
 }
-
 col.pan <- colorpanel(100, "blue", "white", "red")
 ###DIRECTORY WHERE SAMPLES ARE LOCATED
-library(dplyr)
 
 if (analyze_all_samples == TRUE){
         sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
@@ -104,8 +136,6 @@ if (analyze_all_samples == TRUE){
                             'tg_early', 'tg_early', 'tg_early', 'tg_early', 'tg_early', 
                              'tg_mid', 'tg_mid', 'tg_mid', 'tg_mid', 
                             'tg_late', 'tg_late', 'tg_late', 'tg_late', 'tg_late')
-        #sampleCondition <- c("control", "control", "control", "control", 
-        #                    "case", "case", "case", "case")
         sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
         y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
 } else if (analyze_all_samples == FALSE){
@@ -208,44 +238,49 @@ if (qlm_test == TRUE){
   et_annot <- as.data.frame(et$table) 
   et_annot_non_filtered <- as.data.frame(et$table) 
 }
-nrow(cpm)
-write.csv(logCPM, file = "overall logCPM.csv")
+
+
+mapIds()
+
 ### ANNOTATE
 
-y$genes$Symbol <- mapIds(org.Mm.eg.db, 
+paste(database.type)
+
+y$genes$Symbol <- mapIds(databa, 
                          keys=row.names(et_annot_non_filtered), 
                          column="SYMBOL", 
-                         keytype="ENSEMBL",
+                         keytype=paste(key.type),
                          multiVals="first")
-y$genes$Name <- mapIds(org.Mm.eg.db, 
+
+y$genes$Name <- mapIds(paste(database.type), 
                          keys=row.names(et_annot_non_filtered), 
                          column="GENENAME", 
-                         keytype="ENSEMBL",
+                         keytype=paste(key.type),
                          multiVals="first")
 
-et_annot$symbol <- mapIds(org.Mm.eg.db, 
+et_annot$symbol <- mapIds(paste(database.type), 
                          keys=row.names(et_annot), 
                          column="SYMBOL", 
-                         keytype="ENSEMBL",
+                         keytype=paste(key.type),
                          multiVals="first")
 
-et_annot$name <- mapIds(org.Mm.eg.db, 
+et_annot$name <- mapIds(paste(database.type), 
                         keys=row.names(et_annot), 
                         column="GENENAME", 
-                        keytype="ENSEMBL",
+                        keytype=paste(key.type),
                         multiVals="first")
 
 
-et_annot$entrez <- mapIds(org.Mm.eg.db, 
+et_annot$entrez <- mapIds(paste(database.type), 
                          keys=row.names(et_annot), 
                          column="ENTREZID", 
-                         keytype="ENSEMBL",
+                         keytype=paste(key.type),
                          multiVals="first")
 
-et_annot$GOID <-     mapIds(org.Mm.eg.db, 
+et_annot$GOID <-     mapIds(paste(database.type), 
                          keys=row.names(et_annot), 
                          column="GO", 
-                         keytype="ENSEMBL",
+                         keytype=paste(key.type),
                          multiVals="first")
 
 et_annot$term <- mapIds(GO.db, 
@@ -256,15 +291,15 @@ et_annot$term <- mapIds(GO.db,
 
 et_annot$term <- as.character(et_annot$term)
 
-et_annot_non_filtered$Symbol <- mapIds(org.Mm.eg.db, 
+et_annot_non_filtered$Symbol <- mapIds(paste(database.type), 
                           keys=row.names(et_annot_non_filtered), 
                           column="SYMBOL", 
-                          keytype="ENSEMBL",
+                          keytype=paste(key.type),
                           multiVals="first")
-et_annot_non_filtered$Symbol <- mapIds(org.Mm.eg.db, 
+et_annot_non_filtered$Symbol <- mapIds(paste(database.type), 
                           keys=row.names(et_annot_non_filtered), 
                           column="ENTREZID", 
-                          keytype="ENSEMBL",
+                          keytype=paste(key.type),
                           multiVals="first")
 ### FILTRATION
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
@@ -274,7 +309,7 @@ et_annot <- et_annot[complete.cases(et_annot), ]
 
 
 ### BIOTYPE ANNOT FIX IT!
-taxon = 'Mus Musculus'
+taxon = paste(taxon.id)
 taxon = tolower(taxon)
 tmp = unlist(strsplit(x = taxon, split = ' '))
 dataset.name = tolower(sprintf('%s%s_gene_ensembl', substr(tmp[1],1,1), tmp[2]))
@@ -423,10 +458,10 @@ write.xlsx(my_go, file = "My GO.xlsx", sheetName = "GO classes", append = TRUE)
 ### GO HEATMAP
 cpmfgh <- as.data.frame(logCPM)
 
-cpmfgh$GOID <-            mapIds(org.Mm.eg.db, 
+cpmfgh$GOID <-            mapIds(paste(database.type), 
                                  keys=row.names(cpmfgh), 
                                  column="GO", 
-                                 keytype="ENSEMBL",
+                                 keytype=paste(key.type),
                                  multiVals="first")
 
 
@@ -480,20 +515,21 @@ heatmap.2(go_for_heatmap, col=col.pan, Rowv=TRUE, scale="column",
 dev.off()
 
 ### ANNOTATE COUNTS
-CountsTable$symbol <- mapIds(org.Mm.eg.db, 
+CountsTable$symbol <- mapIds(paste(database.type), 
                              keys=row.names(CountsTable), 
                              column="SYMBOL", 
-                             keytype="ENSEMBL",
+                             keytype=paste(key.type),
                              multiVals="first")
 
-CountsTable$name <- mapIds(org.Mm.eg.db, 
+CountsTable$name <- mapIds(paste(database.type), 
                            keys=row.names(CountsTable), 
                            column="GENENAME", 
-                           keytype="ENSEMBL",
+                           keytype=paste(key.type),
                            multiVals="first")
 
 
 ### GO TESTS
+if (spices == "mouse"){
 data(go.sets.mm)
 data(go.subs.mm)
 
@@ -520,12 +556,12 @@ lapply(goccres, head)
 goccres <- as.data.frame(goccres)
 goccres <- goccres[complete.cases(goccres), ]
 write.xlsx(goccres, file = "GO.xlsx", sheetName = "GO_CC", append = TRUE)
-
+}
 
 ### GOANA
 et_annot_high <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff))
 et_annot_low <- as.data.frame(subset(et_annot, logFC < logfclow_cutoff))
-goana_up <- goana(de = et_annot_high$entrez, species = "Mm")
+goana_up <- goana(de = et_annot_high$entrez, species = paste(limma.id))
 go_up_30 <- topGO(goana_up, n=30)
 go_up_30$perc = (go_up_30$DE/go_up_30$N)*100
 go_up_100 <- topGO(goana_up, n=100)
@@ -534,7 +570,7 @@ go_up_500 <- topGO(goana_up, n=500)
 go_up_500$perc = (go_up_500$DE/go_up_500$N)*100
 go_up_500$perc <- round(go_up_500$perc, digits = 4)
 
-goana_down <- goana(de = et_annot_low$entrez, species = "Mm")
+goana_down <- goana(de = et_annot_low$entrez, species = paste(limma.id))
 go_down_30 <- topGO(goana_down, n=30)
 go_down_30$perc = (go_down_30$DE/go_down_30$N)*100
 go_down_100 <- topGO(goana_down, n=100)
@@ -558,16 +594,16 @@ write.xlsx(go_down_100, file = "Results edgeR.xlsx", sheetName = "top 100 Downre
 ###ANNOTATE LOGCPM FOR GO HEATMAPS
 for_go_heatmap <- logCPM
 
-for_go_heatmap$entrez <- mapIds(org.Mm.eg.db, 
+for_go_heatmap$entrez <- mapIds(paste(database.type), 
                                 keys=row.names(for_go_heatmap), 
                                 column="ENTREZID", 
-                                keytype="ENSEMBL",
+                                keytype=paste(key.type),
                                 multiVals="first")
 
-for_go_heatmap$symbol <- mapIds(org.Mm.eg.db, 
+for_go_heatmap$symbol <- mapIds(paste(database.type), 
                                 keys=row.names(for_go_heatmap), 
                                 column="SYMBOL", 
-                                keytype="ENSEMBL",
+                                keytype=paste(key.type),
                                 multiVals="first")
 
 
@@ -577,7 +613,7 @@ for_go_heatmap$symbol <- mapIds(org.Mm.eg.db,
 all_genes = c(et_annot$logFC)
 names(all_genes) <- et_annot$entrez
 GOdata = new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = function(s) s < 
-               0.05, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", nodeSize = 2)
+               0.05, description = "Test", annot = annFUN.org, mapping = "paste(database.type)", nodeSize = 2)
 
 allGO <- genesInTerm(GOdata)
 
@@ -689,8 +725,8 @@ GOFisherBP <- function(uni, df, nodes, nrows, p){
   all_genes <- c(df$logFC)
   names(all_genes) <- rownames(df)
   go_data <- new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = function(s) s < 
-                   p, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", 
-                 ID = "ENSEMBL", nodeSize = nodes)
+                   p, description = "Test", annot = annFUN.org, mapping = paste(database.type), 
+                 ID = paste(key.type), nodeSize = nodes)
   go_test <- runTest(go_data, algorithm = "weight", statistic = "fisher")
   go_table <- GenTable(go_data, weightFisher = go_test,
                        orderBy = "weightFisher", ranksOf = "weightFisher",
@@ -701,8 +737,8 @@ GOFisherMF <- function(df, nodes, nrows, p){
   all_genes <- c(df$logFC)
   names(all_genes) <- rownames(df)
   go_data <- new("topGOdata", ontology = "MF", allGenes = all_genes, geneSel = function(s) s < 
-                   p, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", 
-                 ID = "ENSEMBL", nodeSize = nodes)
+                   p, description = "Test", annot = annFUN.org, mapping = paste(database.type), 
+                 ID = paste(key.type), nodeSize = nodes)
   go_test <- runTest(go_data, algorithm = "weight", statistic = "fisher")
   go_table <- GenTable(go_data, weightFisher = go_test,
                        orderBy = "weightFisher", ranksOf = "weightFisher",
@@ -713,8 +749,8 @@ GOFisherCC <- function(df, nodes, nrows, p){
   all_genes <- c(df$logFC)
   names(all_genes) <- rownames(df)
   go_data <- new("topGOdata", ontology = "CC", allGenes = all_genes, geneSel = function(s) s < 
-                   p, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", 
-                 ID = "ENSEMBL", nodeSize = nodes)
+                   p, description = "Test", annot = annFUN.org, mapping = paste(database.type), 
+                 ID = paste(key.type), nodeSize = nodes)
   go_test <- runTest(go_data, algorithm = "weight", statistic = "fisher")
   go_table <- GenTable(go_data, weightFisher = go_test,
                        orderBy = "weightFisher", ranksOf = "weightFisher",
@@ -774,13 +810,11 @@ write.xlsx(gocc_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 250
 
 ## CORELLATION MARIX
 correl <- cpm(y)
-correl <- as.data.frame(correl)
-correl <- correl[(rownames(correl) %in% rownames(logCPM)),]
-x <- cor(correl, method = "spearman")
+x <- cor(correl)
 pdf(file = "Corellation matrix.pdf", width = 10, height = 10)
-heatmap.2(x, col=col.pan, Rowv=TRUE, scale="none",
+heatmap.2(x, col=col.pan,Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-          margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Spearman corellation")
+          margin=c(10,10), lhei=c(2,10), lwid=c(2,6), main = "Corellation Matrix")
 dev.off()
 #heatmap.2(x, margins = c(10,10))      
 ### MDS PLOT
@@ -816,7 +850,7 @@ dev.off()
 
 ### REACTOME PART
 dfa <- as.character(et_annot$entrez)
-x <- enrichPathway(gene=dfa, organism = "mouse", minGSSize=gs_size, readable = TRUE )
+x <- enrichPathway(gene=dfa, organism = paste(reactome.id), minGSSize=gs_size, readable = TRUE )
 write.xlsx(x, "Reactome.xlsx", sheetName = "All reactome", append = TRUE)
 head(as.data.frame(x))
 dev.off()
@@ -836,7 +870,7 @@ dev.off()
 
 #HIGH
 df_high <- et_annot_high$entrez
-x <- enrichPathway(gene=df_high, organism = "mouse", minGSSize=gs_size, readable = TRUE )
+x <- enrichPathway(gene=df_high, organism = paste(reactome.id), minGSSize=gs_size, readable = TRUE )
 write.xlsx(x, "Reactome.xlsx", sheetName = "High", append = TRUE)
 write.xlsx(x, file = "Results edgeR.xlsx", sheetName = "top 100 Upregulated Reactome pathways", append = TRUE)
 head(as.data.frame(x))
@@ -850,7 +884,7 @@ dev.off()
 #LOW
 
 df_low <- et_annot_low$entrez
-x <- enrichPathway(gene=df_low, organism = "mouse", minGSSize=gs_size, readable = TRUE )
+x <- enrichPathway(gene=df_low, organism = paste(reactome.id), minGSSize=gs_size, readable = TRUE )
 write.xlsx(x, "Reactome.xlsx", sheetName = "Low", append = TRUE)
 write.xlsx(x, file = "Results edgeR.xlsx", sheetName = "top 100 Downregulated Reactome pathways", append = TRUE)
 head(as.data.frame(x))
@@ -865,27 +899,27 @@ dev.off()
 
 ###KEGG expression profile (without lfc, but with generatio)
 
-kk <- enrichKEGG(gene = df_high, organism = "mmu", pvalueCutoff = 0.05)
+kk <- enrichKEGG(gene = df_high, organism = paste(kegg.id), pvalueCutoff = 0.05)
 write.xlsx(kk, file = "KEGG.xlsx", sheetName = "KEGG_upreg", append = TRUE)
 pdf(file = "KEGG_upreg.pdf", width = 12, height = 17, family = "Helvetica")
 barplot(kk, showCategory=30,  font.size = 9)
 dev.off()
 
-kk <- enrichKEGG(gene = df_low, organism = "mmu", pvalueCutoff = 0.05)
+kk <- enrichKEGG(gene = df_low, organism = paste(kegg.id), pvalueCutoff = 0.05)
 write.xlsx(kk, file = "KEGG.xlsx", sheetName = "KEGG_downreg", append = TRUE)
 pdf(file = "KEGG_downreg.pdf", width = 12, height = 17, family = "Helvetica")
 barplot(kk, showCategory=30,  font.size = 9)
 dev.off()
 
 ###KEGGA
-keg_com <- kegga(de = et_annot$entrez, species="Mm")
+keg_com <- kegga(de = et_annot$entrez, species=paste(limma.id))
 tk_common <- topKEGG(keg_com, n=100)
 tk_common <- subset(tk_common, tk_common$P.DE < 0.05)
 tk_common$perc <- (tk_common$DE/tk_common$N)*100
 tk_common <- tk_common[order(tk_common$perc, decreasing = TRUE),]
 write.xlsx(tk_common, file = "kegga.xlsx", sheetName = "all Kegg", append = TRUE)
 
-keg_up <- kegga(de = et_annot_high$entrez, species="Mm")
+keg_up <- kegga(de = et_annot_high$entrez, species=paste(limma.id))
 tk_up <- topKEGG(keg_up, n=100)
 tk_up <- subset(tk_up, tk_up$P.DE < 0.05)
 tk_up$perc <- (tk_up$DE/tk_up$N)*100
@@ -893,7 +927,7 @@ tk_up <- tk_up[order(tk_up$perc, decreasing = TRUE),]
 write.xlsx(tk_up, file = "kegga.xlsx", sheetName = "Upreg", append = TRUE)
 
 
-keg_down <- kegga(de = et_annot_low$entrez, species="Mm")
+keg_down <- kegga(de = et_annot_low$entrez, species=paste(limma.id))
 tk_down <- topKEGG(keg_down, n=100)
 tk_down <- subset(tk_down, tk_down$P.DE < 0.05)
 tk_down$perc <- (tk_down$DE/tk_down$N)*100
@@ -929,6 +963,9 @@ logCPMfc <- logCPMfc[complete.cases(logCPMfc),]
 logCPMfc <- t(scale(t(logCPMfc)))
 col.pan <- colorpanel(100, "blue", "white", "red")
 pdf(file = "Top 100 logFC Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
+heatmap.2(logCPMfc, col=col.pan, Rowv=TRUE, scale="none",
+          trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
+          margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top Log2FoldChange genes, p < 0.05")
 dev.off()
 
 
@@ -939,10 +976,10 @@ topcpm <- topcpm[1:100,]
 topcpm$rowsum <- NULL
 topcpm <- as.data.frame(topcpm)
 # colnames(topcpm) <- paste(y$samples$group, 1:2, sep="-")
-topcpm$Symbol <- mapIds(org.Mm.eg.db, 
+topcpm$Symbol <- mapIds(paste(database.type), 
                         keys=row.names(topcpm), 
                         column="SYMBOL", 
-                        keytype="ENSEMBL",
+                        keytype=paste(key.type),
                         multiVals="first")
 rownames(topcpm) <- make.names(topcpm$Symbol, unique=TRUE)
 topcpm$Symbol <- NULL
@@ -1014,48 +1051,43 @@ for (f in let){
 }
 
 # KEGG PLOTS
-setwd(results.dir)
-if (analyze_all_samples == TRUE){
-  setwd("all")
-} else {
-  setwd(stattest)
+if (spices == "mouse"){
+      setwd(results.dir)
+      if (analyze_all_samples == TRUE){
+        setwd("all")
+      } else {
+        setwd(stattest)
+      }
+      data(kegg.sets.mm)
+      data(sigmet.idx.mm)
+      kegg.sets.mm = kegg.sets.mm[sigmet.idx.mm]
+      
+      keggres = gage(foldchanges, gsets=kegg.sets.mm, same.dir=TRUE)
+      keggreswr <- as.data.frame(keggres)
+      write.xlsx(keggreswr, file = "KEGG pathview.xlsx", sheetName = "KEGG", append = TRUE)
+      
+      if (kegg_plots == TRUE){
+      keggrespathways = data.frame(id=rownames(keggres$greater),
+        keggres$greater) %>% 
+        tbl_df() %>% 
+        filter(row_number()<=number_of_kegg_plots) %>% 
+        .$id %>% 
+        as.character()
+      keggresids = substr(keggrespathways, start=1, stop=8)
+      
+      plot_pathway = function(pid){
+               pathview(gene.data=foldchanges, 
+               pathway.id=pid, 
+               species=paste(kegg.id), 
+               new.signature=FALSE)
+      }
+      detach("package:dplyr", unload=TRUE)
+      dir.create("kegg")
+      setwd("kegg")
+      tmp = sapply(keggresids, function(pid) pathview(gene.data=foldchanges, pathway.id=pid, species=paste(kegg.id)))
+      }
+      setwd(results.dir)
 }
-data(kegg.sets.mm)
-data(sigmet.idx.mm)
-kegg.sets.mm = kegg.sets.mm[sigmet.idx.mm]
-
-keggres = gage(foldchanges, gsets=kegg.sets.mm, same.dir=TRUE)
-keggreswr <- as.data.frame(keggres)
-write.xlsx(keggreswr, file = "KEGG pathview.xlsx", sheetName = "KEGG", append = TRUE)
-
-if (kegg_plots == TRUE){
-keggrespathways = data.frame(id=rownames(keggres$greater),
-  keggres$greater) %>% 
-  tbl_df() %>% 
-  filter(row_number()<=number_of_kegg_plots) %>% 
-  .$id %>% 
-  as.character()
-keggresids = substr(keggrespathways, start=1, stop=8)
-
-plot_pathway = function(pid){
-         pathview(gene.data=foldchanges, 
-         pathway.id=pid, 
-         species="mmu", 
-         new.signature=FALSE)
-}
-detach("package:dplyr", unload=TRUE)
-dir.create("kegg")
-setwd("kegg")
-tmp = sapply(keggresids, function(pid) pathview(gene.data=foldchanges, pathway.id=pid, species="mmu"))
-}
-
-pathview(gene.data=foldchanges, 
-         pathway.id="mmu04728", 
-         species="mmu", 
-         new.signature=FALSE)
-
-setwd(results.dir)
-
 
 dir.create("another kegg plots")
 setwd("another kegg plots")
@@ -1068,61 +1100,61 @@ for (f in rownames(tk_common)){
 setwd(results.dir)
 
 ### DISEASE ASSOCIATION
-
-if (disease_association == TRUE){
-et_annot_high <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff))
-et_annot_low <- as.data.frame(subset(et_annot, logFC < logfclow_cutoff))
-
-setwd(results.dir)
-if (analyze_all_samples == TRUE){
-  setwd("all")
-} else {
-  setwd(stattest)
+if (spices == "mouse"){
+      if (disease_association == TRUE){
+      et_annot_high <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff))
+      et_annot_low <- as.data.frame(subset(et_annot, logFC < logfclow_cutoff))
+      
+      setwd(results.dir)
+      if (analyze_all_samples == TRUE){
+        setwd("all")
+      } else {
+        setwd(stattest)
+      }
+      
+      table <- read.delim(file = '~/GitHub/data/curated_gene_disease_associations.tsv')
+      table <- as.data.frame(table)
+      
+      diseases_up <- data.frame()
+      diseases_down <- data.frame()
+      for (f in et_annot_high$symbol){
+        sub <- NULL
+        sub <- table[grepl(paste(f), table$geneSymbol, ignore.case = TRUE),]
+        sub <- sub[order(sub$score, decreasing = TRUE),]
+        sub <- sub[seq(1:5),]
+        sub <- as.data.frame(sub$diseaseName)
+        sub <- transpose(sub)
+        sub$gene <- paste(f)
+        diseases_up <- rbind(sub, diseases_up)
+      }
+      # write.xlsx(diseases_up, file = "Diseases association by Disgenet.xlsx", sheetName = "upreg", append = TRUE)
+      
+      for (f in et_annot_low$symbol){
+        sub <- NULL
+        sub <- table[grepl(paste(f), table$geneSymbol, ignore.case = TRUE),]
+        sub <- sub[order(sub$score, decreasing = TRUE),]
+        sub <- sub[seq(1:5),]
+        sub <- as.data.frame(sub$diseaseName)
+        sub <- transpose(sub)
+        sub$gene <- paste(f)
+        diseases_down<- rbind(sub, diseases_down)
+      }
+      # write.xlsx(diseases_down, file = "Diseases association by Disgenet.xlsx", sheetName = "downreg", append = TRUE)
+      
+      
+      up <- as.data.frame(table(unlist(diseases_up)))
+      up <- up[order(up$Freq, decreasing = TRUE),]
+      up <- up[seq(1:diseases_set),]
+      names(up) <- c("Disease", "Frequency")
+      write.xlsx(up, file = "Top Diseases by Disgenet.xlsx", sheetName = "upreg", append = TRUE)
+      
+      down <- as.data.frame(table(unlist(diseases_down)))
+      down <- down[order(down$Freq, decreasing = TRUE),]
+      down <- down[seq(1:diseases_set),]
+      names(down) <- c("Disease", "Frequency")
+      write.xlsx(down, file = "Top Diseases by Disgenet.xlsx", sheetName = "downreg", append = TRUE)
+      }
 }
-
-table <- read.delim(file = '~/GitHub/data/curated_gene_disease_associations.tsv')
-table <- as.data.frame(table)
-
-diseases_up <- data.frame()
-diseases_down <- data.frame()
-for (f in et_annot_high$symbol){
-  sub <- NULL
-  sub <- table[grepl(paste(f), table$geneSymbol, ignore.case = TRUE),]
-  sub <- sub[order(sub$score, decreasing = TRUE),]
-  sub <- sub[seq(1:5),]
-  sub <- as.data.frame(sub$diseaseName)
-  sub <- transpose(sub)
-  sub$gene <- paste(f)
-  diseases_up <- rbind(sub, diseases_up)
-}
-# write.xlsx(diseases_up, file = "Diseases association by Disgenet.xlsx", sheetName = "upreg", append = TRUE)
-
-for (f in et_annot_low$symbol){
-  sub <- NULL
-  sub <- table[grepl(paste(f), table$geneSymbol, ignore.case = TRUE),]
-  sub <- sub[order(sub$score, decreasing = TRUE),]
-  sub <- sub[seq(1:5),]
-  sub <- as.data.frame(sub$diseaseName)
-  sub <- transpose(sub)
-  sub$gene <- paste(f)
-  diseases_down<- rbind(sub, diseases_down)
-}
-# write.xlsx(diseases_down, file = "Diseases association by Disgenet.xlsx", sheetName = "downreg", append = TRUE)
-
-
-up <- as.data.frame(table(unlist(diseases_up)))
-up <- up[order(up$Freq, decreasing = TRUE),]
-up <- up[seq(1:diseases_set),]
-names(up) <- c("Disease", "Frequency")
-write.xlsx(up, file = "Top Diseases by Disgenet.xlsx", sheetName = "upreg", append = TRUE)
-
-down <- as.data.frame(table(unlist(diseases_down)))
-down <- down[order(down$Freq, decreasing = TRUE),]
-down <- down[seq(1:diseases_set),]
-names(down) <- c("Disease", "Frequency")
-write.xlsx(down, file = "Top Diseases by Disgenet.xlsx", sheetName = "downreg", append = TRUE)
-}
-
 
 
 
@@ -1171,7 +1203,7 @@ pth_pan_up <- pth_pan_up[order(pth_pan_up$Freq, decreasing = TRUE),]
 pth_pan_up <- pth_pan_up[seq(1:pathways_set),]
 names(pth_pan_up) <- c("Pathway ID", "Frequency")
 
-c v
+pth_pan_down <- as.data.frame(table(unlist(pan_down$pathway)))
 pth_pan_down <- pth_pan_down[order(pth_pan_down$Freq, decreasing = TRUE),]
 pth_pan_down <- pth_pan_down[seq(1:pathways_set),]
 names(pth_pan_down) <- c("Pathway ID", "Frequency")
@@ -1278,96 +1310,63 @@ dev.off()
 
 deviant <- common[seq(1:10),]
 
-deviant$Symbol <- mapIds(org.Mm.eg.db, 
+deviant$Symbol <- mapIds(paste(database.type), 
                          keys=row.names(deviant), 
                          column="SYMBOL", 
-                         keytype="ENSEMBL",
+                         keytype=paste(key.type),
                          multiVals="first")
-deviant$Name <- mapIds(org.Mm.eg.db, 
+deviant$Name <- mapIds(paste(database.type), 
                          keys=row.names(deviant), 
                          column="GENENAME", 
-                         keytype="ENSEMBL",
+                         keytype=paste(key.type),
                          multiVals="first")
 
 write.xlsx(deviant, file = "Top 10 deviant genes between deseq2 and edgeR.xlsx")
 ### MOTIV ENRICHMENT
-geneList1 <- et_annot$symbol
-geneLists <- list(geneListName=geneList1)
-motifRankings <- mm9_10kbpAroundTss_motifRanking
-
-motifEnrichmentTable_wGenes <- cisTarget(geneLists, motifRankings,
-                                motifAnnot_direct=mm9_direct_motifAnnotation)
-
-motifEnrichmentTable_wGenes_wLogo <- addLogo(motifEnrichmentTable_wGenes)
-resultsSubset <- motifEnrichmentTable_wGenes_wLogo
-result <- datatable(resultsSubset[,-c("enrichedGenes", "TF_inferred"), with=FALSE], 
-                    escape = FALSE, # To show the logo
-                    filter="top", options=list(pageLength=5))
-
-
-saveWidget(result, file="TF enrichment.html")
-
-motifs_AUC <- calcAUC(geneLists, motifRankings, nCores=1)
-motifEnrichmentTable <- addMotifAnnotation(motifs_AUC, motifAnnot_direct=mm9_direct_motifAnnotation)
-
-signifMotifNames <- motifEnrichmentTable$motif[1:3]
-incidenceMatrix <- getSignificantGenes(geneLists, 
-                                       motifRankings,
-                                       signifRankingNames=signifMotifNames,
-                                       plotCurve=TRUE, maxRank=5000, 
-                                       genesFormat="incidMatrix",
-                                       method="aprox")$incidMatrix
-
-edges <- melt(incidenceMatrix)
-edges <- edges[which(edges[,3]==1),1:2]
-colnames(edges) <- c("from","to")
-
-
-motifs <- unique(as.character(edges[,1]))
-genes <- unique(as.character(edges[,2]))
-nodes <- data.frame(id=c(motifs, genes),   
-                    label=c(motifs, genes),    
-                    title=c(motifs, genes), # tooltip 
-                    shape=c(rep("diamond", length(motifs)), rep("elypse", length(genes))),
-                    color=c(rep("purple", length(motifs)), rep("skyblue", length(genes))))
-
-web <- visNetwork(nodes, edges) %>% visOptions(highlightNearest = TRUE, 
-                                               nodesIdSelection = TRUE)
-
-saveWidget(web, file="TF enrichment web.html")
-write.xlsx(motifEnrichmentTable_wGenes, file = "Transcription factor binding motif enrichment.xlsx")
-#gene.data <- getBM(attributes = c("ensembl_gene_id", 'go_id'), filters = 'go', mart = mart, values = 'GO:0007507')
-
-cpm <- logCPM
-cpm$Symbol <- mapIds(org.Mm.eg.db, 
-                     keys=row.names(cpm), 
-                     column="SYMBOL", 
-                     keytype="ENSEMBL",
-                     multiVals="first")
-
-cpm$Name <- mapIds(org.Mm.eg.db, 
-                   keys=row.names(cpm), 
-                   column="GENENAME", 
-                   keytype="ENSEMBL",
-                   multiVals="first")              
-
-a <- grep("Cd", cpm$Symbol)
-cpm <- cpm[a,]
-a <- grep("antigen", cpm$Name)
-cpm <- cpm[a,]
-remove <- c("Cdr1")
-cpm <- cpm[!(cpm$Symbol %in% remove), ] 
-rownames(cpm) <- cpm$Symbol
-cpm$Symbol <- NULL
-cpm$Name <- NULL
-cpm <- t(scale(t(cpm)))
-cpm <- cpm[complete.cases(cpm),]
-getwd()
-pdf(file = "CD markers CPM filter.pdf", width = 12, height = 17, family = "Helvetica")
-heatmap.2(cpm, col=col.pan, Rowv=TRUE, scale="none",
-          trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-          margin=c(15,10), lhei=c(2,10), lwid=c(2,6), main = "CD markers, CPM filtered")
-dev.off()
-getwd()
-
-
+if (spices == "mouse"){
+    geneList1 <- et_annot$symbol
+    geneLists <- list(geneListName=geneList1)
+    motifRankings <- mm9_10kbpAroundTss_motifRanking
+    
+    motifEnrichmentTable_wGenes <- cisTarget(geneLists, motifRankings,
+                                    motifAnnot_direct=mm9_direct_motifAnnotation)
+    
+    motifEnrichmentTable_wGenes_wLogo <- addLogo(motifEnrichmentTable_wGenes)
+    resultsSubset <- motifEnrichmentTable_wGenes_wLogo
+    result <- datatable(resultsSubset[,-c("enrichedGenes", "TF_inferred"), with=FALSE], 
+                        escape = FALSE, # To show the logo
+                        filter="top", options=list(pageLength=5))
+    
+    
+    saveWidget(result, file="TF enrichment.html")
+    
+    motifs_AUC <- calcAUC(geneLists, motifRankings, nCores=1)
+    motifEnrichmentTable <- addMotifAnnotation(motifs_AUC, motifAnnot_direct=mm9_direct_motifAnnotation)
+    
+    signifMotifNames <- motifEnrichmentTable$motif[1:3]
+    incidenceMatrix <- getSignificantGenes(geneLists, 
+                                           motifRankings,
+                                           signifRankingNames=signifMotifNames,
+                                           plotCurve=TRUE, maxRank=5000, 
+                                           genesFormat="incidMatrix",
+                                           method="aprox")$incidMatrix
+    
+    edges <- melt(incidenceMatrix)
+    edges <- edges[which(edges[,3]==1),1:2]
+    colnames(edges) <- c("from","to")
+    
+    
+    motifs <- unique(as.character(edges[,1]))
+    genes <- unique(as.character(edges[,2]))
+    nodes <- data.frame(id=c(motifs, genes),   
+                        label=c(motifs, genes),    
+                        title=c(motifs, genes), # tooltip 
+                        shape=c(rep("diamond", length(motifs)), rep("elypse", length(genes))),
+                        color=c(rep("purple", length(motifs)), rep("skyblue", length(genes))))
+    
+    web <- visNetwork(nodes, edges) %>% visOptions(highlightNearest = TRUE, 
+                                                   nodesIdSelection = TRUE)
+    
+    saveWidget(web, file="TF enrichment web.html")
+    write.xlsx(motifEnrichmentTable_wGenes, file = "Transcription factor binding motif enrichment.xlsx")
+}
