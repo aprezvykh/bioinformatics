@@ -47,7 +47,6 @@ data("mm9_10kbpAroundTss_motifRanking")
 data("mm9_direct_motifAnnotation")
 
 heatmaps <- TRUE
-custom_heatmap <- FALSE
 custom_genes_plots <- FALSE
 fisherGO <- TRUE
 analyze_all_samples <- TRUE
@@ -57,7 +56,7 @@ panther_analysis <- TRUE
 deseq2_part <- TRUE
 qlm_test <- TRUE
 logging <- FALSE
-
+motiv <- FALSE
 ### CONSTANTS BLOCK
 
 pvalue_cutoff <- 0.05
@@ -107,6 +106,12 @@ if (analyze_all_samples == TRUE){
         #sampleCondition <- c("control", "control", "control", "control", 
         #                    "case", "case", "case", "case")
         sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
+        col <- as.vector(sampleTable$sampleName)
+        names(col) <- c("yellow", "yellow", "yellow", "yellow", "yellow", 
+                        "purple", "purple", "purple", "purple", "purple", 
+                        "green", "green", "green", "green", "green", 
+                        "red", "red", "red", "red", 
+                        "blue", "blue", "blue", "blue", "blue")
         y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
 } else if (analyze_all_samples == FALSE){
         files_control <- grep(paste(gr_control),list.files(directory),value=TRUE)
@@ -124,13 +129,13 @@ results.dir <- paste(directory, "results", sep = "")
 setwd(results.dir)
 
 
-if (analyze_all_samples == FALSE){
-dir.create(stattest)
-setwd(stattest)
-} else if (analyze_all_samples == TRUE){
-  dir.create("all")
-  setwd("all")
-}
+  if (analyze_all_samples == FALSE){
+  dir.create(stattest)
+  setwd(stattest)
+  } else if (analyze_all_samples == TRUE){
+    dir.create("all")
+    setwd("all")
+  }
 
 # PLOTTING HTSEQ QUALITY BARPLOTS
 
@@ -208,7 +213,7 @@ if (qlm_test == TRUE){
   et_annot <- as.data.frame(et$table) 
   et_annot_non_filtered <- as.data.frame(et$table) 
 }
-nrow(cpm)
+nrow(logCPM)
 write.csv(logCPM, file = "overall logCPM.csv")
 ### ANNOTATE
 
@@ -266,6 +271,21 @@ et_annot_non_filtered$Symbol <- mapIds(org.Mm.eg.db,
                           column="ENTREZID", 
                           keytype="ENSEMBL",
                           multiVals="first")
+
+
+top$Symbol <- mapIds(org.Mm.eg.db, 
+                         keys=row.names(top), 
+                         column="SYMBOL", 
+                         keytype="ENSEMBL",
+                         multiVals="first")
+top$Name<- mapIds(org.Mm.eg.db, 
+                       keys=row.names(top), 
+                       column="GENENAME", 
+                       keytype="ENSEMBL",
+                       multiVals="first")
+
+
+top <- top[complete.cases(top),]
 ### FILTRATION
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
@@ -580,7 +600,6 @@ GOdata = new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = funct
                0.05, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", nodeSize = 2)
 
 allGO <- genesInTerm(GOdata)
-
 ##UP
 remove <- c("MF", "CC")
 dir.create("GO heatmap plots upregulated")
@@ -771,17 +790,25 @@ write.xlsx(gomf_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 250
 write.xlsx(gocc_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 250", append = TRUE)
 
 
+###colors
 
 ## CORELLATION MARIX
-correl <- cpm(y)
+correl <- logCPM
 correl <- as.data.frame(correl)
-correl <- correl[(rownames(correl) %in% rownames(logCPM)),]
+correl <- correl[complete.cases(correl),]
 x <- cor(correl, method = "spearman")
 pdf(file = "Corellation matrix.pdf", width = 10, height = 10)
 heatmap.2(x, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-          margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Spearman corellation")
+          margin=c(15,15), lhei=c(2,10), lwid=c(2,6), main = "Spearman corellation")
 dev.off()
+
+#legend("topright",
+#       legend = c("Control-1", "Control-3", "Tg-1", "Tg-2", "Tg-3"),
+#       col = c("yellow", "purple", "green", "red", "blue"),
+#       lty= 1,
+#       lwd = 10)
+
 #heatmap.2(x, margins = c(10,10))      
 ### MDS PLOT
 pch <- c(0,1,2,15,16,17)
@@ -988,30 +1015,8 @@ if (analyze_all_samples == TRUE){
 } else {
   setwd(stattest)
 }
-### SEARCH AND PLOT!
-if (custom_heatmap == TRUE) {
-logCPM$Name <- y$genes$Name
-let <- c("CD")
 
-for (f in let){
-  sub <- logCPM[grepl(paste(f), logCPM$Name),]
-  sub$Name <- NULL
-  sub <- t(scale(t(sub)))
-  pdf(file = paste(f,"_query_heatmap.pdf",sep=""), width = 12, height = 17, family = "Helvetica")
-  heatmap.2(sub, col=col.pan, Rowv=TRUE, scale="column",
-            trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-            margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
-  dev.off()
-  if (custom_genes_plots == TRUE){
-  logdf <- as.data.frame(sub)
-  for (i in seq(1:nrow(logdf))){
-    png(file = paste(rownames(logdf[i,]), "_CPM.png", sep=""))
-    boxplot.default(logdf[i,],outline = TRUE,  main = paste(rownames(logdf[i,])))
-    dev.off()}
-  }
-  
-}
-}
+
 
 # KEGG PLOTS
 setwd(results.dir)
@@ -1171,7 +1176,6 @@ pth_pan_up <- pth_pan_up[order(pth_pan_up$Freq, decreasing = TRUE),]
 pth_pan_up <- pth_pan_up[seq(1:pathways_set),]
 names(pth_pan_up) <- c("Pathway ID", "Frequency")
 
-c v
 pth_pan_down <- pth_pan_down[order(pth_pan_down$Freq, decreasing = TRUE),]
 pth_pan_down <- pth_pan_down[seq(1:pathways_set),]
 names(pth_pan_down) <- c("Pathway ID", "Frequency")
@@ -1291,54 +1295,63 @@ deviant$Name <- mapIds(org.Mm.eg.db,
 
 write.xlsx(deviant, file = "Top 10 deviant genes between deseq2 and edgeR.xlsx")
 ### MOTIV ENRICHMENT
-geneList1 <- et_annot$symbol
-geneLists <- list(geneListName=geneList1)
-motifRankings <- mm9_10kbpAroundTss_motifRanking
-
-motifEnrichmentTable_wGenes <- cisTarget(geneLists, motifRankings,
-                                motifAnnot_direct=mm9_direct_motifAnnotation)
-
-motifEnrichmentTable_wGenes_wLogo <- addLogo(motifEnrichmentTable_wGenes)
-resultsSubset <- motifEnrichmentTable_wGenes_wLogo
-result <- datatable(resultsSubset[,-c("enrichedGenes", "TF_inferred"), with=FALSE], 
-                    escape = FALSE, # To show the logo
-                    filter="top", options=list(pageLength=5))
 
 
-saveWidget(result, file="TF enrichment.html")
 
-motifs_AUC <- calcAUC(geneLists, motifRankings, nCores=1)
-motifEnrichmentTable <- addMotifAnnotation(motifs_AUC, motifAnnot_direct=mm9_direct_motifAnnotation)
+if (motiv == TRUE){
+      geneList1 <- et_annot$symbol
+      geneLists <- list(geneListName=geneList1)
+      motifRankings <- mm9_10kbpAroundTss_motifRanking
+      
+      motifEnrichmentTable_wGenes <- cisTarget(geneLists, motifRankings,
+                                      motifAnnot_direct=mm9_direct_motifAnnotation)
+      
+      motifEnrichmentTable_wGenes_wLogo <- addLogo(motifEnrichmentTable_wGenes)
+      resultsSubset <- motifEnrichmentTable_wGenes_wLogo
+      result <- datatable(resultsSubset[,-c("enrichedGenes", "TF_inferred"), with=FALSE], 
+                          escape = FALSE, # To show the logo
+                          filter="top", options=list(pageLength=5))
+      
+      
+      saveWidget(result, file="TF enrichment.html")
+      
+      motifs_AUC <- calcAUC(geneLists, motifRankings, nCores=1)
+      motifEnrichmentTable <- addMotifAnnotation(motifs_AUC, motifAnnot_direct=mm9_direct_motifAnnotation)
+      
+      signifMotifNames <- motifEnrichmentTable$motif[1:3]
+      incidenceMatrix <- getSignificantGenes(geneLists, 
+                                             motifRankings,
+                                             signifRankingNames=signifMotifNames,
+                                             plotCurve=TRUE, maxRank=5000, 
+                                             genesFormat="incidMatrix",
+                                             method="aprox")$incidMatrix
+      
+      edges <- melt(incidenceMatrix)
+      edges <- edges[which(edges[,3]==1),1:2]
+      colnames(edges) <- c("from","to")
+      
+      
+      motifs <- unique(as.character(edges[,1]))
+      genes <- unique(as.character(edges[,2]))
+      nodes <- data.frame(id=c(motifs, genes),   
+                          label=c(motifs, genes),    
+                          title=c(motifs, genes), # tooltip 
+                          shape=c(rep("diamond", length(motifs)), rep("elypse", length(genes))),
+                          color=c(rep("purple", length(motifs)), rep("skyblue", length(genes))))
+      
+      web <- visNetwork(nodes, edges) %>% visOptions(highlightNearest = TRUE, 
+                                                     nodesIdSelection = TRUE)
+      
+      saveWidget(web, file="TF enrichment web.html")
+      write.xlsx(motifEnrichmentTable_wGenes, file = "Transcription factor binding motif enrichment.xlsx")
+}
 
-signifMotifNames <- motifEnrichmentTable$motif[1:3]
-incidenceMatrix <- getSignificantGenes(geneLists, 
-                                       motifRankings,
-                                       signifRankingNames=signifMotifNames,
-                                       plotCurve=TRUE, maxRank=5000, 
-                                       genesFormat="incidMatrix",
-                                       method="aprox")$incidMatrix
-
-edges <- melt(incidenceMatrix)
-edges <- edges[which(edges[,3]==1),1:2]
-colnames(edges) <- c("from","to")
 
 
-motifs <- unique(as.character(edges[,1]))
-genes <- unique(as.character(edges[,2]))
-nodes <- data.frame(id=c(motifs, genes),   
-                    label=c(motifs, genes),    
-                    title=c(motifs, genes), # tooltip 
-                    shape=c(rep("diamond", length(motifs)), rep("elypse", length(genes))),
-                    color=c(rep("purple", length(motifs)), rep("skyblue", length(genes))))
-
-web <- visNetwork(nodes, edges) %>% visOptions(highlightNearest = TRUE, 
-                                               nodesIdSelection = TRUE)
-
-saveWidget(web, file="TF enrichment web.html")
-write.xlsx(motifEnrichmentTable_wGenes, file = "Transcription factor binding motif enrichment.xlsx")
-#gene.data <- getBM(attributes = c("ensembl_gene_id", 'go_id'), filters = 'go', mart = mart, values = 'GO:0007507')
-
-cpm <- logCPM
+##EDITABLE PART, MAY NOT BE INVOLVED IN A SCRIPT WORKFLOW
+##get all samples...
+cpm <- as.data.frame(cpm(y))
+### get filtered samples (with no expressed also)
 cpm$Symbol <- mapIds(org.Mm.eg.db, 
                      keys=row.names(cpm), 
                      column="SYMBOL", 
@@ -1350,24 +1363,81 @@ cpm$Name <- mapIds(org.Mm.eg.db,
                    column="GENENAME", 
                    keytype="ENSEMBL",
                    multiVals="first")              
+### GREP SOME GENES
+pattern <- c("lymphocyte antigen")
+a <- grep(paste(pattern, collapse = "|"), cpm$Symbol, ignore.case = TRUE)
+thm <- cpm[a,]
+### REMOVE SOME GENES
+#remove <- c("Cdr1")
+#cpm <- cpm[!(cpm$Symbol %in% remove), ] 
+rownames(thm) <- make.names(thm$Symbol, unique = TRUE)
+thm$Symbol <- NULL
+thm$Name <- NULL
+thm <- t(scale(t(thm)))
+thm <- thm[complete.cases(thm),]
 
-a <- grep("Cd", cpm$Symbol)
-cpm <- cpm[a,]
-a <- grep("antigen", cpm$Name)
-cpm <- cpm[a,]
-remove <- c("Cdr1")
-cpm <- cpm[!(cpm$Symbol %in% remove), ] 
-rownames(cpm) <- cpm$Symbol
-cpm$Symbol <- NULL
-cpm$Name <- NULL
-cpm <- t(scale(t(cpm)))
-cpm <- cpm[complete.cases(cpm),]
-getwd()
-pdf(file = "CD markers CPM filter.pdf", width = 12, height = 17, family = "Helvetica")
-heatmap.2(cpm, col=col.pan, Rowv=TRUE, scale="none",
+pdf(file = "Ly.pdf", width = 12, height = 17, family = "Helvetica")
+heatmap.2(thm, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-          margin=c(15,10), lhei=c(2,10), lwid=c(2,6), main = "CD markers, CPM filtered")
+          margin=c(15,15), lhei=c(2,10), lwid=c(2,6), main = "", ColSideColors = names(col),
+          labCol = FALSE)
+
+legend("topright",
+       legend = c("Control-1", "Control-3", "Tg-1", "Tg-2", "Tg-3"),
+       col = c("yellow", "purple", "green", "red", "blue"),
+       lty= 1,
+       lwd = 10)
 dev.off()
-getwd()
+
+### BOX PLOT
+cpm <- as.data.frame(cpm(y))
+cpm$Symbol <- mapIds(org.Mm.eg.db, 
+                     keys=row.names(cpm), 
+                     column="SYMBOL", 
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+cpm$Name <- mapIds(org.Mm.eg.db, 
+                   keys=row.names(cpm), 
+                   column="GENENAME", 
+                   keytype="ENSEMBL",
+                   multiVals="first") 
+
+cpm$GOID <-     mapIds(org.Mm.eg.db, 
+                            keys=row.names(cpm), 
+                            column="GO", 
+                            keytype="ENSEMBL",
+                            multiVals="first")
+
+cpm$term <- mapIds(GO.db, 
+                        keys=cpm$GOID, 
+                        column="TERM", 
+                        keytype="GOID",
+                        multiVals="first")
+cpm$term <- as.character(cpm$term)
+
+
+f <- c("ENSMUSG00000010825")
+src <- c("Moto")
+a <- grep(paste(f), rownames(cpm), ignore.case = TRUE)
+thm <- cpm[a,]
+rownames(thm) <- thm$Symbol
+plot.name <- rownames(thm)
+plot.description <- thm$Name
+plot.term <- thm$term
+thm$Symbol <- NULL
+thm$Name <- NULL
+thm$GOID <- NULL
+thm$term <- NULL
+colnames(thm) <- sampleTable$condition
+thm <-as.data.frame(t(thm))
+thm$cond <- rownames(thm)
+names(thm) <- c("gene", "Condition")
+#pdf(file = paste(plot.name, "pdf", sep = "."), width = 10, height = 10, family = "Helvetica")
+png("test.png", height = 600, width = 800)
+g <- ggplot(thm, aes(x = Condition, y = gene,  color = Condition, fill = Condition)) + geom_boxplot(alpha = 0.5, color = "black") + scale_x_discrete(name = "Experimental Groups") + scale_y_continuous(name = "Counts per million") + theme_bw()
+g + ggtitle(paste("Gene official symbol: ", plot.name,"\n", "Gene name: ", plot.description, "\n", "Tissue: ", src, "\n", "GO Direct term: ", plot.term)) + theme(plot.title = element_text(hjust = 0.5))
+dev.off()
+
 
 

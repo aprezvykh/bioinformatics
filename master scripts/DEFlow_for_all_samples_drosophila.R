@@ -934,8 +934,6 @@ getwd()
 
 
 
-
-
 logCPM$name <- mapIds(org.Dm.eg.db, 
                         keys=row.names(logCPM), 
                         column="GENENAME", 
@@ -947,26 +945,6 @@ logCPM$symbol <- mapIds(org.Dm.eg.db,
                         column="SYMBOL", 
                         keytype="FLYBASE",
                         multiVals="first")
-
-
-
-
-
-
-### SEARCH AND PLOT!
-if (custom_heatmap == TRUE) {
-  let <- c("memo")
-  sub <- logCPM[grep(paste(let), logCPM$name, ignore.case = TRUE),]
-  rownames(sub) <- sub$symbol
-  sub$symbol <- NULL
-  sub$name <- NULL
-  sub <- t(scale(t(sub)))
-  png(file = "Ribosomal.png")
-  heatmap.2(sub, col=col.pan, Rowv=TRUE, scale="column",
-              trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-              margin=c(10,9), lhei=c(2,10), lwid=c(2,6))
-  dev.off()
-}
 
 
 dir.create("kegg")
@@ -1185,6 +1163,55 @@ deviant$Name <- mapIds(org.Dm.eg.db,
                        multiVals="first")
 
 write.xlsx(deviant, file = "Top 10 deviant genes between deseq2 and edgeR.xlsx")
+
+
+### BOXPLOT
+cpm <- as.data.frame(cpm(y))
+cpm$Symbol <- mapIds(org.Mm.eg.db, 
+                     keys=row.names(cpm), 
+                     column="SYMBOL", 
+                     keytype="FLYBASE",
+                     multiVals="first")
+
+cpm$Name <- mapIds(org.Mm.eg.db, 
+                   keys=row.names(cpm), 
+                   column="GENENAME", 
+                   keytype="FLYBASE",
+                   multiVals="first") 
+
+cpm$GOID <-     mapIds(org.Mm.eg.db, 
+                       keys=row.names(cpm), 
+                       column="GO", 
+                       keytype="FLYBASE",
+                       multiVals="first")
+
+cpm$term <- mapIds(GO.db, 
+                   keys=cpm$GOID, 
+                   column="TERM", 
+                   keytype="GOID",
+                   multiVals="first")
+cpm$term <- as.character(cpm$term)
+
+
+f <- c("ENSMUSG00000059498")
+a <- grep(paste(f), rownames(cpm), ignore.case = TRUE)
+thm <- cpm[a,]
+rownames(thm) <- thm$Symbol
+plot.name <- rownames(thm)
+plot.description <- thm$Name
+plot.term <- thm$term
+thm$Symbol <- NULL
+thm$Name <- NULL
+thm$GOID <- NULL
+thm$term <- NULL
+colnames(thm) <- sampleTable$condition
+thm <-as.data.frame(t(thm))
+thm$cond <- rownames(thm)
+names(thm) <- c("gene", "Condition")
+pdf(file = paste(plot.name, "pdf", sep = "."), width = 10, height = 10, family = "Helvetica")
+g <- ggplot(thm, aes(x = Condition, y = gene,  color = Condition, fill = Condition)) + geom_boxplot(alpha = 0.5, color = "black") + scale_x_discrete(name = "Experimental Groups") + scale_y_continuous(name = "Counts per million") + theme_bw()
+g + ggtitle(paste("Gene official symbol: ", plot.name,"\n", "Gene name: ", plot.description, "\n", "GO Direct term: ", plot.term)) + theme(plot.title = element_text(hjust = 0.5))
+dev.off()
 
 
 
