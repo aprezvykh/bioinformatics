@@ -40,7 +40,8 @@ library(rvest)
 library(XML)
 library(plyr)
 library(AnnotationDbi)
-
+library(ggsignif)
+library(grid)
 ### TFES
 library(RcisTarget.mm9.motifDatabases.20k)
 data("mm9_10kbpAroundTss_motifRanking")
@@ -98,11 +99,17 @@ library(dplyr)
 
 if (analyze_all_samples == TRUE){
         sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
-        sampleCondition <- c('control_early', 'control_early', 'control_early', 'control_early', 'control_early', 
-                             'control_late', 'control_late', 'control_late', 'control_late', 'control_late', 
-                            'tg_early', 'tg_early', 'tg_early', 'tg_early', 'tg_early', 
-                             'tg_mid', 'tg_mid', 'tg_mid', 'tg_mid', 
-                            'tg_late', 'tg_late', 'tg_late', 'tg_late', 'tg_late')
+        sampleCondition <- c('Control-1', 'Control-1', 'Control-1', 'Control-1', 'Control-1', 
+                             'Control-3', 'Control-3', 'Control-3', 'Control-3', 'Control-3', 
+                            'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 
+                             'Tg-2', 'Tg-2', 'Tg-2', 'Tg-2', 
+                            'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3')        
+        
+        #sampleCondition <- c('control_early', 'control_early', 'control_early', 'control_early', 'control_early', 
+        #                     'control_late', 'control_late', 'control_late', 'control_late', 'control_late', 
+        #                    'tg_early', 'tg_early', 'tg_early', 'tg_early', 'tg_early', 
+        #                     'tg_mid', 'tg_mid', 'tg_mid', 'tg_mid', 
+        #                    'tg_late', 'tg_late', 'tg_late', 'tg_late', 'tg_late')
         #sampleCondition <- c("control", "control", "control", "control", 
         #                    "case", "case", "case", "case")
         sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
@@ -796,21 +803,24 @@ write.xlsx(gocc_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 250
 correl <- logCPM
 correl <- as.data.frame(correl)
 correl <- correl[complete.cases(correl),]
-x <- cor(correl, method = "spearman")
-pdf(file = "Corellation matrix.pdf", width = 10, height = 10)
+x <- cor(correl, method = "pearson")
+pdf(file = "Corellation matrix Spearman.pdf", width = 10, height = 10)
 heatmap.2(x, col=col.pan, Rowv=TRUE, scale="none",
-          trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-          margin=c(15,15), lhei=c(2,10), lwid=c(2,6), main = "Spearman corellation")
+          trace="none", dendrogram="both", cexRow=1.4, cexCol=1.4, density.info="none",
+          margin=c(18,18), lhei=c(2,10), lwid=c(2,6), main = "Spearman corellation",
+          ColSideColors = names(col), RowSideColors = names(col))
+
+
+legend("bottomright",
+       legend = c("Control-1", "Control-3", "Tg-1", "Tg-2", "Tg-3"),
+       col = c("yellow", "purple", "green", "red", "blue"),
+       lty= 1,
+       lwd = 10)
 dev.off()
-
-#legend("topright",
-#       legend = c("Control-1", "Control-3", "Tg-1", "Tg-2", "Tg-3"),
-#       col = c("yellow", "purple", "green", "red", "blue"),
-#       lty= 1,
-#       lwd = 10)
-
 #heatmap.2(x, margins = c(10,10))      
 ### MDS PLOT
+
+
 pch <- c(0,1,2,15,16,17)
 colors <- rep(c("darkgreen", "red", "blue"), 2)
 # pdf(file = "PCAPlot.pdf", width = 12, height = 17, family = "Helvetica")
@@ -1417,9 +1427,9 @@ cpm$term <- mapIds(GO.db,
 cpm$term <- as.character(cpm$term)
 
 
-f <- c("ENSMUSG00000010825")
-src <- c("Moto")
-a <- grep(paste(f), rownames(cpm), ignore.case = TRUE)
+f <- c("ENSMUSG00000061740")
+src <- c("Motoneurons")
+a <- grepl(paste(f, collapse = "|"), rownames(cpm), ignore.case = TRUE)
 thm <- cpm[a,]
 rownames(thm) <- thm$Symbol
 plot.name <- rownames(thm)
@@ -1434,10 +1444,49 @@ thm <-as.data.frame(t(thm))
 thm$cond <- rownames(thm)
 names(thm) <- c("gene", "Condition")
 #pdf(file = paste(plot.name, "pdf", sep = "."), width = 10, height = 10, family = "Helvetica")
-png("test.png", height = 600, width = 800)
-g <- ggplot(thm, aes(x = Condition, y = gene,  color = Condition, fill = Condition)) + geom_boxplot(alpha = 0.5, color = "black") + scale_x_discrete(name = "Experimental Groups") + scale_y_continuous(name = "Counts per million") + theme_bw()
-g + ggtitle(paste("Gene official symbol: ", plot.name,"\n", "Gene name: ", plot.description, "\n", "Tissue: ", src, "\n", "GO Direct term: ", plot.term)) + theme(plot.title = element_text(hjust = 0.5))
+png(paste(plot.name, "-", src, ".png", sep=""), height = 600, width = 800)
+g <- ggplot(thm, aes(x = Condition, y = gene,  color = Condition, fill = Condition)) + 
+            geom_boxplot(alpha = 0.5, color = "black") + 
+            scale_x_discrete(name = "Experimental Groups") + 
+            scale_y_continuous(name = "Counts per million") + 
+            theme_bw() + 
+            geom_signif(comparisons = list(c("Tg-2", "Tg-3")), annotations="***")
+g + ggtitle(paste("Gene official symbol: ", plot.name,"\n", "Gene name: ", plot.description, "\n", "Tissue: ", src,  "\n", "GO Direct term: ", plot.term)) + theme(plot.title = element_text(hjust = 0.5)) 
 dev.off()
 
 
 
+###TRANSGENIC FUS
+#(paster after plot.description)
+thm <- read.xlsx("dFUS.xlsx", sheetIndex = 1)
+png(file = "delta-FUS.png", height = 600, width = 800)
+g <- ggplot(thm, aes(x = Condition, y = gene,  color = Condition, fill = Condition)) + geom_boxplot(alpha = 0.5, color = "black") + scale_x_discrete(name = "Experimental Groups") + scale_y_continuous(name = "Reads per million") + theme_bw() 
+g + ggtitle(paste("Gene official symbol: ", "Delta-FUS","\n", "Gene name: ", "Fused in sarcoma", "\n", "GO Direct term: ", plot.term)) + theme(plot.title = element_text(hjust = 0.5))
+dev.off()
+
+
+
+####MORE THAN TWO GENES IN PLOT
+b <- read.xlsx("~/counts/ALS Mice/experimental/results/fc1_w_kegga/tg_2-tg_3/Results edgeR.xlsx", sheetIndex = 2)
+b <- b[complete.cases(b),]
+p <- subset(b, b$PValue < 0.001)
+p <- subset(b, b$logCPM > 5)
+p <- subset(p, abs(p$logFC) > 3)
+
+f <- p$NA.
+a <- grepl(paste(f, collapse = "|"), rownames(cpm), ignore.case = TRUE)
+thm <- cpm[a,]
+rownames(thm) <- thm$Symbol
+thm$Symbol <- NULL
+thm$Name <- NULL
+thm$GOID <- NULL
+thm$term <- NULL
+colnames(thm) <- sampleTable$condition
+thm <- log2(thm)
+thm <-as.data.frame(t(thm))
+thm$Ñondition <- rownames(thm)
+thm <- melt(thm, id.vars = "Ñondition")
+pdf(file = "Top Tg2-Tg3 genes.pdf", width = 10, height = 10, family = "Helvetica")
+g <- ggplot(thm, aes(x = variable, y = value,  color = Ñondition, fill = Ñondition)) + geom_boxplot(alpha = 0.5, color = "black") + scale_x_discrete(name = "Experimental Groups") + scale_y_continuous(name = "LogCPM") + theme_bw() + facet_wrap( ~ variable, scales="free")
+g + ggtitle("Top Tg2-Tg3 genes") + theme(plot.title = element_text(hjust = 0.5))
+dev.off()
