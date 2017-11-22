@@ -293,6 +293,83 @@ top$Name<- mapIds(org.Mm.eg.db,
 
 
 top <- top[complete.cases(top),]
+### CPM
+cpm <- as.data.frame(cpm(y))
+
+cpm$Symbol <- mapIds(org.Mm.eg.db, 
+                     keys=row.names(cpm), 
+                     column="SYMBOL", 
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+cpm$Name <- mapIds(org.Mm.eg.db, 
+                   keys=row.names(cpm), 
+                   column="GENENAME", 
+                   keytype="ENSEMBL",
+                   multiVals="first")
+
+cpm$entrez <- mapIds(org.Mm.eg.db, 
+                     keys=row.names(cpm), 
+                     column="ENTREZID", 
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+cpm$GOID <-     mapIds(org.Mm.eg.db, 
+                       keys=row.names(cpm), 
+                       column="GO", 
+                       keytype="ENSEMBL",
+                       multiVals="first")
+
+cpm$term <- mapIds(GO.db, 
+                   keys=cpm$GOID, 
+                   column="TERM", 
+                   keytype="GOID",
+                   multiVals="first")
+cpm$term <- as.character(cpm$term)
+###TopTags Boxplots
+dir.create("TopTags Boxplots")
+setwd("TopTags Boxplots")
+
+for (f in rownames(top)){
+  r <- grep(paste(f), rownames(cpm), ignore.case = TRUE)
+  thm <- cpm[r,]
+  rownames(thm) <- thm$Symbol
+  plot.name <- rownames(thm)
+  plot.description <- thm$Name
+  plot.term <- thm$term
+  thm$Symbol <- NULL
+  thm$Name <- NULL
+  thm$GOID <- NULL
+  thm$term <- NULL
+  thm$entrez <- NULL
+  colnames(thm) <- sampleCondition
+  thm <-as.data.frame(t(thm))
+  thm$Condition <- rownames(thm)
+  thm$Group <- thm$Condition
+  names(thm) <- c("gene", "Condition", "Group")
+  pdf(file = paste(plot.name, "pdf", sep = "."), width = 10, height = 10, family = "Helvetica")
+  #png(paste(plot.name, "-", src, ".png", sep=""), height = 600, width = 800)
+  g <- ggplot(thm, aes(x = Condition, y = gene)) + 
+    geom_boxplot(data = thm, aes(fill = Group), alpha = 0.5) + 
+    scale_x_discrete(name = "Experimental Groups") + 
+    scale_y_continuous(name = "Counts per million") + 
+    theme_bw() + 
+    geom_signif(comparisons = list(c("Tg-2", "Tg-3")), map_signif_level = TRUE) + 
+                  ggtitle(paste("Gene official symbol: ", plot.name,"\n", "Gene name: ", plot.description,"\n", "Tissue: ", src, "\n", "GO Direct term: ", plot.term)) + 
+                  theme(plot.title = element_text(hjust = 0.5))
+                
+    ggsave(filename = paste(plot.name, "pdf", sep = "."), plot = g)
+
+}
+
+setwd(results.dir)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else if (analyze_all_samples == FALSE){
+  setwd(stattest)  
+}
+setwd(stattest)
+
 ### FILTRATION
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
@@ -1139,8 +1216,6 @@ write.xlsx(down, file = "Top Diseases by Disgenet.xlsx", sheetName = "downreg", 
 }
 
 
-
-
 ### PANTHER.DB
 
 if (panther_analysis == TRUE){
@@ -1357,22 +1432,7 @@ if (motiv == TRUE){
 }
 
 
-
-##EDITABLE PART, MAY NOT BE INVOLVED IN A SCRIPT WORKFLOW
-##get all samples...
-cpm <- as.data.frame(cpm(y))
-### get filtered samples (with no expressed also)
-cpm$Symbol <- mapIds(org.Mm.eg.db, 
-                     keys=row.names(cpm), 
-                     column="SYMBOL", 
-                     keytype="ENSEMBL",
-                     multiVals="first")
-
-cpm$Name <- mapIds(org.Mm.eg.db, 
-                   keys=row.names(cpm), 
-                   column="GENENAME", 
-                   keytype="ENSEMBL",
-                   multiVals="first")              
+###EDITABLE
 ### GREP SOME GENES
 pattern <- c("lymphocyte antigen")
 a <- grep(paste(pattern, collapse = "|"), cpm$Symbol, ignore.case = TRUE)
@@ -1400,93 +1460,29 @@ legend("topright",
 dev.off()
 
 ### BOX PLOT
-cpm <- as.data.frame(cpm(y))
-cpm$Symbol <- mapIds(org.Mm.eg.db, 
-                     keys=row.names(cpm), 
-                     column="SYMBOL", 
-                     keytype="ENSEMBL",
-                     multiVals="first")
-
-cpm$Name <- mapIds(org.Mm.eg.db, 
-                   keys=row.names(cpm), 
-                   column="GENENAME", 
-                   keytype="ENSEMBL",
-                   multiVals="first") 
-
-cpm$GOID <-     mapIds(org.Mm.eg.db, 
-                            keys=row.names(cpm), 
-                            column="GO", 
-                            keytype="ENSEMBL",
-                            multiVals="first")
-
-cpm$term <- mapIds(GO.db, 
-                        keys=cpm$GOID, 
-                        column="TERM", 
-                        keytype="GOID",
-                        multiVals="first")
-cpm$term <- as.character(cpm$term)
-
-
-f <- c("ENSMUSG00000061740")
-src <- c("Motoneurons")
-a <- grepl(paste(f, collapse = "|"), rownames(cpm), ignore.case = TRUE)
-thm <- cpm[a,]
-rownames(thm) <- thm$Symbol
-plot.name <- rownames(thm)
-plot.description <- thm$Name
-plot.term <- thm$term
-thm$Symbol <- NULL
-thm$Name <- NULL
-thm$GOID <- NULL
-thm$term <- NULL
-colnames(thm) <- sampleTable$condition
-thm <-as.data.frame(t(thm))
-thm$cond <- rownames(thm)
-names(thm) <- c("gene", "Condition")
-#pdf(file = paste(plot.name, "pdf", sep = "."), width = 10, height = 10, family = "Helvetica")
-png(paste(plot.name, "-", src, ".png", sep=""), height = 600, width = 800)
-g <- ggplot(thm, aes(x = Condition, y = gene,  color = Condition, fill = Condition)) + 
-            geom_boxplot(alpha = 0.5, color = "black") + 
-            scale_x_discrete(name = "Experimental Groups") + 
-            scale_y_continuous(name = "Counts per million") + 
-            theme_bw() + 
-            geom_signif(comparisons = list(c("Tg-2", "Tg-3")), annotations="***")
-g + ggtitle(paste("Gene official symbol: ", plot.name,"\n", "Gene name: ", plot.description, "\n", "Tissue: ", src,  "\n", "GO Direct term: ", plot.term)) + theme(plot.title = element_text(hjust = 0.5)) 
-dev.off()
-
-
-
-###TRANSGENIC FUS
-#(paster after plot.description)
-thm <- read.xlsx("dFUS.xlsx", sheetIndex = 1)
-png(file = "delta-FUS.png", height = 600, width = 800)
-g <- ggplot(thm, aes(x = Condition, y = gene,  color = Condition, fill = Condition)) + geom_boxplot(alpha = 0.5, color = "black") + scale_x_discrete(name = "Experimental Groups") + scale_y_continuous(name = "Reads per million") + theme_bw() 
-g + ggtitle(paste("Gene official symbol: ", "Delta-FUS","\n", "Gene name: ", "Fused in sarcoma", "\n", "GO Direct term: ", plot.term)) + theme(plot.title = element_text(hjust = 0.5))
-dev.off()
-
-
-
-####MORE THAN TWO GENES IN PLOT
-b <- read.xlsx("~/counts/ALS Mice/experimental/results/fc1_w_kegga/tg_2-tg_3/Results edgeR.xlsx", sheetIndex = 2)
-b <- b[complete.cases(b),]
-p <- subset(b, b$PValue < 0.001)
-p <- subset(b, b$logCPM > 5)
-p <- subset(p, abs(p$logFC) > 3)
-
-f <- p$NA.
-a <- grepl(paste(f, collapse = "|"), rownames(cpm), ignore.case = TRUE)
-thm <- cpm[a,]
+f <- c("GO:0000019")
+z <- allGO[[f]]
+z <- as.data.frame(z)
+thm <- cpm[(cpm$entrez %in% z$z),]
 rownames(thm) <- thm$Symbol
 thm$Symbol <- NULL
 thm$Name <- NULL
 thm$GOID <- NULL
 thm$term <- NULL
+thm$entrez <- NULL
 colnames(thm) <- sampleTable$condition
 thm <- log2(thm)
 thm <-as.data.frame(t(thm))
 thm$Ñondition <- rownames(thm)
 thm <- melt(thm, id.vars = "Ñondition")
-pdf(file = "Top Tg2-Tg3 genes.pdf", width = 10, height = 10, family = "Helvetica")
-g <- ggplot(thm, aes(x = variable, y = value,  color = Ñondition, fill = Ñondition)) + geom_boxplot(alpha = 0.5, color = "black") + scale_x_discrete(name = "Experimental Groups") + scale_y_continuous(name = "LogCPM") + theme_bw() + facet_wrap( ~ variable, scales="free")
-g + ggtitle("Top Tg2-Tg3 genes") + theme(plot.title = element_text(hjust = 0.5))
+pdf(file = "TopTags Genes.pdf", width = 10, height = 10, family = "Helvetica")
+g <- ggplot(thm, aes(x = Ñondition, y = value)) + geom_boxplot() +
+  geom_boxplot(data = thm, aes(fill = Ñondition), alpha = 0.5) + 
+  scale_x_discrete(name = "Experimental Groups") + 
+  scale_y_continuous(name = "logCPM") + 
+  theme_bw() +
+  geom_signif(comparisons = list(c("Tg-2", "Tg-3")), map_signif_level = TRUE, annotations = "***") +
+  facet_wrap(~variable, scales="free") + 
+  theme(axis.title.x=element_blank())
+  g + ggtitle("TopTags Genes") + theme(plot.title = element_text(hjust = 0.5)) 
 dev.off()
