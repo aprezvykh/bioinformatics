@@ -6,7 +6,7 @@ library(GO.db)
 library(ggplot2)
 row.names.remove <- c("NA.1")
 col.pan <- colorpanel(100, "blue", "white", "red")
-cpm <- read.csv("~/counts/ALS Mice/new filtering/experimental overall logCPM.csv")
+cpm <- read.csv("~/counts/ALS Mice/experimental/results/all/overall logCPM.csv")
 cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ] 
 cpm <- cpm[complete.cases(cpm),]
 rownames(cpm) <- cpm$X
@@ -14,32 +14,34 @@ cpm$X <- NULL
 a <- grep("tg", colnames(cpm))
 cpm <- cpm[,a]
 
-tg_12_glia <- read.csv("~/counts/ALS Mice/new filtering/tg1-tg2/glia/deg_glia_12.csv")
-tg_12_moto <- read.csv("~/counts/ALS Mice/new filtering/tg1-tg2/moto/deg_moto_12.csv")
-tg_12_others <- read.csv("~/counts/ALS Mice/new filtering/tg1-tg2/other/deg_out_12.csv")
+tg_12_glia <- read.csv("~/counts/ALS Mice/filtering fc=1 + FDR/Tg1-Tg2/glia/tg12-glia.csv")
+tg_12_moto <- read.csv("~/counts/ALS Mice/filtering fc=1 + FDR/Tg1-Tg2/moto/tg12-moto.csv")
+tg_12_others <- read.csv("~/counts/ALS Mice/filtering fc=1 + FDR/Tg1-Tg2/other/tg12-other.csv")
 
-tg_23_glia <- read.csv("~/counts/ALS Mice/new filtering/tg2-tg3/glia/deg_glia_23.csv")
-tg_23_moto <- read.csv("~/counts/ALS Mice/new filtering/tg2-tg3/moto/deg_moto_23.csv")
-tg_23_others <- read.csv("~/counts/ALS Mice/new filtering/tg2-tg3/other/deg_out_23.csv")
+tg_13_glia <- read.csv("~/counts/ALS Mice/filtering fc=1 + FDR/Tg1-Tg3/glia/tg13-glia.csv")
+tg_13_moto <- read.csv("~/counts/ALS Mice/filtering fc=1 + FDR/Tg1-Tg3/moto/tg13-moto.csv")
+tg_13_others <- read.csv("~/counts/ALS Mice/filtering fc=1 + FDR/Tg1-Tg3/other/tg13-other.csv")
 
-tg_23_glia$type <- paste("glia")
-tg_23_moto$type <- paste("moto")
-tg_23_others$type <- paste("others")
 
 setwd("~/counts/ALS Mice/experimental/results/all/")
 #all
 common <- data.frame()
-common <- tg_23_glia
-common <- rbind(tg_23_moto, common)
-common <- rbind(tg_23_others, common)
+common <- tg_13_glia
+common <- rbind(tg_13_moto, common)
+common <- rbind(tg_13_others, common)
 common$X <- NULL
 
 rownames(common) <- common$NA.
 common$NA. <- NULL
 
-
+colors <- c("yellow", "yellow", "yellow", "yellow", "yellow", 
+            "green", "green", "green", "green", 
+            "red", "red", "red", "red", "red")
+sampleCondition <- c('Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 
+                      'Tg-2', 'Tg-2', 'Tg-2', 'Tg-2', 
+                      'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3', 'rowsum', 'Symbol')
 ### 23
-hm <- cpm[(rownames(cpm) %in% tg_23_others$NA.),]
+hm <- cpm[(rownames(cpm) %in% tg_13_others$X),]
 hm$rowsum <- rowSums(hm)
 hm <- hm[order(hm$rowsum, decreasing = TRUE),]
 hm <- hm[seq(1:50),]
@@ -49,15 +51,21 @@ hm$Symbol <- mapIds(org.Mm.eg.db,
                          keytype="ENSEMBL",
                          multiVals="first")
 rownames(hm) <- hm$Symbol
+colnames(hm) <- sampleCondition
 hm$Symbol <- NULL
 hm$rowsum <- NULL
 hm <- t(scale(t(hm)))
 names(hm)
-pdf(file = "Top 50 Tg2-Tg3 Others.pdf", width = 12, height = 17, family = "Helvetica")
+pdf(file = "Top 50 Tg1-Tg3 Others.pdf", width = 12, height = 17, family = "Helvetica")
 
 heatmap.2(hm, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1.5, cexCol=1.5, density.info="none",
-          margin=c(15,11), lhei=c(2,10), lwid=c(2,6), main = "Top 50 Tg2-Tg3 Others")
+          margin=c(15,11), lhei=c(2,10), lwid=c(2,6), main = "Top 50 Tg1-Tg3 Others", ColSideColors = colors)
+legend("topright",
+       legend = c("Tg-1", "Tg-2", "Tg-3"),
+       col = c("yellow","green", "red"),
+       lty= 1,
+       lwd = 10)
 dev.off()
 
 
@@ -70,9 +78,9 @@ getwd()
 
 
 ##12
-tg_12_glia$type <- paste("red")
+tg_12_glia$type <- paste("yellow")
 tg_12_moto$type <- paste("green")
-tg_12_others$type <- paste("blue")
+tg_12_others$type <- paste("red")
 
 common <- data.frame()
 common <- tg_12_glia
@@ -80,8 +88,7 @@ common <- rbind(tg_12_moto, common)
 common <- rbind(tg_12_others, common)
 common$X <- NULL
 
-rownames(common) <- common$NA.
-common$NA. <- NULL
+rownames(common) <- common$X
 
 hm <- cpm[(rownames(cpm) %in% rownames(common)),]
 hm$sum <- rowSums(hm)
@@ -188,7 +195,7 @@ dev.off()
 getwd()
 
 ##VOLCANO
-pdf(file = "Volcano 2-3.pdf", width = 10, height = 10, family = "Helvetica")
+pdf(file = "Volcano 1-3.pdf", width = 10, height = 10, family = "Helvetica")
 g = ggplot(data=common, aes(x=logFC, y=-log10(PValue), colour=type)) +
   geom_point(alpha=1, size=2) +
   labs(legend.position = "none") +
@@ -198,5 +205,3 @@ g = ggplot(data=common, aes(x=logFC, y=-log10(PValue), colour=type)) +
 g
 
 dev.off()
-
-

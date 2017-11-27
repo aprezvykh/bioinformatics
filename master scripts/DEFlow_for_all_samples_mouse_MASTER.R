@@ -85,7 +85,7 @@ stattest_number <- 1
 
 directory <- '~/counts/ALS Mice/experimental/'
 setwd(directory)
-gr_control <- c("Tg-2")
+gr_control <- c("Tg-1")
 gr_case <- c("Tg-3")
 
 ### BUILDING A SPECIFIC DESIGN TABLE
@@ -792,93 +792,6 @@ for_fisher <- as.data.frame(subset(et_annot_non_filtered, PValue < pvalue_cutoff
 
 for_fisher_high <- as.data.frame(subset(for_fisher, logFC > 0))
 for_fisher_low <- as.data.frame(subset(for_fisher, logFC < 0))
-
-
-GOFisherBP <- function(uni, df, nodes, nrows, p){
-  all_genes <- c(df$logFC)
-  names(all_genes) <- rownames(df)
-  go_data <- new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = function(s) s < 
-                   p, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", 
-                 ID = "ENSEMBL", nodeSize = nodes)
-  go_test <- runTest(go_data, algorithm = "weight", statistic = "fisher")
-  go_table <- GenTable(go_data, weightFisher = go_test,
-                       orderBy = "weightFisher", ranksOf = "weightFisher",
-                       topNodes = nrows)
-  return(go_table)
-}
-GOFisherMF <- function(df, nodes, nrows, p){
-  all_genes <- c(df$logFC)
-  names(all_genes) <- rownames(df)
-  go_data <- new("topGOdata", ontology = "MF", allGenes = all_genes, geneSel = function(s) s < 
-                   p, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", 
-                 ID = "ENSEMBL", nodeSize = nodes)
-  go_test <- runTest(go_data, algorithm = "weight", statistic = "fisher")
-  go_table <- GenTable(go_data, weightFisher = go_test,
-                       orderBy = "weightFisher", ranksOf = "weightFisher",
-                       topNodes = nrows)
-  return(go_table)
-}
-GOFisherCC <- function(df, nodes, nrows, p){
-  all_genes <- c(df$logFC)
-  names(all_genes) <- rownames(df)
-  go_data <- new("topGOdata", ontology = "CC", allGenes = all_genes, geneSel = function(s) s < 
-                   p, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", 
-                 ID = "ENSEMBL", nodeSize = nodes)
-  go_test <- runTest(go_data, algorithm = "weight", statistic = "fisher")
-  go_table <- GenTable(go_data, weightFisher = go_test,
-                       orderBy = "weightFisher", ranksOf = "weightFisher",
-                       topNodes = nrows)
-  return(go_table)
-}
-
-
-
-
-
-gobp_h_50 <- GOFisherBP(for_fisher_high, 10, 50, 0.05)
-gomf_h_50 <- GOFisherMF(for_fisher_high, 10, 50, 0.05)
-gocc_h_50 <- GOFisherCC(for_fisher_high, 10, 50, 0.05)
-
-gobp_l_50 <- GOFisherBP(for_fisher_low, 10, 50, 0.05)
-gomf_l_50 <- GOFisherMF(for_fisher_low, 10, 50, 0.05)
-gocc_l_50 <- GOFisherCC(for_fisher_low, 10, 50, 0.05)
-
-gobp_h_100 <- GOFisherBP(for_fisher_high, 10, 100, 0.05)
-gomf_h_100 <- GOFisherMF(for_fisher_high, 10, 100, 0.05)
-gocc_h_100 <- GOFisherCC(for_fisher_high, 10, 100, 0.05)
-
-gobp_l_100 <- GOFisherBP(for_fisher_low, 10, 100, 0.05)
-gomf_l_100 <- GOFisherMF(for_fisher_low, 10, 100, 0.05)
-gocc_l_100 <- GOFisherCC(for_fisher_low, 10, 100, 0.05)
-
-gobp_h_250 <- GOFisherBP(for_fisher_high, 10, 250, 0.05)
-gomf_h_250 <- GOFisherMF(for_fisher_high, 10, 250, 0.05)
-gocc_h_250 <- GOFisherCC(for_fisher_high, 10, 250, 0.05)
-
-gobp_l_250 <- GOFisherBP(for_fisher_low, 10, 250, 0.05)
-gomf_l_250 <- GOFisherMF(for_fisher_low, 10, 250, 0.05)
-gocc_l_250 <- GOFisherCC(for_fisher_low, 10, 250, 0.05)
-
-write.xlsx(gobp_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 50", append = TRUE)
-write.xlsx(gomf_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 50", append = TRUE)
-write.xlsx(gocc_h_50, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 50", append = TRUE) 
-write.xlsx(gobp_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 100", append = TRUE)
-write.xlsx(gomf_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 100", append = TRUE)
-write.xlsx(gocc_h_100, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 100", append = TRUE)
-write.xlsx(gobp_h_250, file = "GO_Fisher_upreg.xlsx", sheetName = "BP, top 250", append = TRUE)
-write.xlsx(gomf_h_250, file = "GO_Fisher_upreg.xlsx", sheetName = "MF, top 250", append = TRUE)
-write.xlsx(gocc_h_250, file = "GO_Fisher_upreg.xlsx", sheetName = "CC, top 250", append = TRUE)
-
-write.xlsx(gobp_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 50", append = TRUE)
-write.xlsx(gomf_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 50", append = TRUE)
-write.xlsx(gocc_l_50, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 50", append = TRUE)
-write.xlsx(gobp_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 100", append = TRUE)
-write.xlsx(gomf_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 100", append = TRUE)
-write.xlsx(gocc_l_100, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 100", append = TRUE)
-write.xlsx(gobp_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "BP, top 250", append = TRUE)
-write.xlsx(gomf_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "MF, top 250", append = TRUE)  
-write.xlsx(gocc_l_250, file = "GO_Fisher_downreg.xlsx", sheetName = "CC, top 250", append = TRUE)
-getwd()
 
 ###colors
 
