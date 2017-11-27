@@ -11,8 +11,8 @@ cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ]
 cpm <- cpm[complete.cases(cpm),]
 rownames(cpm) <- cpm$X
 cpm$X <- NULL
-a <- grep("tg", colnames(cpm))
-cpm <- cpm[,a]
+#a <- grep("tg", colnames(cpm))
+#cpm <- cpm[,a]
 
 tg_12_glia <- read.csv("~/counts/ALS Mice/filtering fc=1 + FDR/Tg1-Tg2/glia/tg12-glia.csv")
 tg_12_moto <- read.csv("~/counts/ALS Mice/filtering fc=1 + FDR/Tg1-Tg2/moto/tg12-moto.csv")
@@ -35,13 +35,17 @@ rownames(common) <- common$NA.
 common$NA. <- NULL
 
 colors <- c("yellow", "yellow", "yellow", "yellow", "yellow", 
-            "green", "green", "green", "green", 
-            "red", "red", "red", "red", "red")
-sampleCondition <- c('Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 
-                      'Tg-2', 'Tg-2', 'Tg-2', 'Tg-2', 
-                      'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3', 'rowsum', 'Symbol')
+            "purple", "purple", "purple", "purple", "purple", 
+            "green", "green", "green", "green", "green", 
+            "red", "red", "red", "red", 
+            "blue", "blue", "blue", "blue", "blue")
+sampleCondition <- c('Control-1', 'Control-1', 'Control-1', 'Control-1', 'Control-1', 
+                     'Control-3', 'Control-3', 'Control-3', 'Control-3', 'Control-3', 
+                     'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 
+                     'Tg-2', 'Tg-2', 'Tg-2', 'Tg-2', 
+                     'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3')
 ### 23
-hm <- cpm[(rownames(cpm) %in% tg_13_others$X),]
+hm <- cpm[(rownames(cpm) %in% tg_13_moto$X),]
 hm$rowsum <- rowSums(hm)
 hm <- hm[order(hm$rowsum, decreasing = TRUE),]
 hm <- hm[seq(1:50),]
@@ -51,12 +55,13 @@ hm$Symbol <- mapIds(org.Mm.eg.db,
                          keytype="ENSEMBL",
                          multiVals="first")
 rownames(hm) <- hm$Symbol
-colnames(hm) <- sampleCondition
+
 hm$Symbol <- NULL
 hm$rowsum <- NULL
+colnames(hm) <- sampleCondition
 hm <- t(scale(t(hm)))
 names(hm)
-pdf(file = "Top 50 Tg1-Tg3 Others.pdf", width = 12, height = 17, family = "Helvetica")
+#pdf(file = "Top 50 Tg1-Tg3 Others.pdf", width = 12, height = 17, family = "Helvetica")
 
 heatmap.2(hm, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1.5, cexCol=1.5, density.info="none",
@@ -205,3 +210,4 @@ g = ggplot(data=common, aes(x=logFC, y=-log10(PValue), colour=type)) +
 g
 
 dev.off()
+grep("Ras", cpm$Symbol, value = TRUE)
