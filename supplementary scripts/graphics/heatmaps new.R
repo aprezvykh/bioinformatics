@@ -48,7 +48,7 @@ sampleCondition <- c('Control-1', 'Control-1', 'Control-1', 'Control-1', 'Contro
 hm <- cpm[(rownames(cpm) %in% tg_13_moto$X),]
 hm$rowsum <- rowSums(hm)
 hm <- hm[order(hm$rowsum, decreasing = TRUE),]
-hm <- hm[seq(1:50),]
+#hm <- hm[seq(1:50),]
 hm$Symbol <- mapIds(org.Mm.eg.db, 
                          keys=row.names(hm), 
                          column="SYMBOL", 
@@ -61,11 +61,11 @@ hm$rowsum <- NULL
 colnames(hm) <- sampleCondition
 hm <- t(scale(t(hm)))
 names(hm)
-#pdf(file = "Top 50 Tg1-Tg3 Others.pdf", width = 12, height = 17, family = "Helvetica")
+pdf(file = "All Moto.pdf", width = 12, height = 17, family = "Helvetica")
 
 heatmap.2(hm, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1.5, cexCol=1.5, density.info="none",
-          margin=c(15,11), lhei=c(2,10), lwid=c(2,6), main = "Top 50 Tg1-Tg3 Others", ColSideColors = colors)
+          margin=c(15,11), lhei=c(2,10), lwid=c(2,6), main = "All motoneurons Genes", ColSideColors = colors, labRow = FALSE)
 legend("topright",
        legend = c("Tg-1", "Tg-2", "Tg-3"),
        col = c("yellow","green", "red"),

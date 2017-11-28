@@ -62,8 +62,8 @@ boxplots <- TRUE
 ### CONSTANTS BLOCK
 
 pvalue_cutoff <- 0.05
-logfchigh_cutoff <- 1
-logfclow_cutoff <- -1
+logfchigh_cutoff <- 0.5
+logfclow_cutoff <- -0.5
 cpm_cutoff <- 0.5
 gs_size <- 10
 diseases_set <- 50
@@ -139,34 +139,7 @@ setwd(results.dir)
   }
 
 # PLOTTING HTSEQ QUALITY BARPLOTS
-
-readqual <- as.data.frame(tail(y$counts, 5))
-libsize <- as.data.frame(t(y$samples$lib.size))
-names(libsize) <- names(readqual)
-readqual <- rbind(libsize, readqual)
-rownames(readqual[1,]) <- c("lib_size")
-
-
-readqual[nrow(readqual)+1,] <- (readqual[2,]/readqual[1,])*100
-readqual[nrow(readqual)+1,] <- (readqual[3,]/readqual[1,])*100
-
-qual <- readqual[7:8,]
-rownames(qual) <- c("% of no feature", "% of ambigous")
-
-m1 <- melt(qual[1,])
-m2 <- melt(qual[2,])
-pdf(file = "No feature.pdf", width = 12, height = 17, family = "Helvetica")
-ggplot(m1) + aes(x = variable, y = value) + geom_bar(stat = "identity")
-dev.off()
-
-pdf(file = "Ambigous.pdf", width = 12, height = 17, family = "Helvetica")
-ggplot(m1) + aes(x = variable, y = value) + geom_bar(stat = "identity")
-dev.off()
-
 row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "__too_low_aQual", "__not_aligned" )
-
-
-
 
 ### DIFFEXPRESSION STATISTICAL ANALYSIS - EXACT NEGATIVE-
 ### BINOMIAL OR QLM TEST
@@ -431,49 +404,14 @@ if (stat == TRUE & lfgenefc < 0){
 
 
 ### Distribution, with moda and median
-
-getmode <- function(v) {
-  uniqv <- unique(v)
-  uniqv[which.max(tabulate(match(v, uniqv)))]
-}
-
-dir.create("distributions")
-setwd("distributions")
-
-png(file = "logCPM distribution, nonfiltered.png")
-hist(et_annot_non_filtered$logCPM, main = "logCPM distribution, non-filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "logCPM", breaks = 50)
-abline(v=median(et_annot_non_filtered$logCPM), col = "red")
-abline(v=getmode(et_annot_non_filtered$logCPM), col = "blue")
-
-dev.off()
-png(file = "logCPM distribution, filtered.png")
-hist(et_annot$logCPM, main = "logCPM distribution, filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "logCPM", breaks = 50)
-abline(v=median(et_annot$logCPM), col = "red")
-abline(v=getmode(et_annot$logCPM), col = "blue")
-
-dev.off()
-png(file = "p-value distribution, nonfiltered.png")
-hist(et_annot_non_filtered$PValue, main = "p-value distribution, non-filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "p-value", breaks = 50)
-abline(v=median(et_annot_non_filtered$PValue), col = "red")
-abline(v=getmode(et_annot_non_filtered$PValue), col = "blue")
-
-dev.off()
-png(file = "p-value distribution, filtered.png")
-hist(et_annot$PValue, main = "p-value distribution, filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "p-value", breaks = 50)
-abline(v=median(et_annot$PValue), col = "red")
-abline(v=getmode(et_annot$PValue), col = "blue")
-
-dev.off()
-png(file = "LogFC distribution, nonfiltered.png")
-hist(et_annot_non_filtered$logFC, main = "logFC distribution, non-filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "LogFC", breaks = 50)
-abline(v=median(et_annot_non_filtered$logFC), col = "red")
-abline(v=getmode(et_annot_non_filtered$logFC), col = "blue")
-
-dev.off()
-png(file = "LogFC distribution, filtered.png")
-hist(et_annot$logFC, main = "logFC distribution, filtered", freq = TRUE, col = col.pan, labels = TRUE, xlab = "LogFC", breaks = 50)
-abline(v=median(et_annot$logFC), col = "red")
-abline(v=getmode(et_annot$logFC), col = "blue")
+pdf(file = "Distributions.pdf", width = 10, height = 10, family = "Helvetica")
+par(mfrow=c(3,2))
+hist(et_annot_non_filtered$logCPM, main = "logCPM distribution, non-filtered", freq = FALSE, col = col.pan, xlab = "logCPM", breaks = 50)
+hist(et_annot$logCPM, main = "logCPM distribution, filtered", freq = FALSE, col = col.pan, xlab = "logCPM", breaks = 50)
+hist(et_annot_non_filtered$PValue, main = "p-value distribution, non-filtered", freq = FALSE, col = col.pan, xlab = "p-value", breaks = 50)
+hist(et_annot$PValue, main = "p-value distribution, filtered", freq = FALSE, col = col.pan,  xlab = "p-value", breaks = 50)
+hist(et_annot_non_filtered$logFC, main = "logFC distribution, non-filtered", freq = FALSE, col = col.pan, xlab = "LogFC", breaks = 50)
+hist(et_annot$logFC, main = "logFC distribution, filtered", freq = FALSE, col = col.pan, xlab = "LogFC", breaks = 50)
 dev.off()
 
 
@@ -500,6 +438,36 @@ df <- data.frame(header, meaning)
 write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append = TRUE)
 write.xlsx(top, file = "Results edgeR.xlsx", sheetName = "Top Tags (with FDR)", append = TRUE)
 write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
+
+##TEXT SUMMARY
+
+if(nrow(et_annot_high > nrow(et_annot_low))){
+  updown <- c(" Преобладает апререгуляция. ")
+} else if(nrow(et_annot_high < nrow(et_annot_low))){
+  updown <- c(" Преобладает даунререгуляция. ")
+} else {
+  updown <- c(" Равное количество апрегулированных и даунрегулированных генов. ")
+}
+
+
+if(nrow(et_annot) < 200){
+  cond <- c(" Малое количество диффэспрессных генов, это скажется на обогащении. Рекомендуется уменьшить отсечку по logFC.")
+} else {
+  cond <- c(" Нормальное количество диффэкспрессных генов.")
+}
+
+nrow(subset(go_for_test, go_for_test$P.DE < 0.05))
+
+p <-paste("Всего генов: ", nrow(y), "," , "из них экспрессных: ", nrow(logCPM), "(", (round(nrow(logCPM)/nrow(y)*100)), "%)", ", ",
+      "достоверно диффэкспрессных: ", nrow(et_annot), " (", (round(nrow(et_annot)/nrow(logCPM)*100)), "% от всех экспрессных)", 
+      " с отсечкой LogFC по модулю ", abs(logfchigh_cutoff), "," ," отсечкой p-value ", pvalue_cutoff,  ", ", "апрегулированных ",
+      nrow(et_annot_high), ", ", "даунрегулированных ", nrow(et_annot_low), ".", cond, updown, sep="")
+
+cat(p, file = "sas.txt")
+
+
+
+
 
 ### MY GO TESTS
 tab <- as.data.frame(table(unlist(et_annot$GOID)))
@@ -780,7 +748,39 @@ if (analyze_all_samples == TRUE){
   setwd(stattest)
 }
 
-getwd()
+s <- subset(go_up_500, go_up_500$perc > 20 & go_up_500$P.DE < 0.001)
+s <- s[which(s$Ont == "BP"),]
+s <- s[which(nchar(s$Term) < 50),]
+s <- s[order(s$DE, decreasing = FALSE),]
+s <- s[seq(1:30),]
+s <- s[complete.cases(s),]
+pdf(file = "Go terms upreg.pdf", width = 12, height = 17, family = "Helvetica")
+g <- ggplot(s, aes(x = reorder(Term, DE), y = DE, fill = P.DE)) + 
+  geom_bar(stat="identity") + 
+  scale_x_discrete(breaks = s$Term) + 
+  coord_flip() + 
+  scale_x_discrete(name = "Significant Upregulated Terms") + 
+  scale_y_continuous(name = "Number of differentialy expressed genes")
+g
+dev.off()
+s <- subset(go_down_500, go_down_500$perc > 20 & go_down_500$P.DE < 0.001)
+s <- s[which(s$Ont == "BP"),]
+s <- s[which(nchar(s$Term) < 50),]
+s <- s[order(s$DE, decreasing = FALSE),]
+s <- s[seq(1:30),]
+s <- s[complete.cases(s),]
+pdf(file = "Go terms downreg.pdf", width = 12, height = 17, family = "Helvetica")
+g <- ggplot(s, aes(x = reorder(Term, DE), y = DE, fill = P.DE)) + 
+  geom_bar(stat="identity") + 
+  scale_x_discrete(breaks = s$Term) + 
+  coord_flip() + 
+  scale_x_discrete(name = "Significant downregulated Terms") + 
+  scale_y_continuous(name = "Number of differentialy expressed genes")
+g
+dev.off()
+
+
+
 ### FISHER GO TESTS
 et_annot_high <- as.data.frame(subset(et_annot, logFC > 0))
 et_annot_low <- as.data.frame(subset(et_annot, logFC < 0))
@@ -1244,9 +1244,7 @@ if (logging == TRUE){
 sink(type="message")
 close(zz)
 }
-beep()
-beep()
-beep()
+
 
 ### COMPARE DESEQ2 AND EDGER
 
@@ -1316,7 +1314,6 @@ deviant$Name <- mapIds(org.Mm.eg.db,
 write.xlsx(deviant, file = "Top 10 deviant genes between deseq2 and edgeR.xlsx")
 ### MOTIV ENRICHMENT
 
-beep()
 
 if (motiv == TRUE){
       geneList1 <- et_annot$symbol
@@ -1375,6 +1372,7 @@ setwd("GO boxplots")
 
 goana_straight <- goana(de = et_annot$entrez, species = "Mm")
 go_all_1000 <- topGO(goana_straight, n=1000)
+go_for_test <- topGO(goana_straight, n=1000)
 go_all_1000 <- go_all_1000[!(go_all_1000$Ont %in% remove), ] 
 go_all_1000$perc = (go_all_1000$DE/go_all_1000$N)*100
 go_all_1000 <- subset(go_all_1000, go_all_1000$P.DE < 0.05)
@@ -1420,32 +1418,11 @@ for (i in 1:nrow(go_all_1000)){
   
 }  
 
-
-###EDITABLE
-### GREP SOME GENES
-pattern <- c("lymphocyte antigen")
-a <- grep(paste(pattern, collapse = "|"), cpm$Symbol, ignore.case = TRUE)
-thm <- cpm[a,]
-### REMOVE SOME GENES
-#remove <- c("Cdr1")
-#cpm <- cpm[!(cpm$Symbol %in% remove), ] 
-rownames(thm) <- make.names(thm$Symbol, unique = TRUE)
-thm$Symbol <- NULL
-thm$Name <- NULL
-thm <- t(scale(t(thm)))
-thm <- thm[complete.cases(thm),]
-
-pdf(file = "Ly.pdf", width = 12, height = 17, family = "Helvetica")
-heatmap.2(thm, col=col.pan, Rowv=TRUE, scale="none",
-          trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-          margin=c(15,15), lhei=c(2,10), lwid=c(2,6), main = "", ColSideColors = names(col),
-          labCol = FALSE)
-
-legend("topright",
-       legend = c("Control-1", "Control-3", "Tg-1", "Tg-2", "Tg-3"),
-       col = c("yellow", "purple", "green", "red", "blue"),
-       lty= 1,
-       lwd = 10)
-dev.off()
-
 ### BOX PLOT
+for(i in seq(1:5)){
+  beep()
+  Sys.sleep(0.1)
+}
+
+
+
