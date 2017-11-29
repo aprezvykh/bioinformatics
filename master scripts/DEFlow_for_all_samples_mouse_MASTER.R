@@ -62,8 +62,8 @@ boxplots <- TRUE
 ### CONSTANTS BLOCK
 
 pvalue_cutoff <- 0.05
-logfchigh_cutoff <- 0.5
-logfclow_cutoff <- -0.5
+logfchigh_cutoff <- 1
+logfclow_cutoff <- -1
 cpm_cutoff <- 0.5
 gs_size <- 10
 diseases_set <- 50
@@ -125,6 +125,7 @@ if (analyze_all_samples == TRUE){
         y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
 }
 
+setwd("results")
 stattest <- paste(gr_control, gr_case, sep = "-")
 results.dir <- paste(directory, "results", sep = "")
 setwd(results.dir)
@@ -137,7 +138,6 @@ setwd(results.dir)
     dir.create("all")
     setwd("all")
   }
-
 # PLOTTING HTSEQ QUALITY BARPLOTS
 row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "__too_low_aQual", "__not_aligned" )
 
@@ -343,7 +343,7 @@ et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
 et_annot <- as.data.frame(subset(et_annot, FDR < pvalue_cutoff))
 et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
 et_annot <- et_annot[complete.cases(et_annot), ]
-
+getwd()
 ### BIOTYPE ANNOT FIX IT!
 taxon = 'Mus Musculus'
 taxon = tolower(taxon)
@@ -463,7 +463,11 @@ p <-paste("¬сего генов: ", nrow(y), "," , "из них экспрессных: ", nrow(logCPM), 
       " с отсечкой LogFC по модулю ", abs(logfchigh_cutoff), "," ," отсечкой p-value ", pvalue_cutoff,  ", ", "апрегулированных ",
       nrow(et_annot_high), ", ", "даунрегулированных ", nrow(et_annot_low), ".", cond, updown, sep="")
 
-cat(p, file = "sas.txt")
+
+
+p
+
+  cat(p, file = "sas.txt")
 
 
 
@@ -617,8 +621,6 @@ go_down_100$perc = (go_down_100$DE/go_down_100$N)*100
 go_down_500 <- topGO(goana_down, n=500)
 go_down_500$perc = (go_down_500$DE/go_down_500$N)*100
 go_down_500$perc <- round(go_down_500$perc, digits = 4)
-
-
 
 
 write.xlsx(go_up_30, file = "Goana GO tests, upreg.xlsx", sheetName = "top30", append = TRUE)
@@ -866,6 +868,7 @@ cnetplot(x, foldChange = foldchanges, categorySize="pvalue", showCategory = 10)
 dev.off()
 
 #HIGH
+
 df_high <- et_annot_high$entrez
 x <- enrichPathway(gene=df_high, organism = "mouse", minGSSize=gs_size, readable = TRUE )
 write.xlsx(x, "Reactome.xlsx", sheetName = "High", append = TRUE)
@@ -891,7 +894,6 @@ par(mar=c(1,1,1,1))
 pdf(file = "barplot_low.pdf", width = 12, height = 17, family = "Helvetica")
 barplot(x, showCategory=30,  font.size = 9)
 dev.off()
-
 
 
 ###KEGG expression profile (without lfc, but with generatio)
@@ -1425,4 +1427,51 @@ for(i in seq(1:5)){
 }
 
 
+df_high <- et_annot_high$entrez
+x <- enrichPathway(gene=df_high, organism = "mouse", minGSSize=gs_size, readable = TRUE )
+write.xlsx(x, "Reactome.xlsx", sheetName = "High", append = TRUE)
+write.xlsx(x, file = "Results edgeR.xlsx", sheetName = "top 100 Upregulated Reactome pathways", append = TRUE)
+head(as.data.frame(x))
+dev.off()
+
+x <- as.data.frame(x)
+sub <- x[3,]
+react.id <- sub$ID
+react.name <- sub$Description
+react.pval <- sub$p.adjust
+sub <- sub$geneID
+sp <- list(strsplit(sub, "/"))
+sp <- as.data.frame(sp)
+names(sp) <- c("gene")
+
+df <- data.frame()
+hm <- data.frame()
+for (f in sp$gene){
+  a <- grep(paste(f), cpm$Symbol)
+  df <-cpm[a,]
+  df <- df[1,]
+  hm <- rbind(df, hm)
+}
+
+hm$Name <- NULL
+hm$entrez <- NULL
+hm$GOID <- NULL
+hm$term <- NULL
+rownames(hm) <- hm$Symbol
+hm$Symbol <- NULL
+colnames(hm) <- sampleCondition
+hm <- hm[,grepl("Tg", colnames(hm))]
+hm <- t(scale(t(hm)))
+pdf(file = paste(react.name, ".pdf", sep = ""), width = 12, height = 17, family = "Helvetica")
+heatmap.2(hm, col=col.pan, Rowv=TRUE, scale="none",
+          trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
+          margin=c(15,11), lhei=c(2,10), lwid=c(2,6),
+          main = paste(react.id, ":", react.name, "\n", "Adjusted pathway p-value:", react.pval), ColSideColors = colors)
+
+legend("topright",
+       legend = c("Tg-1", "Tg-2", "Tg-3"),
+       col = c("green", "yellow", "red"),
+       lty= 1,
+       lwd = 10)
+dev.off()
 

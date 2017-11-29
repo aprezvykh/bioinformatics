@@ -126,6 +126,7 @@ dev.off()
 
 
 ### GO HEATMAP
+
 row.names.remove <- c("NA.1")
 cpm <- read.csv("~/counts/ALS Mice/new filtering/experimental overall logCPM.csv")
 cpm <- cpm[complete.cases(cpm),]
@@ -178,27 +179,6 @@ dev.off()
 cpm$GOID <- NULL
 cpm$term <- NULL
 
-##for CD
-a <- grep("glutamate", cpm$Name, ignore.case = TRUE)
-hm <- cpm[a,]
-#a <- grep("antigen", hm$Name)
-#hm <- hm[a,]
-#remove <- c("Cdr1")
-#hm <- hm[!(hm$Symbol %in% remove), ] 
-rownames(hm) <- hm$Symbol
-hm$Symbol <- NULL
-hm$Name <- NULL
-
-hm <- t(scale(t(hm)))
-
-
-pdf(file = "glutamate.pdf", width = 12, height = 17, family = "Helvetica")
-heatmap.2(hm, col=col.pan, Rowv=TRUE, scale="none",
-          trace="none", dendrogram="column", cexRow=1, cexCol=1.4, density.info="none",
-          margin=c(15,11), lhei=c(2,10), lwid=c(2,6), main = "glutamate")
-dev.off()
-getwd()
-
 ##VOLCANO
 pdf(file = "Volcano 1-3.pdf", width = 10, height = 10, family = "Helvetica")
 g = ggplot(data=common, aes(x=logFC, y=-log10(PValue), colour=type)) +
@@ -211,3 +191,54 @@ g
 
 dev.off()
 grep("Ras", cpm$Symbol, value = TRUE)
+
+
+colors <- c("green", "green", "green", "green", "green", 
+            "yellow", "yellow", "yellow", "yellow", 
+            "red", "red", "red", "red", "red")
+
+
+colnames(hm)
+###IMMUNE HEATMAPS
+  imm <- read.csv("~/counts/ALS Mice/filtering fc=1 + FDR/csv/tg12-other.csv")
+  hm <- cpm[(rownames(cpm) %in% imm$X),]
+  hm$Name <- NULL
+  hm$entrez <- NULL
+  hm$GOID <- NULL
+  hm$term <- NULL
+  rownames(hm) <- hm$Symbol
+  hm$Symbol <- NULL
+  colnames(hm) <- sampleCondition
+  hm <- hm[,grepl("Tg", colnames(hm))]
+  hm <- t(scale(t(hm)))
+  pdf(file = "Tg1-Tg2 others.pdf", width = 12, height = 17, family = "Helvetica")
+  heatmap.2(hm, col=col.pan, Rowv=TRUE, scale="none",
+            trace="none", dendrogram="both", cexRow=1.4, cexCol=1.4, density.info="none",
+            margin=c(15,11), lhei=c(2,10), lwid=c(2,6), main = "Differentially expressed other genes in Tg1-Tg2", ColSideColors = colors)
+  
+  legend("topright",
+         legend = c("Tg-1", "Tg-2", "Tg-3"),
+         col = c("green", "yellow", "red"),
+         lty= 1,
+         lwd = 10)
+  dev.off()
+
+
+ps <- read.csv("~/counts/ALS Mice/filtering fc=1 + FDR/csv/tg13-glia.csv")
+
+i <-intersect(rownames(et_annot), ps$X)
+int_glia <- ps[(ps$X %in% i),]
+int_sod <- et_annot[(rownames(et_annot) %in% i),]
+int_sod <- int_sod[order(int_sod$symbol),]
+int_glia <- int_glia[order(int_glia$symbol),]
+df <- data.frame(int_glia$X, int_glia$symbol, int_glia$name, int_sod$logFC, int_glia$logFC, int_sod$logCPM, int_glia$logCPM)
+names(df) <- c("ens", "symbol", "name", "logFC-SOD", "logFC - FUS(glia)", "logCPM-SOD", "logCPM - FUS(glia)")
+write.xlsx(df, file = "Compare FUS/SOD.xlsx", sheetName = "compare")
+
+nrow(ps[which(ps$logFC < 0),])
+
+kegg1 <- read.xlsx("~/counts/SOD/results/Tg-1-Tg-3/Goana GO tests, downreg.xlsx", sheetIndex = 2)
+kegg2 <- read.xlsx("~/counts/ALS Mice/filtering fc=1 + FDR/Tg1-Tg3/glia/Goana GO tests, downreg.xlsx", sheetIndex = 2)
+
+intersect(kegg1$NA., kegg2$NA.)
+nrow(kegg1)
