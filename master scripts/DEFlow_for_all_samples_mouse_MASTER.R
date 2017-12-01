@@ -85,7 +85,7 @@ stattest_number <- 1
 
 directory <- '~/counts/ALS Mice/experimental/'
 setwd(directory)
-gr_control <- c("Tg-1")
+gr_control <- c("Tg-2")
 gr_case <- c("Tg-3")
 
 ### BUILDING A SPECIFIC DESIGN TABLE
@@ -104,7 +104,8 @@ if (analyze_all_samples == TRUE){
                              'Control-3', 'Control-3', 'Control-3', 'Control-3', 'Control-3', 
                             'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 
                              'Tg-2', 'Tg-2', 'Tg-2', 'Tg-2', 
-                            'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3')        
+                            'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3')    
+  
 
         sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
         col <- as.vector(sampleTable$sampleName)
@@ -113,6 +114,7 @@ if (analyze_all_samples == TRUE){
                         "green", "green", "green", "green", "green", 
                         "red", "red", "red", "red", 
                         "blue", "blue", "blue", "blue", "blue")
+
         y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
 } else if (analyze_all_samples == FALSE){
         files_control <- grep(paste(gr_control),list.files(directory),value=TRUE)
@@ -186,9 +188,13 @@ if (qlm_test == TRUE){
   et_annot <- as.data.frame(et$table) 
   et_annot_non_filtered <- as.data.frame(et$table) 
 }
-nrow(logCPM)
-write.csv(logCPM, file = "overall logCPM.csv")
-### ANNOTATE
+logCPM <- data.frame(seq(1:10))
+
+if(nrow(logCPM < 1000)){
+    beep(sound = "wilhelm")
+    print("Too low expression found! Reduce CPM cutoff or check your data!")  
+}
+
 
 y$genes$Symbol <- mapIds(org.Mm.eg.db, 
                          keys=row.names(et_annot_non_filtered), 
@@ -343,7 +349,20 @@ et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
 et_annot <- as.data.frame(subset(et_annot, FDR < pvalue_cutoff))
 et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
 et_annot <- et_annot[complete.cases(et_annot), ]
-getwd()
+
+if(nrow(et_annot < 50)){
+  for(i in seq(1:2)){
+    beep()
+    Sys.sleep(0.1)
+    beep()
+    Sys.sleep(0.2)
+    print("Too low number of differentialy expressed genes found!
+           reduce LogFC cutoff or check your data!")  
+  }
+  break
+}
+
+
 ### BIOTYPE ANNOT FIX IT!
 taxon = 'Mus Musculus'
 taxon = tolower(taxon)
@@ -440,7 +459,8 @@ write.xlsx(top, file = "Results edgeR.xlsx", sheetName = "Top Tags (with FDR)", 
 write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
 
 ##TEXT SUMMARY
-
+et_annot_high <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff))
+et_annot_low <- as.data.frame(subset(et_annot, logFC < logfclow_cutoff))
 if(nrow(et_annot_high > nrow(et_annot_low))){
   updown <- c(" Преобладает апререгуляция. ")
 } else if(nrow(et_annot_high < nrow(et_annot_low))){
@@ -602,8 +622,6 @@ write.xlsx(goccres, file = "GO.xlsx", sheetName = "GO_CC", append = TRUE)
 
 
 ### GOANA
-et_annot_high <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff))
-et_annot_low <- as.data.frame(subset(et_annot, logFC < logfclow_cutoff))
 goana_up <- goana(de = et_annot_high$entrez, species = "Mm")
 go_up_30 <- topGO(goana_up, n=30)
 go_up_30$perc = (go_up_30$DE/go_up_30$N)*100
@@ -756,28 +774,33 @@ s <- s[which(nchar(s$Term) < 50),]
 s <- s[order(s$DE, decreasing = FALSE),]
 s <- s[seq(1:30),]
 s <- s[complete.cases(s),]
-pdf(file = "Go terms upreg.pdf", width = 12, height = 17, family = "Helvetica")
+png(file = "Go terms upreg.png", width = 1024, height = 768)
+#pdf(file = "Go terms upreg.pdf", width = 12, height = 17, family = "Helvetica")
 g <- ggplot(s, aes(x = reorder(Term, DE), y = DE, fill = P.DE)) + 
   geom_bar(stat="identity") + 
-  scale_x_discrete(breaks = s$Term) + 
-  coord_flip() + 
-  scale_x_discrete(name = "Significant Upregulated Terms") + 
-  scale_y_continuous(name = "Number of differentialy expressed genes")
+  scale_x_discrete(breaks = s$Term, name = "Significant Upregulated Terms") + 
+  coord_flip() +
+  scale_y_continuous(name = "Number of differentialy expressed genes") +
+  theme_bw() + 
+  theme(axis.text.y = element_text(colour="grey20",size=15,angle=0,hjust=1,vjust=0,face="plain"))
 g
 dev.off()
+
 s <- subset(go_down_500, go_down_500$perc > 20 & go_down_500$P.DE < 0.001)
 s <- s[which(s$Ont == "BP"),]
 s <- s[which(nchar(s$Term) < 50),]
 s <- s[order(s$DE, decreasing = FALSE),]
 s <- s[seq(1:30),]
 s <- s[complete.cases(s),]
-pdf(file = "Go terms downreg.pdf", width = 12, height = 17, family = "Helvetica")
+png(file = "Go terms downreg.png", width = 1024, height = 768)
+#pdf(file = "Go terms downreg.pdf", width = 12, height = 17, family = "Helvetica")
 g <- ggplot(s, aes(x = reorder(Term, DE), y = DE, fill = P.DE)) + 
   geom_bar(stat="identity") + 
-  scale_x_discrete(breaks = s$Term) + 
-  coord_flip() + 
-  scale_x_discrete(name = "Significant downregulated Terms") + 
-  scale_y_continuous(name = "Number of differentialy expressed genes")
+  scale_x_discrete(breaks = s$Term, name = "Significant Downregulated Terms") + 
+  coord_flip() +
+  scale_y_continuous(name = "Number of differentialy expressed genes") +
+  theme_bw() + 
+  theme(axis.text.y = element_text(colour="grey20",size=15,angle=0,hjust=1,vjust=0,face="plain"))
 g
 dev.off()
 
@@ -851,7 +874,15 @@ dev.off()
 dfa <- as.character(et_annot$entrez)
 x <- enrichPathway(gene=dfa, organism = "mouse", minGSSize=gs_size, readable = TRUE )
 write.xlsx(x, "Reactome.xlsx", sheetName = "All reactome", append = TRUE)
-head(as.data.frame(x))
+if (nrow(x) == 0){
+  for(i in seq(1:2)){
+    beep()
+    Sys.sleep(0.1)
+    beep()
+    Sys.sleep(0.2)
+    print("No terms found!")  
+  }
+}
 dev.off()
 
 par(mar=c(1,1,1,1))
@@ -1226,7 +1257,7 @@ if (analyze_all_samples == TRUE){
 
 
 
-pdf(file = "PCAPlot.pdf", width = 10, height = 10)
+png(file = "PCAPlot.png", width = 1024, height = 768)
 print(plotPCA(rld, intgroup=c('condition')))
 dev.off()
 
@@ -1421,57 +1452,8 @@ for (i in 1:nrow(go_all_1000)){
 }  
 
 ### BOX PLOT
-for(i in seq(1:5)){
-  beep()
-  Sys.sleep(0.1)
-}
+beep(sound = "coin")
 
 
-df_high <- et_annot_high$entrez
-x <- enrichPathway(gene=df_high, organism = "mouse", minGSSize=gs_size, readable = TRUE )
-write.xlsx(x, "Reactome.xlsx", sheetName = "High", append = TRUE)
-write.xlsx(x, file = "Results edgeR.xlsx", sheetName = "top 100 Upregulated Reactome pathways", append = TRUE)
-head(as.data.frame(x))
-dev.off()
 
-x <- as.data.frame(x)
-sub <- x[3,]
-react.id <- sub$ID
-react.name <- sub$Description
-react.pval <- sub$p.adjust
-sub <- sub$geneID
-sp <- list(strsplit(sub, "/"))
-sp <- as.data.frame(sp)
-names(sp) <- c("gene")
-
-df <- data.frame()
-hm <- data.frame()
-for (f in sp$gene){
-  a <- grep(paste(f), cpm$Symbol)
-  df <-cpm[a,]
-  df <- df[1,]
-  hm <- rbind(df, hm)
-}
-
-hm$Name <- NULL
-hm$entrez <- NULL
-hm$GOID <- NULL
-hm$term <- NULL
-rownames(hm) <- hm$Symbol
-hm$Symbol <- NULL
-colnames(hm) <- sampleCondition
-hm <- hm[,grepl("Tg", colnames(hm))]
-hm <- t(scale(t(hm)))
-pdf(file = paste(react.name, ".pdf", sep = ""), width = 12, height = 17, family = "Helvetica")
-heatmap.2(hm, col=col.pan, Rowv=TRUE, scale="none",
-          trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-          margin=c(15,11), lhei=c(2,10), lwid=c(2,6),
-          main = paste(react.id, ":", react.name, "\n", "Adjusted pathway p-value:", react.pval), ColSideColors = colors)
-
-legend("topright",
-       legend = c("Tg-1", "Tg-2", "Tg-3"),
-       col = c("green", "yellow", "red"),
-       lty= 1,
-       lwd = 10)
-dev.off()
 
