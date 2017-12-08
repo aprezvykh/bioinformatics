@@ -11,8 +11,14 @@ cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ]
 cpm <- cpm[complete.cases(cpm),]
 rownames(cpm) <- cpm$X
 cpm$X <- NULL
-#a <- grep("tg", colnames(cpm))
-#cpm <- cpm[,a]
+cpm$Symbol <- mapIds(org.Mm.eg.db, 
+                     keys=row.names(cpm), 
+                     column="SYMBOL", 
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+a <- grep("Tg", colnames(cpm))
+cpm <- cpm[,a]
 
 tg_12_glia <- read.csv("~/counts/ALS Mice/filtering fc=1 + FDR/Tg1-Tg2/glia/tg12-glia.csv")
 tg_12_moto <- read.csv("~/counts/ALS Mice/filtering fc=1 + FDR/Tg1-Tg2/moto/tg12-moto.csv")
@@ -34,41 +40,39 @@ common$X <- NULL
 rownames(common) <- common$NA.
 common$NA. <- NULL
 
-colors <- c("yellow", "yellow", "yellow", "yellow", "yellow", 
-            "purple", "purple", "purple", "purple", "purple", 
-            "green", "green", "green", "green", "green", 
+colors <- c("green", "green", "green", "green", "green", 
             "red", "red", "red", "red", 
             "blue", "blue", "blue", "blue", "blue")
-sampleCondition <- c('Control-1', 'Control-1', 'Control-1', 'Control-1', 'Control-1', 
-                     'Control-3', 'Control-3', 'Control-3', 'Control-3', 'Control-3', 
-                     'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 
+sampleCondition <- c('Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 
                      'Tg-2', 'Tg-2', 'Tg-2', 'Tg-2', 
                      'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3')
+
+
 ### 23
-hm <- cpm[(rownames(cpm) %in% tg_13_moto$X),]
+hm <- cpm[(rownames(cpm) %in% tg_13_glia$X),]
 hm$rowsum <- rowSums(hm)
 hm <- hm[order(hm$rowsum, decreasing = TRUE),]
-#hm <- hm[seq(1:50),]
+hm <- hm[seq(1:50),]
 hm$Symbol <- mapIds(org.Mm.eg.db, 
                          keys=row.names(hm), 
                          column="SYMBOL", 
                          keytype="ENSEMBL",
                          multiVals="first")
 rownames(hm) <- hm$Symbol
-
 hm$Symbol <- NULL
 hm$rowsum <- NULL
 colnames(hm) <- sampleCondition
 hm <- t(scale(t(hm)))
 names(hm)
-pdf(file = "All Moto.pdf", width = 12, height = 17, family = "Helvetica")
+pdf(file = "All Glia.pdf", width = 12, height = 17, family = "Helvetica")
 
 heatmap.2(hm, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1.5, cexCol=1.5, density.info="none",
-          margin=c(15,11), lhei=c(2,10), lwid=c(2,6), main = "All motoneurons Genes", ColSideColors = colors, labRow = FALSE)
+          margin=c(15,11), lhei=c(2,10), lwid=c(2,6), main = "Microglia-specific top 50 DE genes", ColSideColors = colors)
+
 legend("topright",
        legend = c("Tg-1", "Tg-2", "Tg-3"),
-       col = c("yellow","green", "red"),
+       col = c("green","red", "blue"),
        lty= 1,
        lwd = 10)
 dev.off()
@@ -84,40 +88,49 @@ getwd()
 
 ##12
 tg_12_glia$type <- paste("yellow")
-tg_12_moto$type <- paste("green")
-tg_12_others$type <- paste("red")
+tg_12_moto$type <- paste("orange")
+tg_12_others$type <- paste("grey")
 
 common <- data.frame()
 common <- tg_12_glia
 common <- rbind(tg_12_moto, common)
 common <- rbind(tg_12_others, common)
+rownames(common) <- common$X
 common$X <- NULL
 
-rownames(common) <- common$X
+
 
 hm <- cpm[(rownames(cpm) %in% rownames(common)),]
-hm$sum <- rowSums(hm)
-hm <- hm[order(hm$sum, decreasing = TRUE),]
-hm <- hm[seq(1:50),]
-
+#hm$sum <- rowSums(hm)
+#hm <- hm[order(hm$sum, decreasing = TRUE),]
+#hm <- hm[seq(1:50),]
+colnames(hm) <- sampleCondition
 hm$Symbol <- mapIds(org.Mm.eg.db, 
                     keys=row.names(hm), 
                     column="SYMBOL", 
                     keytype="ENSEMBL",
                     multiVals="first")
 rownames(hm) <- hm$Symbol
+
 hm$Symbol <- NULL
-hm$sum <- NULL
+#hm$sum <- NULL
 hm <- as.matrix(hm)
 hm <- t(scale(t(hm)))
-pdf(file = "Top 50 Tg1-Tg2.pdf", width = 12, height = 17, family = "Helvetica")
+pdf(file = "NEW!!!Top 50 Tg1-Tg2.pdf", width = 12, height = 17, family = "Helvetica")
 heatmap.2(hm, col=col.pan, Rowv=TRUE, scale="none",
-          trace="none", dendrogram="both", cexRow=0.9, cexCol=1.4, density.info="none",
-          margin=c(15,11), lhei=c(2,10), lwid=c(2,6), RowSideColors = common$type)
+          trace="none", dendrogram="both", cexRow=1.4, cexCol=1.4, density.info="none",
+          margin=c(15,11), lhei=c(2,10), lwid=c(2,6), RowSideColors = common$type, ColSideColors = colors)
 
 legend("topright",
-       legend = c("glia", "Moto", "Others"),
-       col = c("red", "green", "blue"),
+       legend = c("Tg-1", "Tg-2", "Tg-3"),
+       col = c("green","red", "blue"),
+       lty= 1,
+       lwd = 10)
+
+
+legend("bottomleft", 
+       legend = c("Microglia", "Motoneurons", "Not Specific"),
+       col = c("yellow", "orange", "grey"),
        lty= 1,
        lwd = 10
 )
@@ -180,16 +193,26 @@ cpm$GOID <- NULL
 cpm$term <- NULL
 
 ##VOLCANO
+
 pdf(file = "Volcano 1-3.pdf", width = 10, height = 10, family = "Helvetica")
 g = ggplot(data=common, aes(x=logFC, y=-log10(PValue), colour=type)) +
   geom_point(alpha=1, size=2) +
   labs(legend.position = "none") +
-  xlim(c(-6, 6)) + ylim(c(1.30103, 30)) +
-  xlab("log2 fold change") + ylab("-log10 p-value") +
+  xlim(c(-6, 6)) + ylim(c(1.30103, 15)) +
+  xlab("log2 fold change") + ylab("-log10 p-value") + 
+  ggtitle("Tg-1 - Tg-3 Volcano Plot") + theme(plot.title = element_text(hjust = 0.5)) +
   theme_bw()
 g
 
+legend("topright",
+       legend = c("Microglia", "Motoneurons", "Not specific"),
+       col = c("red", "green", "blue"),
+       lty= 1,
+       lwd = 10
+)
+
 dev.off()
+
 grep("Ras", cpm$Symbol, value = TRUE)
 
 
@@ -242,3 +265,44 @@ kegg2 <- read.xlsx("~/counts/ALS Mice/filtering fc=1 + FDR/Tg1-Tg3/glia/Goana GO
 
 intersect(kegg1$NA., kegg2$NA.)
 nrow(kegg1)
+
+
+pdf(file = "LEGEND.pdf", width = 12, height = 17, family = "Helvetica")
+plot(x = 1)
+legend("topright",
+       legend = c("Microglia", "Motoneurons", "Not specific"),
+       col = c("red", "green", "blue"),
+       lty= 1,
+       lwd = 10
+)
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+r <- grep("ENSMUSG00000031144", rownames(cpm), ignore.case = TRUE)
+thm <- cpm[r,]
+rownames(thm) <- thm$Symbol
+plot.name <- as.character(rownames(thm))
+thm$Symbol <- NULL
+colnames(thm) <- sampleCondition
+thm <-as.data.frame(t(thm))
+thm$Condition <- rownames(thm)
+thm$Group <- thm$Condition
+names(thm) <- c("gene", "Condition", "Group")
+
+g <- ggplot(thm, aes(x = Condition, y = gene)) + 
+    geom_boxplot(data = thm, aes(fill = Group), alpha = 0.5) + 
+    scale_x_discrete(name = "Experimental Groups") + 
+    scale_y_continuous(name = "Counts per million") + 
+    theme_bw()
+g 
+
+  

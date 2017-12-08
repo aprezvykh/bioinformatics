@@ -42,6 +42,8 @@ library(plyr)
 library(AnnotationDbi)
 library(ggsignif)
 library(grid)
+library(pcaExplorer)
+library(ggbiplot)
 ### TFES
 library(RcisTarget.mm9.motifDatabases.20k)
 data("mm9_10kbpAroundTss_motifRanking")
@@ -50,8 +52,8 @@ data("mm9_direct_motifAnnotation")
 heatmaps <- TRUE
 custom_genes_plots <- FALSE
 fisherGO <- TRUE
-analyze_all_samples <- FALSE
-disease_association <- TRUE
+analyze_all_samples <- TRUE
+disease_association <- FALSE
 kegg_plots <- TRUE
 panther_analysis <- TRUE
 deseq2_part <- TRUE
@@ -85,8 +87,8 @@ stattest_number <- 1
 
 directory <- '~/counts/ALS Mice/experimental/'
 setwd(directory)
-gr_control <- c("Tg-2")
-gr_case <- c("Tg-3")
+gr_control <- c("control")
+gr_case <- c("tg")
 
 ### BUILDING A SPECIFIC DESIGN TABLE
 if (logging == TRUE){
@@ -166,7 +168,7 @@ if (qlm_test == TRUE){
   et_annot <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BH"))
   et_annot_non_filtered <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BH"))
   top <- as.data.frame(topTags(qlf, n = 20))
-  et <- qlf
+  et <- exactTest(a)
 } else if (qlm_test == FALSE){ 
   design <- model.matrix(~sampleTable$condition) 
   normalized_lib_sizes <- calcNormFactors(y, method = "TMM") 
@@ -188,12 +190,89 @@ if (qlm_test == TRUE){
   et_annot <- as.data.frame(et$table) 
   et_annot_non_filtered <- as.data.frame(et$table) 
 }
-logCPM <- data.frame(seq(1:10))
+
 
 if(nrow(logCPM < 1000)){
     beep(sound = "wilhelm")
     print("Too low expression found! Reduce CPM cutoff or check your data!")  
 }
+
+
+
+lib <- data.frame(fit$samples$lib.size, sampleTable$condition)
+names(lib) <- c("size", "group")
+g <- ggplot(lib) + geom_boxplot(aes(x = group, y = size, fill = group)) +
+              scale_x_discrete(name = "Experimental Groups") + 
+              scale_y_continuous(name = "Reads counts") + 
+              theme_bw() + 
+              ggtitle("Library Size") + 
+              theme(plot.title = element_text(hjust = 0.5))
+pdf(file = "Library Size.pdf", height = 10, width = 10, family = "Helvetica")
+g
+dev.off()
+
+
+disp <- data.frame(fit$dispersion, et_annot_non_filtered$logFC)
+names(disp) <- c("dispersion", "LogFC")
+disp$threshold = as.factor(et_annot_non_filtered$FDR < 0.05)
+
+g1 <- ggplot(disp) + geom_point(aes(x = dispersion, y = LogFC, color = threshold), alpha = 1/2) +
+     scale_x_continuous(name = "Dispersion") + 
+     scale_y_continuous(name = "Log-2 Fold Change") + 
+     theme_bw() + 
+     ggtitle("Dispersion") + 
+     theme(plot.title = element_text(hjust = 0.5)) +
+     geom_smooth(aes(x = dispersion, y = LogFC))
+pdf(file = "Dispersion-LogFC.pdf", height = 10, width = 10, family = "Helvetica")
+g1
+dev.off()
+
+log <- data.frame(a$AveLogCPM, et_annot_non_filtered$logFC)
+names(log) <- c("logCPM", "logFC")
+log$threshold = as.factor(et_annot_non_filtered$FDR < 0.05)
+g2 <- ggplot(log) + geom_point(aes(x = logCPM, y = logFC, color = threshold), alpha = 1/2) +
+  scale_x_continuous(name = "logCPM") + 
+  scale_y_continuous(name = "Log-2 Fold Change") + 
+  theme_bw() + 
+  ggtitle("logCPM-logFC trend") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_smooth(aes(x = logCPM, y = logFC))
+
+pdf(file = "LogCPM-logFC.pdf", height = 10, width = 10, family = "Helvetica")
+g2
+dev.off()
+
+
+pv <- data.frame(-log10(et$table$PValue), -log10(et_annot_non_filtered$FDR))
+names(pv) <- c("pvalue", "fdr")
+g3 <- ggplot(pv, aes(x = pvalue, y = fdr)) + 
+    geom_point(aes(x = pvalue, y = fdr), alpha = 1/10) +
+    scale_x_continuous(name = "-log10(P-value(exactTest))") + 
+    scale_y_continuous(name = "-log10(FDR(glmQLFit))") + 
+    theme_bw() + 
+    ggtitle("P-value/FDR") + 
+    theme(plot.title = element_text(hjust = 0.5)) +
+    geom_smooth(aes(x = pvalue, y = fdr, color = "blue"), method = "lm")
+
+pdf(file = "PValue-FDR.pdf", height = 10, width = 10, family = "Helvetica")
+g3
+dev.off()
+
+
+fc <- data.frame(et$table$logFC, et_annot_non_filtered$logFC)
+names(fc) <- c("et", "glm")
+
+g4 <- ggplot(fc, aes(x = glm, y = et)) + 
+  geom_point(aes(x = glm, y = et), alpha = 1/10) + 
+  scale_x_continuous(name = "Log2FoldChange - GLM") + 
+  scale_y_continuous(name = "Log2FoldChange - Fisher Exact Test") + 
+  theme_bw() + 
+  ggtitle("Log2FoldChange GLM/Fisher Exact Test") + 
+  theme(plot.title = element_text(hjust = 0.5))
+  
+pdf(file = "LogFC GLM-ET.pdf", height = 10, width = 10, family = "Helvetica")
+g4
+dev.off()
 
 
 y$genes$Symbol <- mapIds(org.Mm.eg.db, 
@@ -298,6 +377,8 @@ cpm$term <- mapIds(GO.db,
                    keytype="GOID",
                    multiVals="first")
 cpm$term <- as.character(cpm$term)
+
+
 ###TopTags Boxplots
 
 if (boxplots == TRUE){
@@ -489,94 +570,6 @@ p
 
   cat(p, file = "sas.txt")
 
-
-
-
-
-### MY GO TESTS
-tab <- as.data.frame(table(unlist(et_annot$GOID)))
-rownames(tab) <- tab$Var1
-my_go <- data.frame()
-for (f in tab$Var1){
-  sub <- grep(paste(f), et_annot$GOID, ignore.case = TRUE)
-  st <- et_annot[sub,]
-  lfc <- mean(st$logFC)
-  df <- data.frame(f, lfc, nrow(st))
-  my_go <- rbind(df, my_go)
-}
-
-rownames(my_go) <- my_go$f
-my_go$term <- mapIds(GO.db, 
-                         keys=rownames(my_go), 
-                         column="TERM", 
-                         keytype="GOID",
-                         multiVals="first")
-my_go$term <- as.character(my_go$term)
-names(my_go) <- c("term", "logFC", "genes in term", "name of term")
-
-for_hm <- my_go
-my_go <- my_go[order(my_go$`genes in term`, decreasing = TRUE),]
-write.xlsx(my_go, file = "My GO.xlsx", sheetName = "GO classes", append = TRUE)
-
-
-### GO HEATMAP
-cpmfgh <- as.data.frame(logCPM)
-
-cpmfgh$GOID <-            mapIds(org.Mm.eg.db, 
-                                 keys=row.names(cpmfgh), 
-                                 column="GO", 
-                                 keytype="ENSEMBL",
-                                 multiVals="first")
-
-
-tab <- as.data.frame(table(unlist(cpmfgh$GOID)))
-rownames(tab) <- tab$Var1
-my_go <- data.frame()
-
-for (f in rownames(tab)){
-  sub <- grep(paste(f), cpmfgh$GOID, ignore.case = TRUE)
-  st <- cpmfgh[sub,]
-  st$GOID <- NULL
-  a <- as.data.frame(colMeans(st))
-  a <- t(a)
-  a <- as.data.frame(a)
-  rownames(a) <- paste(f)
-  my_go <- rbind(a, my_go)
-}
-
-
-for_hm <- for_hm[order(for_hm$logFC),]
-for_hm <- as.data.frame(subset(for_hm, for_hm$`genes in term` > genes_in_term))
-for_hm <- as.data.frame(subset(for_hm, for_hm$logFC > logfchigh_cutoff | for_hm$logFC < logfclow_cutoff))
-
-go_for_heatmap <- data.frame()
-
-for (f in for_hm$term){
-  a <- grep(paste(f), rownames(my_go))
-  d <- my_go[a,]
-  go_for_heatmap <- rbind(d, go_for_heatmap)
-  
-}
-
-go_for_heatmap$term <- mapIds(GO.db, 
-                        keys=row.names(go_for_heatmap), 
-                        column="TERM", 
-                        keytype="GOID",
-                        multiVals="first")
-
-
-
-
-rownames(go_for_heatmap) <- go_for_heatmap$term
-go_for_heatmap$term <- NULL
-
-go_for_heatmap <- t(scale(t(go_for_heatmap)))
-pdf(file = "GO heatmap.pdf", width = 12, height = 17, family = "Helvetica")
-heatmap.2(go_for_heatmap, col=col.pan, Rowv=TRUE, scale="column",
-          trace="none", dendrogram="both", cexRow=0.7, cexCol=0.7, density.info="none",
-          margin=c(10,9), lhei=c(2,10), lwid=c(2,15))
-
-dev.off()
 
 ### ANNOTATE COUNTS
 CountsTable$symbol <- mapIds(org.Mm.eg.db, 
@@ -1256,7 +1249,6 @@ if (analyze_all_samples == TRUE){
 }
 
 
-
 png(file = "PCAPlot.png", width = 1024, height = 768)
 print(plotPCA(rld, intgroup=c('condition')))
 dev.off()
@@ -1416,7 +1408,14 @@ go_all_1000 <- subset(go_all_1000, go_all_1000$DE > 5)
 go_all_1000 <- go_all_1000[order(go_all_1000$P.DE, decreasing = TRUE),]
 go_all_1000 <- go_all_1000[seq(1:20),]
 
+
+
 for (i in 1:nrow(go_all_1000)){
+  if (nrow(go_all_1000 < 1)){
+    print("NO TERMS TO PLOT! CHECK YOUR PARAMS!")
+    break
+  } 
+  
   str <- go_all_1000[i,]
   f <- rownames(str)
   plot.name <- str$Term
@@ -1451,9 +1450,5 @@ for (i in 1:nrow(go_all_1000)){
   
 }  
 
-### BOX PLOT
+
 beep(sound = "coin")
-
-
-
-
