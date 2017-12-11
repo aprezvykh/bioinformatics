@@ -86,7 +86,7 @@ x$index <- seq(1:nrow(x))
 z <- x[,2:6]
 p <- prcomp(z, scale. = TRUE, center = TRUE)
 
-pdf(file = "PCA Plot between models NEW.pdf", height = 10, width = 10, family = "Helvetica")
+pdf(file = "PCA Plot between models glia + sod.pdf", height = 10, width = 10, family = "Helvetica")
 ggbiplot(p, data = z,
          ellipse = TRUE,
          groups = x$type,
@@ -96,27 +96,27 @@ ggbiplot(p, data = z,
          theme_bw()
 
 dev.off()
+getwd()
 ggplot(x) + geom_point(aes(x = PValue, y = FDR, color = type))
 
-fus <- bind_rows(tg_13_glia, tg_13_moto, tg_13_others)
-
+fus <- tg_13_glia
+fus
 i <- intersect(fus$X, sod$X)
-
+length(i)
 c_fus <- fus[(fus$X %in% i),]
 c_sod <- sod[(sod$X %in% i),]
 
-s <- data.frame(c_fus$logFC, c_sod$logFC, c_fus$type, c_fus$logCPM, c_sod$logCPM)
-c <- apply(s[,4:5], 1, mean)
-s <- cbind(c, s)
-names(s) <- c( "LogCPM-value", "fus", "sod", "type", "logCPM-FUS", "logCPM-SOD")
-pdf(file = "LogFC scatter w CPM.pdf", height = 10, width = 10, family = "Helvetica")
-ggplot(s) + geom_point(aes(x = fus, y = sod, color = type, size = `LogCPM-value`), alpha = 0.7) + 
+s <- data.frame(c_fus$logFC, c_sod$logFC)
+names(s) <- c("fus", "sod")
+pdf(file = "MOTO.pdf", height = 10, width = 10, family = "Helvetica")
+
+ggplot(s) + geom_point(aes(x = fus, y = sod, color = "red"), alpha = 1) + 
                  theme_bw() + 
-                 xlim(-7,7) + 
-                 ylim(-7,7) + 
-                 geom_vline(xintercept = 0) + 
-                 geom_hline(yintercept = 0) + 
                  scale_x_continuous(name = ("Log2FoldChange in delta-FUS")) + 
-                 scale_y_continuous(name = ("Log2FoldChange in SOD"))
+                 scale_y_continuous(name = ("Log2FoldChange in SOD")) + 
+                 geom_abline(intercept = 4, slope = 1) + 
+                 geom_abline(intercept = -1, slope = 1.25) + 
+                 xlim(-5, 5) + 
+                 ylim(-5, 5)
 
 dev.off()
