@@ -1,14 +1,16 @@
 library(gplots)
 library(pheatmap)
+library(xlsx)
 control3 <- read.csv("~/counts/ALS Mice/experimental/results/enrichments/Control-1-Control-3/go-up.csv")
 tg1 <- read.csv("~/counts/ALS Mice/experimental/results/enrichments/Control-1-Tg-1/go-up.csv")
 tg2 <- read.csv("~/counts/ALS Mice/experimental/results/enrichments/Control-1-Tg-2/go-up.csv")
 tg3 <- read.csv("~/counts/ALS Mice/experimental/results/enrichments/Control-1-Tg-3/go-up.csv")
-
+sel <- read.xlsx("~/counts/ALS Mice/experimental/results/all/GO_selected (1).xlsx", sheetIndex = 1)
 #control3 <- subset(control3, P.DE < 0.05)
 #tg1 <- subset(tg1, P.DE < 0.05)
 #tg2 <- subset(tg2, P.DE < 0.05)
 #tg3 <- subset(tg3, P.DE < 0.05)
+length(intersect(sel$GO.ID, tg2$X))/nrow(sel)
 
 i <- intersect(control3$Term, tg1$Term)
 j <- intersect(tg2$Term, tg3$Term)
@@ -129,13 +131,11 @@ dev.off()
 
 
 ###GO HEATMAP DOWNREG
-
-
-control3 <- read.csv("~/counts/ALS Mice/experimental/results/Control-1-Control-3/go-down.csv")
-tg1 <- read.csv("~/counts/ALS Mice/experimental/results/Control-1-Tg-1/go-down.csv")
-tg2 <- read.csv("~/counts/ALS Mice/experimental/results/Control-1-Tg-2/go-down.csv")
-tg3 <- read.csv("~/counts/ALS Mice/experimental/results/Control-1-Tg-3/go-down.csv")
-
+control3 <- read.csv("~/counts/ALS Mice/experimental/results/enrichments/Control-1-Control-3/go-down.csv")
+tg1 <- read.csv("~/counts/ALS Mice/experimental/results/enrichments/Control-1-Tg-1/go-down.csv")
+tg2 <- read.csv("~/counts/ALS Mice/experimental/results/enrichments/Control-1-Tg-2/go-down.csv")
+tg3 <- read.csv("~/counts/ALS Mice/experimental/results/enrichments/Control-1-Tg-3/go-down.csv")
+sel <- read.xlsx("~/counts/ALS Mice/experimental/results/all/GO_selected (1).xlsx", sheetIndex = 2)
 #control3 <- subset(control3, P.DE < 0.05)
 #tg1 <- subset(tg1, P.DE < 0.05)
 tg2 <- subset(tg2, P.DE < 0.05)
@@ -224,3 +224,33 @@ pheatmap(df, col = col.pan, Rowv=TRUE, scale="none",
          trace="none", dendrogram="none", cexRow=1, cexCol=1.4, density.info="none",
          margin=c(10,10), lhei=c(2,10), lwid=c(4,4), main = "GO terms", border_color = NA)
 dev.off()
+
+
+#############################################
+control3 <- read.csv("~/counts/ALS Mice/experimental/results/enrichments/Control-1-Control-3/kegg_up.csv")
+tg1 <- read.csv("~/counts/ALS Mice/experimental/results/enrichments/Control-1-Tg-1/kegg_up.csv")
+tg2 <- read.csv("~/counts/ALS Mice/experimental/results/enrichments/Control-1-Tg-2/kegg_up.csv")
+tg3 <- read.csv("~/counts/ALS Mice/experimental/results/enrichments/Control-1-Tg-3/kegg_up.csv")
+sel <- read.xlsx("~/counts/ALS Mice/experimental/results/all/kegg selected.xlsx", sheetIndex = 1)
+
+
+sel1 <- control3[(control3$X %in% sel$path),]
+sel2 <- tg1[(tg1$X %in% sel$path),]
+sel3 <- tg2[(tg2$X %in% sel$path),]
+sel4 <- tg3[(tg3$X %in% sel$path),]
+df <- data.frame(sel1$Pathway, sel2$perc, sel3$perc, sel4$perc)
+names(df) <- c("pathway", "Tg-1", "Tg-2", "Tg-3")
+rownames(df) <- df$pathway
+df$pathway <- NULL
+df <- as.matrix(df)
+#df <- scale(df)
+setwd("~/counts/ALS Mice/experimental/results/all/")
+col.pan <- colorpanel(100, "white", "red")
+pdf(file = "kegg upregulated.pdf", width = 12, height = 17, family = "Helvetica")
+pheatmap(df, col = col.pan, Rowv=TRUE, scale="none",
+         trace="none", dendrogram="none", cexRow=1, cexCol=1.4, density.info="none",
+         margin=c(10,10), lhei=c(2,10), lwid=c(4,4), main = "Significantly upregulated KEGG terms in microglia", border_color = NA,
+         cluster_rows=T, cluster_cols=F)
+dev.off()
+
+sel

@@ -52,7 +52,7 @@ data("mm9_direct_motifAnnotation")
 heatmaps <- TRUE
 custom_genes_plots <- FALSE
 fisherGO <- TRUE
-analyze_all_samples <- TRUE
+analyze_all_samples <- FALSE
 disease_association <- FALSE
 kegg_plots <- TRUE
 panther_analysis <- TRUE
@@ -85,7 +85,7 @@ stattest_number <- 1
 #gr_control <- as.character(a[1,1])
 #gr_case <- as.character(a[1,2])
 
-directory <- '~/counts/ALS Mice/experimental/'
+directory <- '~/counts/ALS Mice/TDP43/'
 setwd(directory)
 gr_control <- c("control")
 gr_case <- c("tg")
@@ -102,20 +102,17 @@ library(dplyr)
 
 if (analyze_all_samples == TRUE){
         sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
-        sampleCondition <- c('Control-1', 'Control-1', 'Control-1', 'Control-1', 'Control-1', 
-                             'Control-3', 'Control-3', 'Control-3', 'Control-3', 'Control-3', 
-                            'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 
-                             'Tg-2', 'Tg-2', 'Tg-2', 'Tg-2', 
-                            'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3')    
+        sampleCondition <- c('Control', 'Control', 'Control', 'Control', 
+                             'Tg', 'Tg', 'Tg', 'Tg')
   
 
         sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
         col <- as.vector(sampleTable$sampleName)
-        names(col) <- c("yellow", "yellow", "yellow", "yellow", "yellow", 
-                        "purple", "purple", "purple", "purple", "purple", 
-                        "green", "green", "green", "green", "green", 
-                        "red", "red", "red", "red", 
-                        "blue", "blue", "blue", "blue", "blue")
+        #names(col) <- c("yellow", "yellow", "yellow", "yellow", "yellow", 
+        #                "purple", "purple", "purple", "purple", "purple", 
+        #                "green", "green", "green", "green", "green", 
+        #                "red", "red", "red", "red", 
+        #                "blue", "blue", "blue", "blue", "blue")
 
         y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
 } else if (analyze_all_samples == FALSE){
