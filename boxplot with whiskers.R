@@ -1,4 +1,9 @@
+library(ggplot2)
 library(ggsignif)
+library(org.Mm.eg.db)
+library(GO.db)
+library(gplots)
+library(reshape)
 sampleCondition <- c('Control-1', 'Control-1', 'Control-1', 'Control-1', 'Control-1', 
                      'Control-3', 'Control-3', 'Control-3', 'Control-3', 'Control-3', 
                      'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 
@@ -37,8 +42,7 @@ cpm$term <- mapIds(GO.db,
                    multiVals="first")
 cpm$term <- as.character(cpm$term)
 
-x <- read.xlsx("~/counts/ALS Mice/experimental/results/FUS.xlsx", sheetIndex = 2)
-r <- grep("ENSMUSG00000030795", rownames(cpm), ignore.case = TRUE)
+r <- grep("ENSMUSG00000021919", rownames(cpm), ignore.case = TRUE)
 thm <- cpm[r,]
 rownames(thm) <- thm$Symbol
 plot.name <- as.character(rownames(thm))
@@ -54,7 +58,6 @@ thm <-as.data.frame(t(thm))
 thm$Condition <- rownames(thm)
 thm$Group <- thm$Condition
 names(thm) <- c("gene", "Condition", "Group")
-names(thm) <- c("Condition", "Group", "gene")
 
 g <- ggplot(thm, aes(x = Condition, y = gene)) + 
         geom_boxplot(aes(fill = Group), alpha = 0.5, coef = 1) + 
@@ -63,24 +66,54 @@ g <- ggplot(thm, aes(x = Condition, y = gene)) +
         scale_x_discrete(name = "Experimental Groups") + 
         scale_y_continuous(name = "Log10(Counts per million)") + 
         theme_bw() + 
-        geom_signif(comparisons = list(c("Tg-1", "Tg-3")), map_signif_level = TRUE) +
+        geom_signif(comparisons = list(c("Tg-1", "Tg-3")), map_signif_level = TRUE) + 
         ggtitle(paste("Gene official symbol: ", plot.name, "\n", "Gene name:", plot.description, "\n", "Direct GO term:", plot.term)) + 
         theme(plot.title = element_text(hjust = 0.5)) + 
-        geom_line(aes(y = Condition))
-g                     
+        geom_jitter(aes(color = Group))
 
+
+g
 ggsave(filename = paste(plot.name, "pdf", sep = "."), plot = g)
+###dekta-FUS
 
+#g <- ggplot(thm, aes(x = Condition, y = gene)) + 
+#  geom_boxplot(aes(fill = Group), alpha = 0.5) + 
+#  stat_boxplot(geom = "errorbar", width = 0.5) + 
+# scale_x_discrete(name = "Experimental Groups") + 
+#  scale_y_continuous(name = "Log10(Counts per million)") + 
+#  theme_bw() + 
+#  geom_signif(comparisons = list(c("Control-3", "Tg-1")), map_signif_level = TRUE) +
+#  geom_signif(comparisons = list(c("Tg-2", "Tg-3")), map_signif_level = TRUE) +
+#  ggtitle(paste("Gene official symbol: ", "delta-FUS(1-359)", "\n", "Gene name:", "Fused in sarcoma", "\n", "Direct GO term:", "Nucleus")) + 
+#  theme(plot.title = element_text(hjust = 0.5))
+#g                     
+#ggsave(filename = paste("delta-FUS", "pdf", sep = "."), plot = g)
 
-g <- ggplot(thm, aes(x = Condition, y = gene)) + 
-  geom_boxplot(aes(fill = Group), alpha = 0.5) + 
-  stat_boxplot(geom = "errorbar", width = 0.5) + 
+x <- c("ENSMUSG00000079547", "ENSMUSG00000061232", "ENSMUSG00000041538", 
+      "ENSMUSG00000060550", "ENSMUSG00000073409", "ENSMUSG00000053835")
+thm <- cpm[(rownames(cpm) %in% x),]
+rownames(thm) <- thm$Symbol
+thm$Symbol <- NULL
+thm$Name <- NULL
+thm$GOID <- NULL
+thm$term <- NULL
+thm$entrez <- NULL
+colnames(thm) <- sampleCondition
+thm <-as.data.frame(t(thm))
+thm$Ñondition <- rownames(thm)
+thm <- melt(thm, id.vars = "Ñondition")
+
+g <- ggplot(thm, aes(x = variable, y = value)) +
+  geom_boxplot(data = thm, aes(fill = Ñondition), alpha = 0.5) + 
   scale_x_discrete(name = "Experimental Groups") + 
-  scale_y_continuous(name = "Log10(Counts per million)") + 
-  theme_bw() + 
-  geom_signif(comparisons = list(c("Control-3", "Tg-1")), map_signif_level = TRUE) +
+  scale_y_continuous(name = "logCPM") + 
+  theme_bw() +
   geom_signif(comparisons = list(c("Tg-2", "Tg-3")), map_signif_level = TRUE) +
-  ggtitle(paste("Gene official symbol: ", "delta-FUS(1-359)", "\n", "Gene name:", "Fused in sarcoma", "\n", "Direct GO term:", "Nucleus")) + 
-  theme(plot.title = element_text(hjust = 0.5))
-g                     
-ggsave(filename = paste("delta-FUS", "pdf", sep = "."), plot = g)
+  #facet_wrap(~variable, scales="free") + 
+  theme(axis.title.x=element_blank()) + 
+  ggtitle("MHC class II genes") + theme(plot.title = element_text(hjust = 0.5, size = 10)) 
+g
+ggsave(filename = paste(i, "_", plot.name, ".pdf", sep = ""), plot = g, width = 20, height = 20, units = "cm")
+
+
+

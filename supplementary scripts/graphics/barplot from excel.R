@@ -1,7 +1,7 @@
 library(ggplot2)
 library(xlsx)
 library(ggsignif)
-a <- read.xlsx("~/coomassie+phos.xlsx", sheetIndex = 2)
+a <- read.xlsx("~/coomassie+phos.xlsx", sheetIndex = 4)
 colnames(a) <- c("group", "number")
 a$group <- c("1 - Control", "2 - A 42", "3 - isoA 42")
 a$err <- c(1.3, 2.3, 3.2)
@@ -25,3 +25,8 @@ ggplot(a, aes(x = group, y = number)) +
 
 dev.off()        
 
+library(beepr)
+while(TRUE){
+  beep()
+  Sys.sleep(0.05)
+}

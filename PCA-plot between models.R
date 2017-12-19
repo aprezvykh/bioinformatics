@@ -4,12 +4,14 @@ library(ggbiplot)
 library(org.Mm.eg.db)
 library(gplots)
 library(dplyr)
-tg_13_glia <- read.csv("~/counts/ALS Mice/filtering + FDR/csv/tg13-glia.csv")
-tg_13_moto <- read.csv("~/counts/ALS Mice/filtering + FDR/csv/tg13-moto.csv")
-tg_13_others <- read.csv("~/counts/ALS Mice/filtering + FDR/csv/tg13-other.csv")
+library(calibrate)
+library(limma)
+tg_13_glia <- read.csv("~/counts/ALS Mice/filtering fc=1 + FDR/csv/tg13-glia.csv")
+tg_13_moto <- read.csv("~/counts/ALS Mice/filtering fc=1 + FDR/csv/tg13-moto.csv")
+tg_13_others <- read.csv("~/counts/ALS Mice/filtering fc=1 + FDR/csv/tg13-other.csv")
 
 cpm <- read.csv("~/counts/ALS Mice/experimental/results/all/overall logCPM.csv")
-sod <- read.xlsx("~/counts/ALS Mice/SOD/Tg-1-Tg-3/Results edgeR.xlsx", sheetIndex = 3)
+sod <- read.xlsx("~/counts/SOD/results/Tg-1-Tg-3/Results edgeR.xlsx", sheetIndex = 3)
 tdp <- read.xlsx("~/counts/ALS Mice/TDP43/results/control-tg/Results edgeR.xlsx", sheetIndex = 3)
 mot <- read.xlsx("~/counts/ALS Mice/SOD moto/results/Control-Tg/Results edgeR.xlsx", sheetIndex = 3)
 
@@ -43,11 +45,11 @@ b$type <- c("Motoneurons")
 c <- cpm[(cpm$X %in% tg_13_others$X),]
 rownames(c) <- c$X
 c$X <- NULL
-c$type <- c("Non specific)")
-
+c$type <- c("Non specific")
+x <- bind_rows(tg_13_glia, tg_13_moto, tg_13_others)
+x$fc <- round(x$FDR, digits = 2)
 b <- rbind(a, b)
 b <- rbind(c, b)
-
 ## PCA BETWEEN CELL TYPES
 b$symbol <- mapIds(org.Mm.eg.db, 
                          keys=row.names(b), 
@@ -56,16 +58,15 @@ b$symbol <- mapIds(org.Mm.eg.db,
                          multiVals="first")
 
 f <- b[,seq(1:24)]
-
+#f <- scale(f)
 p <- prcomp(f, scale. = TRUE, center = TRUE)
-pdf(file = "PCA Plot between cell types in FUS.pdf", height = 10, width = 10, family = "Helvetica")
+pdf(file = "PCA Plot between cell types in FUS - TRUE PCA - by cell types.pdf", height = 10, width = 10, family = "Helvetica")
 
 ggbiplot(p,
          ellipse = TRUE,
          var.axes = FALSE,
          circle = TRUE,
-         groups = b$type
-        ) +
+         groups = b$type) + 
          theme_bw()
 dev.off()
 
@@ -93,30 +94,39 @@ ggbiplot(p, data = z,
          var.axes = FALSE, alpha = 1) + 
          ggtitle("PCA plot between FUS and SOD") + 
          theme(plot.title = element_text(hjust = 0.5)) + 
-         theme_bw()
+         theme_bw() + 
+         geom_abline(intercept = 0.5, slope = -2.4)
 
 dev.off()
 getwd()
 ggplot(x) + geom_point(aes(x = PValue, y = FDR, color = type))
 
-fus <- tg_13_glia
-fus
-i <- intersect(fus$X, sod$X)
-length(i)
-c_fus <- fus[(fus$X %in% i),]
-c_sod <- sod[(sod$X %in% i),]
+pdf(file = "Volcano between SOD and FUS.pdf", height = 10, width = 10, family = "Helvetica")
 
-s <- data.frame(c_fus$logFC, c_sod$logFC)
-names(s) <- c("fus", "sod")
-pdf(file = "MOTO.pdf", height = 10, width = 10, family = "Helvetica")
-
-ggplot(s) + geom_point(aes(x = fus, y = sod, color = "red"), alpha = 1) + 
+ggplot(x) + geom_point(aes(x = logFC, y = -log10(FDR), color = type), alpha = 1) + 
                  theme_bw() + 
-                 scale_x_continuous(name = ("Log2FoldChange in delta-FUS")) + 
-                 scale_y_continuous(name = ("Log2FoldChange in SOD")) + 
-                 geom_abline(intercept = 4, slope = 1) + 
-                 geom_abline(intercept = -1, slope = 1.25) + 
-                 xlim(-5, 5) + 
-                 ylim(-5, 5)
-
+                 scale_x_continuous(name = ("Log2FoldChange")) + 
+                 scale_y_continuous(name = ("-log10(FDR)")) + 
+                 geom_text(aes(x = logFC, y = -log10(FDR), label = ifelse(abs(logFC) > 4 & -log10(FDR) > 2.5, as.character(symbol), ''), color = type), hjust = 0, vjust = 0, size = 3)
 dev.off()
+
+
+pdf(file = "Volcano between SOD and FUS w tick labels.pdf", height = 10, width = 10, family = "Helvetica")
+ggplot(x) + geom_point(aes(x = logFC, y = -log10(PValue), color = type)) + 
+            theme_bw() + 
+            scale_x_continuous(breaks = c(-6,-3,0,3,6), name = "Log2FoldChange") + 
+            ggtitle("Volcano plot") + 
+            theme(plot.title = element_text(hjust = 0.5))
+dev.off()
+
+
+
+x <- read.xlsx(file = "~/counts/SOD/results/compare.xlsx", sheetIndex = 1)
+x$type <- ifelse(x$logCPM.FUS > x$logCPM.SOD, "FUS", "SOD")
+ggplot(x) + geom_point(aes(x = logFC.SOD, y = logFC.FUS)) + 
+            theme_bw() + 
+            geom_text(aes(x = logFC.SOD, y = logFC.FUS, label = symbol),
+            hjust = 0, vjust = 0, size = 3) + 
+            scale_x_continuous(name = ("LogFC-SOD")) + 
+            scale_y_continuous(name = ("LogFC-FUS")) + 
+            geom_smooth(aes(x = logFC.SOD, y = logFC.FUS), method = "lm", se = FALSE)
