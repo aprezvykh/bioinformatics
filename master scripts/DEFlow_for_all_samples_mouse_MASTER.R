@@ -1,3 +1,6 @@
+library(r2excel)
+library(BatchJobs)
+library(BiocParallel)
 library(ENCODExplorer)
 library(DT)
 library(reshape2)
@@ -47,10 +50,18 @@ library(ggbiplot)
 library(cowplot)
 library(gapminder)
 library(gridExtra)
+
 ### TFES
 library(RcisTarget.mm9.motifDatabases.20k)
 data("mm9_10kbpAroundTss_motifRanking")
 data("mm9_direct_motifAnnotation")
+
+###BIOCBARALLEL SETTINGS
+default <- registered()
+register(BatchJobsParam(workers = 10), default = TRUE)
+options(MulticoreParam=quote(MulticoreParam(workers=8)))
+param <- SnowParam(workers = 2, type = "SOCK")
+
 
   heatmaps <- TRUE
   custom_genes_plots <- FALSE
@@ -63,11 +74,12 @@ data("mm9_direct_motifAnnotation")
   logging <- FALSE
   motiv <- TRUE
   boxplots <- TRUE
+  biotype <- FALSE
   ### CONSTANTS BLOCK
   
   pvalue_cutoff <- 0.05
-  logfchigh_cutoff <- 1
-  logfclow_cutoff <- -1
+  logfchigh_cutoff <- 0.5
+  logfclow_cutoff <- -0.5
   cpm_cutoff <- 0.5
   gs_size <- 10
   diseases_set <- 50
@@ -460,11 +472,14 @@ if (analyze_all_samples == TRUE){
 }
 getwd()
 ### FILTRATION
+
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
 et_annot <- as.data.frame(subset(et_annot, FDR < pvalue_cutoff))
 et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
 et_annot <- et_annot[complete.cases(et_annot), ]
+
+
 if(nrow(et_annot < 50)){
   for(i in seq(1:2)){
     beep()
@@ -479,39 +494,40 @@ if(nrow(et_annot < 50)){
 
 
 ### BIOTYPE ANNOT FIX IT!
-taxon = 'Mus Musculus'
-taxon = tolower(taxon)
-tmp = unlist(strsplit(x = taxon, split = ' '))
-dataset.name = tolower(sprintf('%s%s_gene_ensembl', substr(tmp[1],1,1), tmp[2]))
-mart <- useMart("ensembl", dataset=dataset.name) #, host="www.ensembl.org"
-use.official.gene.symbol <- TRUE
-needed.attributes = c("ensembl_gene_id","external_gene_name", "description","gene_biotype","entrezgene")
-if(use.official.gene.symbol == TRUE){
-  gmt_flt = getBM(attributes=needed.attributes,filters="external_gene_name",values=et_annot$symbol, mart=mart)
-  gmt_flt = gmt_flt[!(duplicated(gmt_flt[,"external_gene_name"])),]
-  rownames(gmt_flt) = gmt_flt[,"external_gene_name"]
-} else {
-  gmt_flt = getBM(attributes=needed.attributes,filters="ensembl_gene_id",values=rownames(et_annot), mart=mart)
-  gmt_flt = gmt_flt[!(duplicated(gmt_flt[,"ensembl_gene_id"])),]
-  rownames(gmt_flt) = gmt_flt[,"ensembl_gene_id"]
+if (biotype == TRUE){
+    taxon = 'Mus Musculus'
+    taxon = tolower(taxon)
+    tmp = unlist(strsplit(x = taxon, split = ' '))
+    dataset.name = tolower(sprintf('%s%s_gene_ensembl', substr(tmp[1],1,1), tmp[2]))
+    mart <- useMart("ensembl", dataset=dataset.name) #, host="www.ensembl.org"
+    use.official.gene.symbol <- TRUE
+    needed.attributes = c("ensembl_gene_id","external_gene_name", "description","gene_biotype","entrezgene")
+    if(use.official.gene.symbol == TRUE){
+      gmt_flt = getBM(attributes=needed.attributes,filters="external_gene_name",values=et_annot$symbol, mart=mart)
+      gmt_flt = gmt_flt[!(duplicated(gmt_flt[,"external_gene_name"])),]
+      rownames(gmt_flt) = gmt_flt[,"external_gene_name"]
+    } else {
+      gmt_flt = getBM(attributes=needed.attributes,filters="ensembl_gene_id",values=rownames(et_annot), mart=mart)
+      gmt_flt = gmt_flt[!(duplicated(gmt_flt[,"ensembl_gene_id"])),]
+      rownames(gmt_flt) = gmt_flt[,"ensembl_gene_id"]
+    }
+    
+    # et_annot$biotype <- gmt_flt$gene_biotype
+    gmt_flt_freq <- as.data.frame(table(unlist(gmt_flt$gene_biotype)))
+    
+    pdf(file = "Filtered genes biotype distribution.pdf", width = 12, height = 17, family = "Helvetica")
+    bp <- ggplot(gmt_flt_freq, aes(x="", y=Freq, fill=Var1))+
+      geom_bar(width = 1, stat = "identity")
+    pie <- bp + coord_polar("y", start=0) + theme_bw() +theme(axis.title.x=element_blank(),
+                                                                 axis.text.x=element_blank(),
+                                                                 axis.ticks.x=element_blank(),
+                                                                 axis.title.y=element_blank(),
+                                                                 axis.text.y=element_blank(),
+                                                                 axis.ticks.y=element_blank())
+    
+    pie
+    dev.off()
 }
-
-# et_annot$biotype <- gmt_flt$gene_biotype
-gmt_flt_freq <- as.data.frame(table(unlist(gmt_flt$gene_biotype)))
-
-pdf(file = "Filtered genes biotype distribution.pdf", width = 12, height = 17, family = "Helvetica")
-bp <- ggplot(gmt_flt_freq, aes(x="", y=Freq, fill=Var1))+
-  geom_bar(width = 1, stat = "identity")
-pie <- bp + coord_polar("y", start=0) + theme_bw() +theme(axis.title.x=element_blank(),
-                                                             axis.text.x=element_blank(),
-                                                             axis.ticks.x=element_blank(),
-                                                             axis.title.y=element_blank(),
-                                                             axis.text.y=element_blank(),
-                                                             axis.ticks.y=element_blank())
-
-pie
-dev.off()
-
 
 ### TESTING A HYPOTESIS
 counts_control <- CountsTable[,grep(gr_control, names(CountsTable))]
@@ -567,11 +583,16 @@ header <- c('all genes', 'mean of logCPM', 'padj<0,05', 'genes with > high', 'ge
 meaning <- c(print(all), print(avg_cpm), print(allpadj), print(up), print(down))
 df <- data.frame(header, meaning)
 
+cpm_subset <- cpm[(rownames(cpm) %in% rownames(et_annot)),]
+cpm_subset <- cpm_subset[,1:length(sampleCondition)]
+m <- data.frame()
+m <- cpm_subset
+m <- cbind(et_annot, m)
 # WRITE RESULTS
 write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append = TRUE)
 write.xlsx(top, file = "Results edgeR.xlsx", sheetName = "Top Tags (with FDR)", append = TRUE)
-write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
-
+write.xlsx(m, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
+m <- NULL
 ##TEXT SUMMARY
 et_annot_high <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff))
 et_annot_low <- as.data.frame(subset(et_annot, logFC < logfclow_cutoff))
@@ -806,14 +827,14 @@ s <- s[seq(1:30),]
 s <- s[complete.cases(s),]
 png(file = "Go terms upreg.png", width = 1024, height = 768)
 #pdf(file = "Go terms upreg.pdf", width = 12, height = 17, family = "Helvetica")
-g <- ggplot(s, aes(x = reorder(Term, DE), y = DE, fill = P.DE)) + 
+g_u <- ggplot(s, aes(x = reorder(Term, DE), y = DE, fill = P.DE)) + 
   geom_bar(stat="identity") + 
   scale_x_discrete(breaks = s$Term, name = "Significant Upregulated Terms") + 
   coord_flip() +
   scale_y_continuous(name = "Number of differentialy expressed genes") +
   theme_bw() + 
   theme(axis.text.y = element_text(colour="grey20",size=15,angle=0,hjust=1,vjust=0,face="plain"))
-g
+g_u
 dev.off()
 
 s <- subset(go_down_500, go_down_500$perc > 20 & go_down_500$P.DE < 0.001)
@@ -824,14 +845,14 @@ s <- s[seq(1:30),]
 s <- s[complete.cases(s),]
 png(file = "Go terms downreg.png", width = 1024, height = 768)
 #pdf(file = "Go terms downreg.pdf", width = 12, height = 17, family = "Helvetica")
-g <- ggplot(s, aes(x = reorder(Term, DE), y = DE, fill = P.DE)) + 
+g_d <- ggplot(s, aes(x = reorder(Term, DE), y = DE, fill = P.DE)) + 
   geom_bar(stat="identity") + 
   scale_x_discrete(breaks = s$Term, name = "Significant Downregulated Terms") + 
   coord_flip() +
   scale_y_continuous(name = "Number of differentialy expressed genes") +
   theme_bw() + 
   theme(axis.text.y = element_text(colour="grey20",size=15,angle=0,hjust=1,vjust=0,face="plain"))
-g
+g_d
 dev.off()
 
 getwd()
@@ -956,10 +977,9 @@ pdf(file = "Smear plot.pdf", width = 10, height = 10)
 plotSmear(qlf, de.tags = rownames(tt$table))
 dev.off()
 
-
 ### REACTOME PART
 dfa <- as.character(et_annot$entrez)
-x <- enrichPathway(gene=dfa, organism = "mouse", minGSSize=gs_size, readable = TRUE )
+x_com <- enrichPathway(gene=dfa, organism = "mouse", minGSSize=gs_size, readable = TRUE )
 write.xlsx(x, "Reactome.xlsx", sheetName = "All reactome", append = TRUE)
 if (nrow(x) == 0){
   for(i in seq(1:2)){
@@ -974,43 +994,44 @@ dev.off()
 
 par(mar=c(1,1,1,1))
 pdf(file = "barplot.pdf", width = 12, height = 17, family = "Helvetica")
-barplot(x, showCategory=30,  font.size = 9)
+r.bp.com <- barplot(x_com, showCategory=50,  font.size = 9)
+r.bp.com
 dev.off()
 
 pdf(file = "enrichmap.pdf", width = 12, height = 17, family = "Helvetica")
-enrichMap(x, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7, n = 20, font.size = 20)
+r.em.com <- enrichMap(x_com, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7, n = 20, font.size = 20)
 dev.off()
 
 pdf(file = "cnetplot.pdf", width = 12, height = 17, family = "Helvetica")
-cnetplot(x, foldChange = foldchanges, categorySize="pvalue", showCategory = 10)
+r.cn.com <- cnetplot(x_com, foldChange = foldchanges, categorySize="pvalue", showCategory = 10)
 dev.off()
 
 #HIGH
 
 df_high <- et_annot_high$entrez
-x <- enrichPathway(gene=df_high, organism = "mouse", minGSSize=gs_size, readable = TRUE )
-write.xlsx(x, "Reactome.xlsx", sheetName = "High", append = TRUE)
-write.xlsx(x, file = "Results edgeR.xlsx", sheetName = "top 100 Upregulated Reactome pathways", append = TRUE)
-head(as.data.frame(x))
+x_up <- enrichPathway(gene=df_high, organism = "mouse", minGSSize=gs_size, readable = TRUE )
+write.xlsx(x_up, "Reactome.xlsx", sheetName = "High", append = TRUE)
+write.xlsx(x_up, file = "Results edgeR.xlsx", sheetName = "top 100 Upregulated Reactome pathways", append = TRUE)
+head(as.data.frame(x_up))
 dev.off()
 
 par(mar=c(1,1,1,1))
 pdf(file = "barplot_high.pdf", width = 12, height = 17, family = "Helvetica")
-barplot(x, showCategory=30,  font.size = 9)
+r.bp.up <- barplot(x, showCategory=30,  font.size = 9)
+r.bp.up
 dev.off()
 
 #LOW
 
 df_low <- et_annot_low$entrez
-x <- enrichPathway(gene=df_low, organism = "mouse", minGSSize=gs_size, readable = TRUE )
-write.xlsx(x, "Reactome.xlsx", sheetName = "Low", append = TRUE)
-write.xlsx(x, file = "Results edgeR.xlsx", sheetName = "top 100 Downregulated Reactome pathways", append = TRUE)
-head(as.data.frame(x))
-dev.off()
+x_down <- enrichPathway(gene=df_low, organism = "mouse", minGSSize=gs_size, readable = TRUE )
+write.xlsx(x_down, "Reactome.xlsx", sheetName = "Low", append = TRUE)
+write.xlsx(x_down, file = "Results edgeR.xlsx", sheetName = "top 100 Downregulated Reactome pathways", append = TRUE)
+head(as.data.frame(x_down))
 
 par(mar=c(1,1,1,1))
 pdf(file = "barplot_low.pdf", width = 12, height = 17, family = "Helvetica")
-barplot(x, showCategory=30,  font.size = 9)
+r.bp.down <- barplot(x_down, showCategory=30,  font.size = 9)
 dev.off()
 
 
@@ -1080,6 +1101,9 @@ logCPMfc <- logCPMfc[complete.cases(logCPMfc),]
 logCPMfc <- t(scale(t(logCPMfc)))
 col.pan <- colorpanel(100, "blue", "white", "red")
 pdf(file = "Top 100 logFC Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
+heatmap.2(logCPMfc, col=col.pan, Rowv=TRUE, scale="none",
+          trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
+          margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top logCPM genes, p < 0.05", na.rm = TRUE)
 dev.off()
 
 
@@ -1183,13 +1207,9 @@ plot_pathway = function(pid){
 detach("package:dplyr", unload=TRUE)
 dir.create("kegg")
 setwd("kegg")
+
 tmp = sapply(keggresids, function(pid) pathview(gene.data=foldchanges, pathway.id=pid, species="mmu"))
 }
-
-pathview(gene.data=foldchanges, 
-         pathway.id="mmu04728", 
-         species="mmu", 
-         new.signature=FALSE)
 
 setwd(results.dir)
 if (analyze_all_samples == TRUE){
@@ -1385,7 +1405,7 @@ go_all_1000 <- go_all_1000[!(go_all_1000$Ont %in% remove), ]
 go_all_1000$perc = (go_all_1000$DE/go_all_1000$N)*100
 go_all_1000 <- subset(go_all_1000, go_all_1000$P.DE < 0.05)
 go_all_1000 <- subset(go_all_1000, go_all_1000$perc > 20)
-go_all_1000 <- subset(go_all_1000, go_all_1000$N < 100)
+#go_all_1000 <- subset(go_all_1000, go_all_1000$N < 100)
 go_all_1000 <- subset(go_all_1000, go_all_1000$DE <= 10)
 #go_all_1000 <- subset(go_all_1000, go_all_1000$DE > 5)
 go_all_1000 <- go_all_1000[order(go_all_1000$P.DE, decreasing = TRUE),]
@@ -1460,10 +1480,7 @@ cpm$entrez <- mapIds(org.Mm.eg.db,
                      keytype="ENSEMBL",
                      multiVals="first")
 
-sub <- go_all_1000[order(go_all_1000$P.DE, decreasing = FALSE),]
-sub <- subset(sub, sub$DE > 10)
-sub <- subset(sub, sub$P.DE < 0.05)
-sub <- sub[1:30,]
+sub <- go_all_1000[(go_all_1000$Term %in% go_up_30),]
 
 for (f in rownames(sub)){
     print(f)
@@ -1478,7 +1495,7 @@ for (f in rownames(sub)){
     df <- data.frame(mean.1, mean.2)
     df$mean.1 <- log10(df$mean.1)
     df$mean.2 <- log10(df$mean.2)
-    rownames(df) <- x$Symbol
+    rownames(df) <- make.names(x$Symbol, unique = TRUE)
     cluster <- kmeans(df, 3, nstart = 20)
     df$gene <- rownames(df)
     df$Cluster <- as.factor(cluster$cluster)
@@ -1500,4 +1517,25 @@ for (f in rownames(sub)){
     
 
 }
+
+lib
+filename <- "graphical summary.xlsx"
+wb <- createWorkbook(type="xlsx")
+sheet <- createSheet(wb, sheetName = "Model distributions")
+sheet2 <- createSheet(wb, sheetName = "enrichments")
+xlsx.addPlot(wb, sheet, plotFunction = function(){print(g)})
+xlsx.addPlot(wb, sheet, plotFunction = function(){print(g1)})
+xlsx.addPlot(wb, sheet, plotFunction = function(){print(g2)}, startCol = 18, startRow = 1)
+xlsx.addPlot(wb, sheet, plotFunction = function(){print(g3)}, startRow = 1, startCol = 10)
+xlsx.addPlot(wb, sheet, plotFunction = function(){print(g4)}, startRow = 25, startCol = 10)
+xlsx.addPlot(wb, sheet, plotFunction = function(){print(g5)}, startRow = 1, startCol = 18)
+xlsx.addPlot(wb, sheet, plotFunction = function(){print(g6)}, startRow = 25, startCol = 18)
+xlsx.addPlot(wb, sheet2, plotFunction = function(){print(g_u)})
+xlsx.addPlot(wb, sheet2, plotFunction = function(){print(g_d)}, startCol = 10, startRow = 1)
+xlsx.addPlot(wb, sheet2, plotFunction = function(){print(r.bp.up)}, startCol = 1, startRow = 25)
+xlsx.addPlot(wb, sheet2, plotFunction = function(){print(r.bp.down)}, startCol = 10, startRow = 25)
+
+saveWorkbook(wb, "graphical summary.xlsx")
+xlsx.openFile("graphical summary.xlsx")
+g1
 
