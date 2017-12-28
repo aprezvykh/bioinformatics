@@ -4,6 +4,7 @@ library(org.Mm.eg.db)
 library(GO.db)
 library(gplots)
 library(reshape)
+setwd("~/counts/ALS Mice/experimental/results/all/boxplots/glia-tg23/")
 sampleCondition <- c('Control-1', 'Control-1', 'Control-1', 'Control-1', 'Control-1', 
                      'Control-3', 'Control-3', 'Control-3', 'Control-3', 'Control-3', 
                      'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 
@@ -42,7 +43,7 @@ cpm$term <- mapIds(GO.db,
                    multiVals="first")
 cpm$term <- as.character(cpm$term)
 
-r <- grep("ENSMUSG00000021919", rownames(cpm), ignore.case = TRUE)
+r <- grep("ENSMUSG00000059498", rownames(cpm), ignore.case = TRUE)
 thm <- cpm[r,]
 rownames(thm) <- thm$Symbol
 plot.name <- as.character(rownames(thm))
@@ -66,14 +67,14 @@ g <- ggplot(thm, aes(x = Condition, y = gene)) +
         scale_x_discrete(name = "Experimental Groups") + 
         scale_y_continuous(name = "Log10(Counts per million)") + 
         theme_bw() + 
-        geom_signif(comparisons = list(c("Tg-1", "Tg-3")), map_signif_level = TRUE) + 
+        geom_signif(comparisons = list(c("Tg-2", "Tg-3")), map_signif_level = TRUE) + 
+        #geom_signif(comparisons = list(c("Tg-2", "Tg-3")), map_signif_level = TRUE) + 
         ggtitle(paste("Gene official symbol: ", plot.name, "\n", "Gene name:", plot.description, "\n", "Direct GO term:", plot.term)) + 
-        theme(plot.title = element_text(hjust = 0.5)) + 
-        geom_jitter(aes(color = Group))
+        theme(plot.title = element_text(hjust = 0.5))
 
 
 g
-ggsave(filename = paste(plot.name, "pdf", sep = "."), plot = g)
+ggsave(filename = paste(plot.name, "pdf", sep = "."), plot = g, height = 20, width = 20, units = "cm")
 ###dekta-FUS
 
 #g <- ggplot(thm, aes(x = Condition, y = gene)) + 
@@ -117,3 +118,32 @@ ggsave(filename = paste(i, "_", plot.name, ".pdf", sep = ""), plot = g, width = 
 
 
 
+
+#### BARPLOT w MEAN
+x <- c("ENSMUSG00000031591")
+thm <- cpm[(rownames(cpm) %in% x),]
+rownames(thm) <- thm$Symbol
+plot.name <- as.character(rownames(thm))
+plot.description <- as.character(thm$Name)
+plot.term <- as.character(thm$term)
+thm$Symbol <- NULL
+thm$Name <- NULL
+thm$GOID <- NULL
+thm$term <- NULL
+thm$entrez <- NULL
+#colnames(thm) <- sampleCondition
+thm <-as.data.frame(t(thm))
+thm$Ñondition <- rownames(thm)
+thm$group <- rownames(thm)
+names(thm) <- c("int", "group")
+
+g <- ggplot(thm) + geom_bar(aes(x = group, y = int, fill = group), stat = "identity", alpha= 0.5) + 
+              scale_x_discrete(name = "Experimental Groups") + 
+              scale_y_continuous(name = "logCPM") + 
+              theme_bw() +
+              #geom_signif(comparisons = list(c("Tg-2", "Tg-3")), map_signif_level = TRUE) +
+              theme(axis.title.x=element_blank()) + 
+              ggtitle(paste("Gene official symbol: ", plot.name, "\n", "Gene name:", plot.description, "\n", "Direct GO term:", plot.term)) + 
+              theme(plot.title = element_text(hjust = 0.5))
+ggsave(filename = paste(plot.name, "-separate", "pdf", sep = "."), plot = g, height = 20, width = 20, units = "cm")
+              

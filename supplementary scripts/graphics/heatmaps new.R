@@ -277,32 +277,22 @@ legend("topright",
 )
 dev.off()
 
+### UP AND DOWN MOTO3
 
+up <- tg_13_moto[which(tg_13_moto$logFC > 0),]
+down <- tg_13_moto[which(tg_13_moto$logFC < 0),]
 
+z <- down[order(down$FDR, decreasing = FALSE),]
+z <- z[1:50,]
+hm <- cpm[rownames(cpm) %in% z$X,]
+rownames(hm) <- z$symbol
+colnames(hm) <- c("Tg-1", "Tg-1", "Tg-1", "Tg-1", "Tg-1", 
+                  "Tg-2", "Tg-2", "Tg-2", "Tg-2", 
+                  "Tg-3", "Tg-3", "Tg-3", "Tg-3", "Tg-3")
 
-
-
-
-
-
-
-
-r <- grep("ENSMUSG00000031144", rownames(cpm), ignore.case = TRUE)
-thm <- cpm[r,]
-rownames(thm) <- thm$Symbol
-plot.name <- as.character(rownames(thm))
-thm$Symbol <- NULL
-colnames(thm) <- sampleCondition
-thm <-as.data.frame(t(thm))
-thm$Condition <- rownames(thm)
-thm$Group <- thm$Condition
-names(thm) <- c("gene", "Condition", "Group")
-
-g <- ggplot(thm, aes(x = Condition, y = gene)) + 
-    geom_boxplot(data = thm, aes(fill = Group), alpha = 0.5) + 
-    scale_x_discrete(name = "Experimental Groups") + 
-    scale_y_continuous(name = "Counts per million") + 
-    theme_bw()
-g 
-
-  
+hm <- t(scale(t(hm)))
+pdf(file = "Top 50 downregulated motoneuron genes.pdf", width = 12, height = 17, family = "Helvetica")
+heatmap.2(hm, col=col.pan, Rowv=TRUE, scale="none",
+          trace="none", dendrogram="both", cexRow=1.4, cexCol=1.4, density.info="none",
+          margin=c(15,11), lhei=c(2,10), lwid=c(2,6), main = "Top 50 downregulated motoneuron genes, FDR < 0,05", ColSideColors = colors)
+dev.off()

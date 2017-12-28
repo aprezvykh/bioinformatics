@@ -78,8 +78,8 @@ param <- SnowParam(workers = 2, type = "SOCK")
   ### CONSTANTS BLOCK
   
   pvalue_cutoff <- 0.05
-  logfchigh_cutoff <- 0.5
-  logfclow_cutoff <- -0.5
+  logfchigh_cutoff <- 0.8
+  logfclow_cutoff <- -0.8
   cpm_cutoff <- 0.5
   gs_size <- 10
   diseases_set <- 50
@@ -101,8 +101,8 @@ param <- SnowParam(workers = 2, type = "SOCK")
 
 directory <- '~/counts/ALS Mice/experimental/'
 setwd(directory)
-gr_control <- c("Tg-2")
-gr_case <- c("Tg-3")
+gr_control <- c("Control-3")
+gr_case <- c("Tg-1")
 
 ### BUILDING A SPECIFIC DESIGN TABLE
 if (logging == TRUE){
@@ -210,6 +210,7 @@ plot(et$table$logCPM, y$tagwise.dispersion, pch = ".")
 
 lib <- data.frame(fit$samples$lib.size, sampleTable$condition)
 names(lib) <- c("size", "group")
+lib
 g <- ggplot(lib) + geom_boxplot(aes(x = group, y = size, fill = group)) +
               scale_x_discrete(name = "Experimental Groups") + 
               scale_y_continuous(name = "Reads counts") + 
@@ -564,6 +565,41 @@ hist(et_annot_non_filtered$logFC, main = "logFC distribution, non-filtered", fre
 hist(et_annot$logFC, main = "logFC distribution, filtered", freq = FALSE, col = col.pan, xlab = "LogFC", breaks = 50)
 dev.off()
 
+d1 <- ggplot(data=et_annot_non_filtered, aes(et_annot_non_filtered$logCPM)) + 
+      geom_histogram(binwidth = 0.05) + 
+      scale_x_continuous(name = "logCPM") + 
+      ggtitle("logCPM, non filtered") + 
+      theme(plot.title = element_text(hjust = 0.5))
+
+d2 <- ggplot(data=et_annot, aes(et_annot$logCPM)) + 
+      geom_histogram(binwidth = 0.05) + 
+      scale_x_continuous(name = "logCPM") + 
+      ggtitle("logCPM,filtered") + 
+      theme(plot.title = element_text(hjust = 0.5))
+
+d3 <- ggplot(data=et_annot_non_filtered, aes(-log10(et_annot_non_filtered$PValue))) + 
+      geom_histogram(binwidth = 0.05) + 
+      scale_x_continuous(name = "-log10(PValue)") + 
+      ggtitle("-log10(PValue), non filtered") + 
+      theme(plot.title = element_text(hjust = 0.5))
+
+d4 <- ggplot(data=et_annot, aes(-log10(et_annot$PValue))) + 
+      geom_histogram(binwidth = 0.05) + 
+      scale_x_continuous(name = "-log10(PValue)") + 
+      ggtitle("-log10(PValue), filtered") + 
+      theme(plot.title = element_text(hjust = 0.5))
+
+d5 <- ggplot(data=et_annot_non_filtered, aes(et_annot_non_filtered$logFC)) + 
+      geom_histogram(binwidth = 0.05) + 
+      scale_x_continuous(name = "logFC") + 
+      ggtitle("logFC, non filtered") + 
+      theme(plot.title = element_text(hjust = 0.5))
+
+d6 <- ggplot(data=et_annot, aes(et_annot$logFC)) + 
+      geom_histogram(binwidth = 0.05) + 
+      scale_x_continuous(name = "logFC") + 
+      ggtitle("logFC, filtered") + 
+      theme(plot.title = element_text(hjust = 0.5))
 
 
 setwd(results.dir)
@@ -937,6 +973,7 @@ pdf(file = "Corellation matrix Spearman.pdf", width = 10, height = 10)
 heatmap.2(x, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1.4, cexCol=1.4, density.info="none",
           margin=c(18,18), lhei=c(2,10), lwid=c(2,6), main = "Spearman corellation")
+
 dev.off()
 #legend("bottomright",
 #       legend = c("Control-1", "Control-3", "Tg-1", "Tg-2", "Tg-3"),
@@ -960,21 +997,23 @@ dev.off()
 
 ### VOLCANO PLOT
 allgenes <- nrow(et_annot_non_filtered)
+max <- max(-log10(et_annot_non_filtered$PValue))
 et_annot_non_filtered$threshold = as.factor(abs(et_annot_non_filtered$logFC) > logfchigh_cutoff & et_annot_non_filtered$PValue < 0.05/allgenes)
 pdf(file = "Volcano plot.pdf", width = 10, height = 10)
-g = ggplot(data=et_annot_non_filtered, aes(x=logFC, y=-log10(PValue), colour=threshold)) +
+volc = ggplot(data=et_annot_non_filtered, aes(x=logFC, y=-log10(PValue), colour=threshold)) +
   geom_point(alpha=1, size=2) +
   labs(legend.position = "none") +
-  xlim(c(-6, 6)) + ylim(c(1.30103, 30)) +
+  xlim(c(-6, 6)) + ylim(c(1.30103, max)) +
   xlab("log2 fold change") + ylab("-log10 p-value") +
   theme_bw()
-g
+volc
 dev.off()
 
 #SMEAR PLOT
-tt <- topTags(qlf, n=nrow(y), p.value=0.1)
+tt <- topTags(qlf, n=nrow(y), p.value=0.05)
 pdf(file = "Smear plot.pdf", width = 10, height = 10)
-plotSmear(qlf, de.tags = rownames(tt$table))
+plotSmear(qlf, de.tags = rownames(tt$table), lowess = TRUE, smooth.scatter = TRUE)
+
 dev.off()
 
 ### REACTOME PART
@@ -1125,12 +1164,12 @@ topcpm$Symbol <- mapIds(org.Mm.eg.db,
                         multiVals="first")
 rownames(topcpm) <- make.names(topcpm$Symbol, unique=TRUE)
 topcpm$Symbol <- NULL
-topcpm <- t(scale(t(topcpm)))
+top100cpm <- t(scale(t(topcpm)))
 pdf(file = "All heatmap.pdf", width = 12, height = 17, family = "Helvetica")
-heatmap.2(topcpm, col=col.pan, Rowv=TRUE, scale="column",
+heatmap.2(top100cpm, col=col.pan, Rowv=TRUE, scale="column",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "",
-          ColSideColors = names(col), labCol = FALSE)
+          labCol = FALSE)
             
 dev.off()
 ### heatmap with all samples
@@ -1253,6 +1292,7 @@ if (analyze_all_samples == TRUE){
 
 
 png(file = "PCAPlot.png", width = 1024, height = 768)
+pca <- plotPCA(rld, intgroup=c('condition'))
 print(plotPCA(rld, intgroup=c('condition')))
 dev.off()
 
@@ -1436,7 +1476,7 @@ for (i in 1:nrow(go_all_1000)){
   thm$Ñondition <- rownames(thm)
   thm <- melt(thm, id.vars = "Ñondition")
   
-  g <- ggplot(thm, aes(x = variable, y = value)) +
+  g12 <- ggplot(thm, aes(x = variable, y = value)) +
     geom_boxplot(data = thm, aes(fill = Ñondition), alpha = 0.5) + 
     scale_x_discrete(name = "Experimental Groups") + 
     scale_y_continuous(name = "logCPM") + 
@@ -1444,8 +1484,8 @@ for (i in 1:nrow(go_all_1000)){
     geom_signif(comparisons = list(c("tg_2", "tg_3")), map_signif_level = TRUE) +
     #facet_wrap(~variable, scales="free") + 
     theme(axis.title.x=element_blank())
-  g <- g + ggtitle(paste(f, ":", plot.name, "\n", "Ontology:", plot.ont, "\n", "Percent of significant genes: ", plot.perc, "%", "\n", "Term p-value:", plot.pval)) + theme(plot.title = element_text(hjust = 0.5, size = 10)) 
-  ggsave(filename = paste(i, "_", plot.name, ".pdf", sep = ""), plot = g, width = 20, height = 20, units = "cm")
+  g12 <- g12 + ggtitle(paste(f, ":", plot.name, "\n", "Ontology:", plot.ont, "\n", "Percent of significant genes: ", plot.perc, "%", "\n", "Term p-value:", plot.pval)) + theme(plot.title = element_text(hjust = 0.5, size = 10)) 
+  ggsave(filename = paste(i, "_", plot.name, ".pdf", sep = ""), plot = g12, width = 20, height = 20, units = "cm")
   
 }  
 
@@ -1503,7 +1543,7 @@ for (f in rownames(sub)){
     df$lfc <- e$logFC
     df$Log2FoldChange <- ifelse(df$lfc > 0, "Positive", "Negative")
     
-    g1 <- ggplot(df) + geom_point(aes(x = mean.1, y = mean.2, color = Cluster,  shape = Log2FoldChange)) + 
+    g11 <- ggplot(df) + geom_point(aes(x = mean.1, y = mean.2, color = Cluster,  shape = Log2FoldChange)) + 
                  theme_bw() + 
                  geom_smooth(aes(x = mean.1, y = mean.2),method = "lm", se = FALSE, color = "red") + 
                  geom_smooth(aes(x = mean.1, y = mean.2), se = FALSE, color = "green") + 
@@ -1513,29 +1553,59 @@ for (f in rownames(sub)){
                  ggtitle(paste("K-means clustering", "\n", f, ":", plot.name)) + theme(plot.title = element_text(hjust = 0.5, size = 10)) + 
                  geom_abline(aes(intercept = 0, slope = 1), color = "blue") + 
                  scale_colour_manual(name="Lines", values=c("green", "blue", "red"))
-    ggsave(filename = paste(plot.name, ".png", sep = ""), plot = g1, width = 20, height = 20, units = "cm")
+    ggsave(filename = paste(plot.name, ".png", sep = ""), plot = g11, width = 20, height = 20, units = "cm")
     
 
 }
 
-lib
+
+### GRAPHICAL SUMMARY
+setwd(results.dir)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else {
+  setwd(stattest)
+}
+
 filename <- "graphical summary.xlsx"
 wb <- createWorkbook(type="xlsx")
 sheet <- createSheet(wb, sheetName = "Model distributions")
-sheet2 <- createSheet(wb, sheetName = "enrichments")
+sheet1 <- createSheet(wb, sheetName = "DE visualization")
+sheet2 <- createSheet(wb, sheetName = "distributions")
+sheet3 <- createSheet(wb, sheetName = "enrichments")
+
 xlsx.addPlot(wb, sheet, plotFunction = function(){print(g)})
-xlsx.addPlot(wb, sheet, plotFunction = function(){print(g1)})
+xlsx.addPlot(wb, sheet, plotFunction = function(){print(g11)})
 xlsx.addPlot(wb, sheet, plotFunction = function(){print(g2)}, startCol = 18, startRow = 1)
 xlsx.addPlot(wb, sheet, plotFunction = function(){print(g3)}, startRow = 1, startCol = 10)
 xlsx.addPlot(wb, sheet, plotFunction = function(){print(g4)}, startRow = 25, startCol = 10)
 xlsx.addPlot(wb, sheet, plotFunction = function(){print(g5)}, startRow = 1, startCol = 18)
 xlsx.addPlot(wb, sheet, plotFunction = function(){print(g6)}, startRow = 25, startCol = 18)
-xlsx.addPlot(wb, sheet2, plotFunction = function(){print(g_u)})
-xlsx.addPlot(wb, sheet2, plotFunction = function(){print(g_d)}, startCol = 10, startRow = 1)
-xlsx.addPlot(wb, sheet2, plotFunction = function(){print(r.bp.up)}, startCol = 1, startRow = 25)
-xlsx.addPlot(wb, sheet2, plotFunction = function(){print(r.bp.down)}, startCol = 10, startRow = 25)
+
+xlsx.addPlot(wb, sheet1, plotFunction = function(){print(volc)})
+xlsx.addPlot(wb, sheet1, plotFunction = function(){print(pca)})
+xlsx.addPlot(wb, sheet1, plotFunction = function(){heatmap.2(x, col=col.pan, Rowv=TRUE, scale="none",
+                                                             trace="none", dendrogram="both", cexRow=1, cexCol=1, density.info="none",
+                                                             margin=c(18,18), lhei=c(2,10), lwid=c(2,6), main = "Spearman corellation")}, startCol = 10, startRow = 1)
+xlsx.addPlot(wb, sheet1, plotFunction = function(){plotSmear(qlf, de.tags = rownames(tt$table), lowess = TRUE, smooth.scatter = TRUE)}, startCol = 10, startRow = 25)
+xlsx.addPlot(wb, sheet1, plotFunction = function(){heatmap.2(logCPMpval, col=col.pan, Rowv=TRUE, scale="none",
+                                                             trace="none", dendrogram="both", cexRow=0.5, cexCol=1, density.info="none",
+                                                             margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top FDR genes, p < 0.05")}, startCol = 18, startRow = 1)
+xlsx.addPlot(wb, sheet1, plotFunction = function(){heatmap.2(top100cpm, col=col.pan, Rowv=TRUE, scale="none",
+                                                             trace="none", dendrogram="both", cexRow=0.5, cexCol=1, density.info="none",
+                                                             margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top FDR genes, p < 0.05")}, startCol = 18, startRow = 25)
+
+xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d1)})
+xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d2)}, startRow = 1, startCol = 9)
+xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d3)}, startRow = 25, startCol = 2)
+xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d4)}, startRow = 25, startCol = 9)
+xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d5)}, startRow = 50, startCol = 2 )
+xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d6)}, startRow = 50, startCol = 9)
+xlsx.addPlot(wb, sheet3, plotFunction = function(){print(g_u)})
+xlsx.addPlot(wb, sheet3, plotFunction = function(){print(g_d)}, startCol = 10, startRow = 1)
+xlsx.addPlot(wb, sheet3, plotFunction = function(){print(r.bp.up)}, startCol = 1, startRow = 25)
+xlsx.addPlot(wb, sheet3, plotFunction = function(){print(r.bp.down)}, startCol = 10, startRow = 25)
 
 saveWorkbook(wb, "graphical summary.xlsx")
 xlsx.openFile("graphical summary.xlsx")
-g1
 
