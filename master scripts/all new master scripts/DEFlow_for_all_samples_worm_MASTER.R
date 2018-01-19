@@ -70,13 +70,15 @@ param <- SnowParam(workers = 2, type = "SOCK")
   logging <- FALSE
   boxplots <- TRUE
   biotype <- FALSE
+  distrib <- FALSE
+  summary <- FALSE
   ### CONSTANTS BLOCK
   
   pvalue_cutoff <- 0.05
-  logfchigh_cutoff <- 0.5
-  logfclow_cutoff <- -0.5
+  logfchigh_cutoff <- 0.1
+  logfclow_cutoff <- -0.1
   cpm_cutoff <- 0.5
-  gs_size <- 10
+  gs_size <- 3
   diseases_set <- 50
   number_of_kegg_plots <- 100
   go_terms_set <- 50
@@ -95,8 +97,8 @@ param <- SnowParam(workers = 2, type = "SOCK")
 
 directory <- '~/counts/AIKAR/'
 setwd(directory)
-gr_control <- c("control_early")
-gr_case <- c("control_late")
+gr_control <- c("control_late")
+gr_case <- c("aikar_late")
 
 ### BUILDING A SPECIFIC DESIGN TABLE
 if (logging == TRUE){
@@ -200,8 +202,9 @@ if (qlm_test == TRUE){
   et_annot_non_filtered <- as.data.frame(et$table) 
 }
 
+if (distrib == TRUE){
 
-plot(et$table$logCPM, y$tagwise.dispersion, pch = ".")
+if(qlm_test == TRUE){
 
 lib <- data.frame(fit$samples$lib.size, sampleTable$condition)
 names(lib) <- c("size", "group")
@@ -215,7 +218,20 @@ g <- ggplot(lib) + geom_boxplot(aes(x = group, y = size, fill = group)) +
 pdf(file = "Library Size.pdf", height = 10, width = 10, family = "Helvetica")
 g
 dev.off()
-
+} else {
+  lib <- data.frame(y$samples$lib.size, sampleTable$condition)
+  names(lib) <- c("size", "group")
+  lib
+  g <- ggplot(lib) + geom_boxplot(aes(x = group, y = size, fill = group)) +
+    scale_x_discrete(name = "Experimental Groups") + 
+    scale_y_continuous(name = "Reads counts") + 
+    theme_bw() + 
+    ggtitle("Library Size") + 
+    theme(plot.title = element_text(hjust = 0.5))
+  pdf(file = "Library Size.pdf", height = 10, width = 10, family = "Helvetica")
+  g
+  dev.off()
+}
 
 
 disp <- data.frame(fit$dispersion, et_annot_non_filtered$logFC)
@@ -234,7 +250,7 @@ g1
 dev.off()
 
 
-log <- data.frame(a$AveLogCPM, et_annot_non_filtered$logFC)
+log <- data.frame(y$AveLogCPM, et_annot_non_filtered$logFC)
 names(log) <- c("logCPM", "logFC")
 log$threshold = as.factor(et_annot_non_filtered$FDR < 0.05)
 g2 <- ggplot(log) + geom_point(aes(x = logCPM, y = logFC, color = threshold), alpha = 1/2) +
@@ -317,6 +333,11 @@ g6 <- ggplot(fc, aes(x = cpm, y = trend)) +
 pdf(file = "LogCPM/trended dispersion.pdf", height = 10, width = 10, family = "Helvetica")
 g6
 dev.off()
+
+
+}
+
+
 
 y$genes$Symbol <- mapIds(org.Ce.eg.db, 
                          keys=row.names(et_annot_non_filtered), 
@@ -477,7 +498,11 @@ getwd()
 
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
+
+if(qlm_test == TRUE){
 et_annot <- as.data.frame(subset(et_annot, FDR < pvalue_cutoff))
+}
+
 et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
 et_annot <- et_annot[complete.cases(et_annot), ]
 
@@ -667,7 +692,7 @@ p <-paste("Всего генов: ", nrow(y), "," , "из них экспрессных: ", nrow(logCPM), 
 
 p
 
-  cat(p, file = "sas.txt")
+cat(p, file = "sas.txt")
 
 
 ### ANNOTATE COUNTS
@@ -995,16 +1020,25 @@ volc
 dev.off()
 
 #SMEAR PLOT
-tt <- topTags(qlf, n=nrow(y), p.value=0.05)
+if (qlm_test == TRUE){
+  tt <- topTags(qlf, n=nrow(y), p.value=0.05)
+} else {
+  tt <- topTags(et, n=nrow(y), p.value=0.05)
+  
+}
 pdf(file = "Smear plot.pdf", width = 10, height = 10)
-plotSmear(qlf, de.tags = rownames(tt$table), lowess = TRUE, smooth.scatter = TRUE)
-
+if (qlm_test == TRUE){
+    plotSmear(qlf, de.tags = rownames(tt$table), lowess = TRUE, smooth.scatter = TRUE)
+} else {
+    plotSmear(et, de.tags = rownames(tt$table), lowess = TRUE, smooth.scatter = TRUE)
+  
+}
 dev.off()
 
 ### REACTOME PART
 dfa <- as.character(et_annot$entrez)
-x_com <- enrichPathway(gene=dfa, organism = "celegans", minGSSize=gs_size, readable = TRUE )
-write.xlsx(x, "Reactome.xlsx", sheetName = "All reactome", append = TRUE)
+x_com <- enrichPathway(gene = dfa, pAdjustMethod = "BH", universe = et_annot$entrez, organism = "celegans", minGSSize=gs_size, readable = TRUE)
+write.xlsx(x_com, "Reactome.xlsx", sheetName = "All reactome", append = TRUE)
 if (nrow(x) == 0){
   for(i in seq(1:2)){
     beep()
@@ -1033,7 +1067,7 @@ dev.off()
 #HIGH
 
 df_high <- et_annot_high$entrez
-x_up <- enrichPathway(gene=df_high, organism = "celegans", minGSSize=gs_size, readable = TRUE )
+x_up <- enrichPathway(gene=df_high, organism = "celegans", minGSSize=gs_size, readable = TRUE, pAdjustMethod = "BH")
 write.xlsx(x_up, "Reactome.xlsx", sheetName = "High", append = TRUE)
 write.xlsx(x_up, file = "Results edgeR.xlsx", sheetName = "top 100 Upregulated Reactome pathways", append = TRUE)
 head(as.data.frame(x_up))
@@ -1042,7 +1076,6 @@ dev.off()
 par(mar=c(1,1,1,1))
 pdf(file = "barplot_high.pdf", width = 12, height = 17, family = "Helvetica")
 r.bp.up <- barplot(x, showCategory=30,  font.size = 9)
-r.bp.up
 dev.off()
 
 #LOW
@@ -1463,52 +1496,55 @@ for (f in rownames(sub)){
 
 
 ### GRAPHICAL SUMMARY
-setwd(results.dir)
-if (analyze_all_samples == TRUE){
-  setwd("all")
-} else {
-  setwd(stattest)
+
+
+if (summary == TRUE){
+      setwd(results.dir)
+      if (analyze_all_samples == TRUE){
+        setwd("all")
+      } else {
+        setwd(stattest)
+      }
+      
+      filename <- "graphical summary.xlsx"
+      wb <- createWorkbook(type="xlsx")
+      sheet <- createSheet(wb, sheetName = "Model distributions")
+      sheet1 <- createSheet(wb, sheetName = "DE visualization")
+      sheet2 <- createSheet(wb, sheetName = "distributions")
+      sheet3 <- createSheet(wb, sheetName = "enrichments")
+      
+      xlsx.addPlot(wb, sheet, plotFunction = function(){print(g)})
+      xlsx.addPlot(wb, sheet, plotFunction = function(){print(g11)})
+      xlsx.addPlot(wb, sheet, plotFunction = function(){print(g2)}, startCol = 18, startRow = 1)
+      xlsx.addPlot(wb, sheet, plotFunction = function(){print(g3)}, startRow = 1, startCol = 10)
+      xlsx.addPlot(wb, sheet, plotFunction = function(){print(g4)}, startRow = 25, startCol = 10)
+      xlsx.addPlot(wb, sheet, plotFunction = function(){print(g5)}, startRow = 1, startCol = 18)
+      xlsx.addPlot(wb, sheet, plotFunction = function(){print(g6)}, startRow = 25, startCol = 18)
+      
+      xlsx.addPlot(wb, sheet1, plotFunction = function(){print(volc)})
+      xlsx.addPlot(wb, sheet1, plotFunction = function(){print(pca)})
+      xlsx.addPlot(wb, sheet1, plotFunction = function(){heatmap.2(x, col=col.pan, Rowv=TRUE, scale="none",
+                                                                   trace="none", dendrogram="both", cexRow=1, cexCol=1, density.info="none",
+                                                                   margin=c(18,18), lhei=c(2,10), lwid=c(2,6), main = "Spearman corellation")}, startCol = 10, startRow = 1)
+      xlsx.addPlot(wb, sheet1, plotFunction = function(){plotSmear(qlf, de.tags = rownames(tt$table), lowess = TRUE, smooth.scatter = TRUE)}, startCol = 10, startRow = 25)
+      xlsx.addPlot(wb, sheet1, plotFunction = function(){heatmap.2(logCPMpval, col=col.pan, Rowv=TRUE, scale="none",
+                                                                   trace="none", dendrogram="both", cexRow=0.5, cexCol=1, density.info="none",
+                                                                   margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top FDR genes, p < 0.05")}, startCol = 18, startRow = 1)
+      xlsx.addPlot(wb, sheet1, plotFunction = function(){heatmap.2(top100cpm, col=col.pan, Rowv=TRUE, scale="none",
+                                                                   trace="none", dendrogram="both", cexRow=0.5, cexCol=1, density.info="none",
+                                                                   margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top FDR genes, p < 0.05")}, startCol = 18, startRow = 25)
+      
+      xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d1)})
+      xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d2)}, startRow = 1, startCol = 9)
+      xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d3)}, startRow = 25, startCol = 2)
+      xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d4)}, startRow = 25, startCol = 9)
+      xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d5)}, startRow = 50, startCol = 2 )
+      xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d6)}, startRow = 50, startCol = 9)
+      xlsx.addPlot(wb, sheet3, plotFunction = function(){print(g_u)})
+      xlsx.addPlot(wb, sheet3, plotFunction = function(){print(g_d)}, startCol = 10, startRow = 1)
+      xlsx.addPlot(wb, sheet3, plotFunction = function(){print(r.bp.up)}, startCol = 1, startRow = 25)
+      xlsx.addPlot(wb, sheet3, plotFunction = function(){print(r.bp.down)}, startCol = 10, startRow = 25)
+      
+      saveWorkbook(wb, "graphical summary.xlsx")
+      xlsx.openFile("graphical summary.xlsx")
 }
-
-filename <- "graphical summary.xlsx"
-wb <- createWorkbook(type="xlsx")
-sheet <- createSheet(wb, sheetName = "Model distributions")
-sheet1 <- createSheet(wb, sheetName = "DE visualization")
-sheet2 <- createSheet(wb, sheetName = "distributions")
-sheet3 <- createSheet(wb, sheetName = "enrichments")
-
-xlsx.addPlot(wb, sheet, plotFunction = function(){print(g)})
-xlsx.addPlot(wb, sheet, plotFunction = function(){print(g11)})
-xlsx.addPlot(wb, sheet, plotFunction = function(){print(g2)}, startCol = 18, startRow = 1)
-xlsx.addPlot(wb, sheet, plotFunction = function(){print(g3)}, startRow = 1, startCol = 10)
-xlsx.addPlot(wb, sheet, plotFunction = function(){print(g4)}, startRow = 25, startCol = 10)
-xlsx.addPlot(wb, sheet, plotFunction = function(){print(g5)}, startRow = 1, startCol = 18)
-xlsx.addPlot(wb, sheet, plotFunction = function(){print(g6)}, startRow = 25, startCol = 18)
-
-xlsx.addPlot(wb, sheet1, plotFunction = function(){print(volc)})
-xlsx.addPlot(wb, sheet1, plotFunction = function(){print(pca)})
-xlsx.addPlot(wb, sheet1, plotFunction = function(){heatmap.2(x, col=col.pan, Rowv=TRUE, scale="none",
-                                                             trace="none", dendrogram="both", cexRow=1, cexCol=1, density.info="none",
-                                                             margin=c(18,18), lhei=c(2,10), lwid=c(2,6), main = "Spearman corellation")}, startCol = 10, startRow = 1)
-xlsx.addPlot(wb, sheet1, plotFunction = function(){plotSmear(qlf, de.tags = rownames(tt$table), lowess = TRUE, smooth.scatter = TRUE)}, startCol = 10, startRow = 25)
-xlsx.addPlot(wb, sheet1, plotFunction = function(){heatmap.2(logCPMpval, col=col.pan, Rowv=TRUE, scale="none",
-                                                             trace="none", dendrogram="both", cexRow=0.5, cexCol=1, density.info="none",
-                                                             margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top FDR genes, p < 0.05")}, startCol = 18, startRow = 1)
-xlsx.addPlot(wb, sheet1, plotFunction = function(){heatmap.2(top100cpm, col=col.pan, Rowv=TRUE, scale="none",
-                                                             trace="none", dendrogram="both", cexRow=0.5, cexCol=1, density.info="none",
-                                                             margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top FDR genes, p < 0.05")}, startCol = 18, startRow = 25)
-
-xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d1)})
-xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d2)}, startRow = 1, startCol = 9)
-xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d3)}, startRow = 25, startCol = 2)
-xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d4)}, startRow = 25, startCol = 9)
-xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d5)}, startRow = 50, startCol = 2 )
-xlsx.addPlot(wb, sheet2, plotFunction = function(){print(d6)}, startRow = 50, startCol = 9)
-xlsx.addPlot(wb, sheet3, plotFunction = function(){print(g_u)})
-xlsx.addPlot(wb, sheet3, plotFunction = function(){print(g_d)}, startCol = 10, startRow = 1)
-xlsx.addPlot(wb, sheet3, plotFunction = function(){print(r.bp.up)}, startCol = 1, startRow = 25)
-xlsx.addPlot(wb, sheet3, plotFunction = function(){print(r.bp.down)}, startCol = 10, startRow = 25)
-
-saveWorkbook(wb, "graphical summary.xlsx")
-xlsx.openFile("graphical summary.xlsx")
-
