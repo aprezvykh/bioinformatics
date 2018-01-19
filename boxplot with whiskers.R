@@ -43,7 +43,7 @@ cpm$term <- mapIds(GO.db,
                    multiVals="first")
 cpm$term <- as.character(cpm$term)
 
-r <- grep("ENSMUSG00000059498", rownames(cpm), ignore.case = TRUE)
+r <- grep("ENSMUSG00000028300", rownames(cpm), ignore.case = TRUE)
 thm <- cpm[r,]
 rownames(thm) <- thm$Symbol
 plot.name <- as.character(rownames(thm))

@@ -4,8 +4,8 @@
 library(xlsx)
 library(ggplot2)
 library(gplots)
-glia <- read.csv("~/GitHub/counts/ALS Mice/new filtering/microglia_expression_profile.csv")
-moto <- read.csv("~/GitHub//counts/ALS Mice/new filtering/moto_expression_profile.csv")
+glia <- read.csv("~/counts/ALS Mice/new filtering/microglia_expression_profile.csv")
+moto <- read.csv("~/counts/ALS Mice/new filtering/moto_expression_profile.csv")
 
 compare <- data.frame(glia$X, glia$sum, moto$sum)
 compare <- subset(compare, ((compare$glia.sum + compare$moto.sum)/2) > 8)
