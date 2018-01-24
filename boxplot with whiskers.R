@@ -4,7 +4,7 @@ library(org.Mm.eg.db)
 library(GO.db)
 library(gplots)
 library(reshape)
-setwd("~/counts/ALS Mice/experimental/results/all/boxplots/glia-tg23/")
+setwd("~/counts/ALS Mice/")
 sampleCondition <- c('Control-1', 'Control-1', 'Control-1', 'Control-1', 'Control-1', 
                      'Control-3', 'Control-3', 'Control-3', 'Control-3', 'Control-3', 
                      'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 
@@ -43,7 +43,7 @@ cpm$term <- mapIds(GO.db,
                    multiVals="first")
 cpm$term <- as.character(cpm$term)
 
-r <- grep("ENSMUSG00000028300", rownames(cpm), ignore.case = TRUE)
+r <- grep("ENSMUSG00000028381", rownames(cpm), ignore.case = TRUE)
 thm <- cpm[r,]
 rownames(thm) <- thm$Symbol
 plot.name <- as.character(rownames(thm))

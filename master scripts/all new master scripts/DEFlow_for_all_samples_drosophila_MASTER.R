@@ -149,6 +149,7 @@ setwd(results.dir)
 # PLOTTING HTSEQ QUALITY BARPLOTS
 row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "__too_low_aQual", "__not_aligned" )
 
+
 ### DIFFEXPRESSION STATISTICAL ANALYSIS - EXACT NEGATIVE-
 ### BINOMIAL OR QLM TEST
 
@@ -164,36 +165,39 @@ if (qlm_test == TRUE){
   logCPM <- logCPM[!(row.names(logCPM) %in% row.names.remove), ]
   logCPM <- logCPM[keep,]
   a <- a[keep, , keep.lib.sizes=FALSE] 
-  a <- calcNormFactors(a, method = "TMM") 
-  design <- model.matrix(~sampleTable$condition) 
-  a <- estimateDisp(a,design) 
-  fit <- glmFit(a,design, robust = TRUE) 
+  a <- calcNormFactors(a, method = "TMM", doWeighting = TRUE) 
+  design <- model.matrix(~sampleTable$condition)
+  a <- estimateDisp(a,design, tagwise = TRUE, trend.method = "loess") 
+  fit <- glmQLFit(a,design, robust = TRUE, abundance.trend = TRUE) 
   qlf <- glmQLFTest(fit,coef=ncol(fit$design))
   et_annot <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BH"))
   et_annot_non_filtered <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BH"))
   top <- as.data.frame(topTags(qlf, n = 20))
   et <- exactTest(a)
+  hist(a$common.dispersion)
 } else if (qlm_test == FALSE){ 
-  design <- model.matrix(~sampleTable$condition) 
-  normalized_lib_sizes <- calcNormFactors(y, method = "TMM") 
-  CountsTable <- as.data.frame(y$counts) 
-  raw_counts <- as.data.frame(y$counts) 
-  y <- estimateCommonDisp(y) 
-  y <- estimateTagwiseDisp(y) 
-  y <- estimateDisp(y, design = design) 
-  nf <- exactTest(y) 
-  no_filtered <- as.data.frame(nf$table) 
-  keep <- rowSums(cpm(y) > cpm_cutoff) >= ncol(sampleTable) 
-  cpm <- cpm(y) 
-  cpm <- as.data.frame(cpm(y)) 
-  cpm$rowsum <- rowSums(cpm) 
-  y <- y[keep, , keep.lib.sizes=FALSE] 
-  logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
-  et <- exactTest(y) 
-  top <- as.data.frame(topTags(et)) 
-  et_annot <- as.data.frame(et$table) 
-  et_annot_non_filtered <- as.data.frame(et$table) 
-}
+    design <- model.matrix(~sampleTable$condition) 
+    normalized_lib_sizes <- calcNormFactors(y, method = "TMM") 
+    CountsTable <- as.data.frame(y$counts) 
+    raw_counts <- as.data.frame(y$counts) 
+    y <- estimateCommonDisp(y) 
+    y <- estimateTagwiseDisp(y) 
+    y <- estimateDisp(y, design = design) 
+    nf <- exactTest(y) 
+    no_filtered <- as.data.frame(nf$table) 
+    keep <- rowSums(cpm(y) > cpm_cutoff) >= ncol(sampleTable) 
+    cpm <- cpm(y) 
+    cpm <- as.data.frame(cpm(y)) 
+    cpm$rowsum <- rowSums(cpm) 
+    y <- y[keep, , keep.lib.sizes=FALSE] 
+    logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
+    et <- exactTest(y) 
+    top <- as.data.frame(topTags(et)) 
+    et_annot <- as.data.frame(topTags(et, n = nrow(logCPM), adjust.method = "BH", sort.by = "PValue"))
+    et_annot_non_filtered <- as.data.frame(et$table)
+    
+  }
+
 
 
 
@@ -414,7 +418,7 @@ cpm$term <- mapIds(GO.db,
                    keytype="GOID",
                    multiVals="first")
 cpm$term <- as.character(cpm$term)
-
+write.csv(cpm, file = "cpm.csv")
 
 ###TopTags Boxplots
 
@@ -465,28 +469,9 @@ getwd()
 
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
-
-if (qlm_test == TRUE){
-  et_annot <- as.data.frame(subset(et_annot, FDR < pvalue_cutoff))
-
-  }
-
+et_annot <- as.data.frame(subset(et_annot, FDR < pvalue_cutoff))
 et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
 et_annot <- et_annot[complete.cases(et_annot), ]
-
-
-if(nrow(et_annot < 50)){
-  for(i in seq(1:2)){
-    beep()
-    Sys.sleep(0.1)
-    beep()
-    Sys.sleep(0.2)
-    print("Too low number of differentialy expressed genes found!
-           reduce LogFC cutoff or check your data!")  
-  }
-  break
-}
-
 
 
 ### TESTING A HYPOTESIS
@@ -949,7 +934,7 @@ dev.off()
 #SMEAR PLOT
 tt <- topTags(qlf, n=nrow(y), p.value=0.05)
 pdf(file = "Smear plot.pdf", width = 10, height = 10)
-plotSmear(qlf, de.tags = rownames(tt$table), lowess = TRUE, smooth.scatter = TRUE)
+plotSmear(qlf, de.tags = rownames(tt$table), lowess = TRUE)
 
 dev.off()
 
@@ -1468,3 +1453,46 @@ xlsx.openFile("graphical summary.xlsx")
 
 
 intersect(rownames(res_df), rownames(et_annot))
+
+
+
+### BOXPLOTS
+#setwd("~/counts/dmel_memory/results/all/")
+#dir.create("behavior")
+#setwd("behavior")
+
+#z <- grep("behavior", cpm$term, ignore.case = TRUE)
+
+#for (f in z){
+    #r <- grep("FBgn0013278", rownames(cpm), ignore.case = TRUE)
+    thm <- cpm[f,]
+    rownames(thm) <- thm$Symbol
+    plot.name <- as.character(rownames(thm))
+    plot.description <- as.character(thm$Name)
+    plot.term <- as.character(thm$term)
+    thm$Symbol <- NULL
+    thm$Name <- NULL
+    thm$GOID <- NULL
+    thm$term <- NULL
+    thm$entrez <- NULL
+    colnames(thm) <- sampleCondition
+    thm <-as.data.frame(t(thm))
+    thm$Condition <- rownames(thm)
+    thm$Group <- thm$Condition
+    names(thm) <- c("gene", "Condition", "Group")
+    #pdf(file = paste(plot.name, "pdf", sep = "."), width = 10, height = 10, family = "Helvetica")
+    #png(paste(plot.name, "-", src, ".png", sep=""), height = 600, width = 800)
+    g <- ggplot(thm, aes(x = Condition, y = gene)) + 
+      geom_boxplot(data = thm, aes(fill = Group), alpha = 0.5) + 
+      scale_x_discrete(name = "Experimental Groups") + 
+      scale_y_continuous(name = "Counts per million") + 
+      theme_bw() + 
+      geom_signif(comparisons = list(c("N", "K")), map_signif_level = FALSE, annotations = "***", test = "t.test") 
+    
+    g <- g + ggtitle(paste("Gene official symbol: ", plot.name, "\n", "Gene name:", plot.description, "\n", "Direct GO term:", plot.term)) + 
+      theme(plot.title = element_text(hjust = 0.5))
+    ggsave(filename = paste(plot.name, "png", sep = "."), plot = g)
+}
+
+#dev.off()
+  
