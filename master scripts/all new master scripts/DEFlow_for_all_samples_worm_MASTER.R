@@ -61,7 +61,7 @@
   
     heatmaps <- TRUE
     custom_genes_plots <- FALSE
-    analyze_all_samples <- FALSE
+    analyze_all_samples <- TRUE
     disease_association <- FALSE
     kegg_plots <- TRUE
     panther_analysis <- TRUE
@@ -90,7 +90,7 @@
     stattest_number <- 1
     
 
-  directory <- '~/counts/AIKAR/'
+  directory <- '~/counts/worm_test_2/'
   setwd(directory)
   gr_control <- c("aikar_early")
   gr_case <- c("aikar_late")
@@ -104,22 +104,25 @@
   col.pan <- colorpanel(100, "blue", "white", "red")
   ###DIRECTORY WHERE SAMPLES ARE LOCATED
   library(dplyr)
-  sampleFiles
   if (analyze_all_samples == TRUE){
-          sampleFiles <- grep('counts',list.files(directory),value=TRUE)
-          sampleCondition <- c('control_early',
-                               'aikar_late',
-                               'control_late',
-                               'aikar_late',
-                               'aikar_early',
-                               'control_early',
-                               'aikar_early',
-                               'control_early',
-                               'aikar_early',
-                               'control_late',
-                               'aikar_late',
-                               'control_late'
-                               )
+          sampleFiles <- grep('SRR',list.files(directory),value=TRUE)
+#          sampleCondition <- c('control_early',
+#                               'aikar_late',
+#                               'control_late',
+#                               'aikar_late',
+#                               'aikar_early',
+#                               'control_early',
+#                               'aikar_early',
+#                               'control_early',
+#                               'aikar_early',
+#                              'control_late',
+#                               'aikar_late',
+#                               'control_late'
+#                               )
+          sampleCondition <- c('wt-nt', 'wt-nt', 'wt-nt', 
+                               'wt-t', 'wt-t', 'wt-t', 
+                               'tg-nt', 'tg-nt', 'tg-nt', 
+                               'tg-t', 'tg-t', 'tg-t')
           sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
           col <- as.vector(sampleTable$sampleName)
           y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
