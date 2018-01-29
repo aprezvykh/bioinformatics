@@ -54,12 +54,36 @@
   
   
   ###BIOCBARALLEL SETTINGS
+<<<<<<< HEAD
     default <- registered()
     register(BatchJobsParam(workers = 10), default = TRUE)
     options(MulticoreParam=quote(MulticoreParam(workers=8)))
     param <- SnowParam(workers = 2, type = "SOCK")
+=======
+  default <- registered()
+  register(BatchJobsParam(workers = 10), default = TRUE)
+  options(MulticoreParam=quote(MulticoreParam(workers=8)))
+  param <- SnowParam(workers = 2, type = "SOCK")
+  
+  
+    heatmaps <- TRUE
+    custom_genes_plots <- FALSE
+    analyze_all_samples <- TRUE
+    disease_association <- FALSE
+    kegg_plots <- TRUE
+    panther_analysis <- TRUE
+    deseq2_part <- TRUE
+    qlm_test <- TRUE
+    logging <- FALSE
+    boxplots <- TRUE
+    biotype <- FALSE
+    distrib <- FALSE
+    summary <- FALSE
+    ### CONSTANTS BLOCK
+>>>>>>> f6bcbd72ca5fc5195469fd2ced34a420cccd3f1a
     
     
+<<<<<<< HEAD
       heatmaps <- TRUE
       custom_genes_plots <- FALSE
       analyze_all_samples <- FALSE
@@ -198,6 +222,69 @@
       top <- as.data.frame(topTags(et)) 
       et_annot <- as.data.frame(topTags(et, n = nrow(logCPM), adjust.method = "BH", sort.by = "PValue"))
       et_annot_non_filtered <- as.data.frame(et$table) 
+=======
+
+  directory <- '~/counts/worm_test_2/'
+  setwd(directory)
+  gr_control <- c("aikar_early")
+  gr_case <- c("aikar_late")
+  
+  ### BUILDING A SPECIFIC DESIGN TABLE
+  if (logging == TRUE){
+    zz <- file("error.log", open="wt")
+    sink(zz, type="message")
+  }
+  
+  col.pan <- colorpanel(100, "blue", "white", "red")
+  ###DIRECTORY WHERE SAMPLES ARE LOCATED
+  library(dplyr)
+  if (analyze_all_samples == TRUE){
+          sampleFiles <- grep('SRR',list.files(directory),value=TRUE)
+#          sampleCondition <- c('control_early',
+#                               'aikar_late',
+#                               'control_late',
+#                               'aikar_late',
+#                               'aikar_early',
+#                               'control_early',
+#                               'aikar_early',
+#                               'control_early',
+#                               'aikar_early',
+#                              'control_late',
+#                               'aikar_late',
+#                               'control_late'
+#                               )
+          sampleCondition <- c('wt-nt', 'wt-nt', 'wt-nt', 
+                               'wt-t', 'wt-t', 'wt-t', 
+                               'tg-nt', 'tg-nt', 'tg-nt', 
+                               'tg-t', 'tg-t', 'tg-t')
+          sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
+          col <- as.vector(sampleTable$sampleName)
+          y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
+  } else if (analyze_all_samples == FALSE){
+          files_control <- grep(paste(gr_control),list.files(directory),value=TRUE)
+          files_case <- grep(paste(gr_case),list.files(directory),value=TRUE)
+          sampleFiles <- c(files_control, files_case)
+          cond_control <- rep(paste(gr_control), length(files_control))
+          cond_case <- rep(paste(gr_case), length(files_case))
+          sampleCondition <- c(cond_control, cond_case)
+          sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
+          y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
+  }
+  
+  
+  
+  setwd("results")
+  stattest <- paste(gr_control, gr_case, sep = "-")
+  results.dir <- paste(directory, "results", sep = "")
+  setwd(results.dir)
+  
+  if (analyze_all_samples == FALSE){
+    dir.create(stattest)
+    setwd(stattest)
+    } else if (analyze_all_samples == TRUE){
+      dir.create("all")
+      setwd("all")
+>>>>>>> f6bcbd72ca5fc5195469fd2ced34a420cccd3f1a
     }
   
 
