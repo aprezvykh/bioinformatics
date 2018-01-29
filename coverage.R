@@ -1,4 +1,4 @@
-dir <- c('~/coverage.mouse/')
+dir <- c('~/coverage/')
 setwd(dir)
 files <- grep("txt", list.files(dir), value = TRUE)
 n = length(files)
@@ -15,11 +15,11 @@ for (f in files){
 leg <- rownames(df)
 df <- as.data.frame(t(df))
 
+
+pallete = c("#F46D43", "#66C2A5", "#cd8845", "#3288BD", "#a8bf32", "#5E4FA2", "#D53E4F", "#d6d639", "#8ed384", "#9E0142", "#ebba2f")
+density.cols = colorRampPalette(pallete)(dim(df)[2])
 pdf("Coverage.pdf", height = 10, width = 10, family = "Helvetica")
 matplot(df,type = "l", pch=1, col = 1:n, xlab="Gene body percentile (5'->3')", ylab="Coverage",lwd=0.8) #plot
 legend("topleft", legend = leg, col=1:n, pch=1)
-<<<<<<< HEAD
 dev.off()
-=======
-dev.off()
->>>>>>> f6bcbd72ca5fc5195469fd2ced34a420cccd3f1a
+

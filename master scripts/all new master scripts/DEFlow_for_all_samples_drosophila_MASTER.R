@@ -68,7 +68,7 @@ param <- SnowParam(workers = 2, type = "SOCK")
   kegg_plots <- TRUE
   panther_analysis <- TRUE
   deseq2_part <- TRUE
-  qlm_test <- FALSE
+  qlm_test <- TRUE
   logging <- FALSE
   motiv <- TRUE
   boxplots <- TRUE
@@ -99,10 +99,10 @@ param <- SnowParam(workers = 2, type = "SOCK")
 #gr_control <- as.character(a[1,1])
 #gr_case <- as.character(a[1,2])
 
-directory <- '~/counts/dmel_memory/'
+directory <- '~/counts/dmel_memory_new/'
 setwd(directory)
-gr_control <- c("F")
-gr_case <- c("mem")
+gr_control <- c("K")
+gr_case <- c("F")
 
 ### BUILDING A SPECIFIC DESIGN TABLE
 if (logging == TRUE){
@@ -116,10 +116,8 @@ library(dplyr)
 
 if (analyze_all_samples == TRUE){
         sampleFiles <- grep('fly',list.files(directory),value=TRUE)
-        sampleCondition <- c('F', 'F', 'F24', 'F24', 'F24', 
-                             'F', 'F', 'K', 'K', 'K', 'K', 
-                             'N', 'N')
-  
+        sampleFiles
+        sampleCondition <- c('mem', 'F', 'F', 'K', 'K', 'mem')
 
         sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
         col <- as.vector(sampleTable$sampleName)
