@@ -68,16 +68,18 @@ param <- SnowParam(workers = 2, type = "SOCK")
   kegg_plots <- TRUE
   panther_analysis <- TRUE
   deseq2_part <- TRUE
-  qlm_test <- TRUE
+  qlm_test <- FALSE
   logging <- FALSE
   motiv <- TRUE
   boxplots <- TRUE
   biotype <- FALSE
+  distrib <- FALSE
   ### CONSTANTS BLOCK
   
   pvalue_cutoff <- 0.05
-  logfchigh_cutoff <- 0.5
-  logfclow_cutoff <- -0.5
+  fdr_cutoff <- 0.5
+  logfchigh_cutoff <- 0.1
+  logfclow_cutoff <- -0.1
   cpm_cutoff <- 0.5
   gs_size <- 10
   diseases_set <- 50
@@ -199,122 +201,141 @@ if (qlm_test == TRUE){
   }
 
 
+pallete = c("#F46D43", "#66C2A5", "#cd8845", "#3288BD", "#a8bf32", "#5E4FA2", "#D53E4F", "#d6d639", "#8ed384", "#9E0142", "#ebba2f")
+density.cols = colorRampPalette(pallete)(dim(y$counts)[2])
+pdf(file = "All samples density.pdf", height = 10, width = 10, family = "Helvetica")
+lty.n = 1
+lty.count = 4
+plot(density(log(y$counts[,1])),col=density.cols[1], xlim=c(-4,10), main = 'Log2(CPM) density, non-normalized', lty = lty.n)
+for (x in 2:dim(y$counts)[2]){
+  lty.n = (lty.n +1) %% lty.count 
+  lines(density(log(y$counts[,x])),col=density.cols[x], lty = lty.n)
+}
+legend.x.pos = (par("usr")[2] - par("usr")[1])*0.73 + par("usr")[1]
+legend.y.pos = (par("usr")[4] - par("usr")[3])*0.93 + par("usr")[3]
+legend(legend.x.pos, legend.y.pos, legend = colnames(y$counts), col = density.cols, cex = 0.8, lty = 1:4)
+dev.off()  
 
 
-lib <- data.frame(fit$samples$lib.size, sampleTable$condition)
-names(lib) <- c("size", "group")
-lib
-g <- ggplot(lib) + geom_boxplot(aes(x = group, y = size, fill = group)) +
-              scale_x_discrete(name = "Experimental Groups") + 
-              scale_y_continuous(name = "Reads counts") + 
-              theme_bw() + 
-              ggtitle("Library Size") + 
-              theme(plot.title = element_text(hjust = 0.5))
-pdf(file = "Library Size.pdf", height = 10, width = 10, family = "Helvetica")
-g
-dev.off()
+if (distrib == TRUE){
+
+    lib <- data.frame(fit$samples$lib.size, sampleTable$condition)
+    names(lib) <- c("size", "group")
+    lib
+    g <- ggplot(lib) + geom_boxplot(aes(x = group, y = size, fill = group)) +
+                  scale_x_discrete(name = "Experimental Groups") + 
+                  scale_y_continuous(name = "Reads counts") + 
+                  theme_bw() + 
+                  ggtitle("Library Size") + 
+                  theme(plot.title = element_text(hjust = 0.5))
+    pdf(file = "Library Size.pdf", height = 10, width = 10, family = "Helvetica")
+    g
+    dev.off()
+    
+    
+    
+    disp <- data.frame(fit$dispersion, et_annot_non_filtered$logFC)
+    names(disp) <- c("dispersion", "LogFC")
+    disp$threshold = as.factor(et_annot_non_filtered$FDR < 0.05)
+    
+    g1 <- ggplot(disp) + geom_point(aes(x = dispersion, y = LogFC, color = threshold), alpha = 1/2) +
+         scale_x_continuous(name = "Dispersion") + 
+         scale_y_continuous(name = "Log-2 Fold Change") + 
+         theme_bw() + 
+         ggtitle("Dispersion") + 
+         theme(plot.title = element_text(hjust = 0.5)) +
+         geom_smooth(aes(x = dispersion, y = LogFC))
+    pdf(file = "Dispersion-LogFC.pdf", height = 10, width = 10, family = "Helvetica")
+    g1
+    dev.off()
+    
+    
+    log <- data.frame(a$AveLogCPM, et_annot_non_filtered$logFC)
+    names(log) <- c("logCPM", "logFC")
+    log$threshold = as.factor(et_annot_non_filtered$FDR < 0.05)
+    g2 <- ggplot(log) + geom_point(aes(x = logCPM, y = logFC, color = threshold), alpha = 1/2) +
+      scale_x_continuous(name = "logCPM") + 
+      scale_y_continuous(name = "Log-2 Fold Change") + 
+      theme_bw() + 
+      ggtitle("logCPM-logFC trend") + 
+      theme(plot.title = element_text(hjust = 0.5)) +
+      geom_smooth(aes(x = logCPM, y = logFC))
+    
+    pdf(file = "LogCPM-logFC.pdf", height = 10, width = 10, family = "Helvetica")
+    g2
+    dev.off()
+    
+    
+    pv <- data.frame(-log10(et$table$PValue), -log10(et_annot_non_filtered$FDR))
+    names(pv) <- c("pvalue", "fdr")
+    pv$thershold <- as.factor(pv$fdr < 0.05)
+    g3 <- ggplot(pv, aes(x = pvalue, y = fdr)) + 
+        geom_point(aes(x = pvalue, y = fdr, color = thershold), alpha = 1/10) +
+        scale_x_continuous(name = "-log10(P-value(exactTest))") + 
+        scale_y_continuous(name = "-log10(FDR(glmQLFit))") + 
+        theme_bw() + 
+        ggtitle("P-value/FDR") + 
+        theme(plot.title = element_text(hjust = 0.5)) +
+        geom_smooth(aes(x = pvalue, y = fdr), method = "lm", color = "blue")
+    
+    pdf(file = "PValue-FDR.pdf", height = 10, width = 10, family = "Helvetica")
+    g3
+    dev.off()
+    
+    
+    fc <- data.frame(et$table$logFC, et_annot_non_filtered$logFC)
+    names(fc) <- c("et", "glm")
+    
+    g4 <- ggplot(fc, aes(x = glm, y = et)) + 
+      geom_point(aes(x = glm, y = et), alpha = 1/10) + 
+      scale_x_continuous(name = "Log2FoldChange - GLM") + 
+      scale_y_continuous(name = "Log2FoldChange - Fisher Exact Test") + 
+      theme_bw() + 
+      ggtitle("Log2FoldChange GLM/Fisher Exact Test") + 
+      theme(plot.title = element_text(hjust = 0.5))
+      
+    pdf(file = "LogFC GLM-ET.pdf", height = 10, width = 10, family = "Helvetica")
+    g4
+    dev.off()
+    
+    plot()
+    
+    fc <- data.frame(qlf$table$logCPM, a$tagwise.dispersion, qlf$table$logFC, qlf$table$PValue)
+    names(fc) <- c("cpm", "tag", "logfc", "pvalue")
+    fc$threshold <- as.factor(fc$pvalue < 0.05)
+    
+    g5 <- ggplot(fc, aes(x = cpm, y = tag)) + 
+      geom_point(aes(x = cpm, y = tag, color = threshold), alpha = 1) + 
+      scale_x_continuous(name = "LogCPM") + 
+      scale_y_continuous(name = "Tagwise dispresion") + 
+      theme_bw() + 
+      ggtitle("LogCPM/Tagwise dispersion") + 
+      theme(plot.title = element_text(hjust = 0.5)) + 
+      geom_smooth(se = FALSE)
+    
+    #pdf(file = "LogCPM/tagwise dispersion.pdf", height = 10, width = 10, family = "Helvetica")
+    g5
+    dev.off()
+    
+    
+    fc <- data.frame(qlf$table$logCPM, a$trended.dispersion)
+    names(fc) <- c("cpm", "trend")
+    
+    g6 <- ggplot(fc, aes(x = cpm, y = trend)) + 
+      geom_point(aes(x = cpm, y = trend), alpha = 1/10) + 
+      scale_x_continuous(name = "LogCPM") + 
+      scale_y_continuous(name = "Trended dispersion") + 
+      theme_bw() + 
+      ggtitle("LogCPM/dispersion trend") + 
+      theme(plot.title = element_text(hjust = 0.5)) + 
+      geom_smooth(se = FALSE)
+    
+    pdf(file = "LogCPM/trended dispersion.pdf", height = 10, width = 10, family = "Helvetica")
+    g6
+    dev.off()
 
 
-
-disp <- data.frame(fit$dispersion, et_annot_non_filtered$logFC)
-names(disp) <- c("dispersion", "LogFC")
-disp$threshold = as.factor(et_annot_non_filtered$FDR < 0.05)
-
-g1 <- ggplot(disp) + geom_point(aes(x = dispersion, y = LogFC, color = threshold), alpha = 1/2) +
-     scale_x_continuous(name = "Dispersion") + 
-     scale_y_continuous(name = "Log-2 Fold Change") + 
-     theme_bw() + 
-     ggtitle("Dispersion") + 
-     theme(plot.title = element_text(hjust = 0.5)) +
-     geom_smooth(aes(x = dispersion, y = LogFC))
-pdf(file = "Dispersion-LogFC.pdf", height = 10, width = 10, family = "Helvetica")
-g1
-dev.off()
-
-
-log <- data.frame(a$AveLogCPM, et_annot_non_filtered$logFC)
-names(log) <- c("logCPM", "logFC")
-log$threshold = as.factor(et_annot_non_filtered$FDR < 0.05)
-g2 <- ggplot(log) + geom_point(aes(x = logCPM, y = logFC, color = threshold), alpha = 1/2) +
-  scale_x_continuous(name = "logCPM") + 
-  scale_y_continuous(name = "Log-2 Fold Change") + 
-  theme_bw() + 
-  ggtitle("logCPM-logFC trend") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  geom_smooth(aes(x = logCPM, y = logFC))
-
-pdf(file = "LogCPM-logFC.pdf", height = 10, width = 10, family = "Helvetica")
-g2
-dev.off()
-
-
-pv <- data.frame(-log10(et$table$PValue), -log10(et_annot_non_filtered$FDR))
-names(pv) <- c("pvalue", "fdr")
-pv$thershold <- as.factor(pv$fdr < 0.05)
-g3 <- ggplot(pv, aes(x = pvalue, y = fdr)) + 
-    geom_point(aes(x = pvalue, y = fdr, color = thershold), alpha = 1/10) +
-    scale_x_continuous(name = "-log10(P-value(exactTest))") + 
-    scale_y_continuous(name = "-log10(FDR(glmQLFit))") + 
-    theme_bw() + 
-    ggtitle("P-value/FDR") + 
-    theme(plot.title = element_text(hjust = 0.5)) +
-    geom_smooth(aes(x = pvalue, y = fdr), method = "lm", color = "blue")
-
-pdf(file = "PValue-FDR.pdf", height = 10, width = 10, family = "Helvetica")
-g3
-dev.off()
-
-
-fc <- data.frame(et$table$logFC, et_annot_non_filtered$logFC)
-names(fc) <- c("et", "glm")
-
-g4 <- ggplot(fc, aes(x = glm, y = et)) + 
-  geom_point(aes(x = glm, y = et), alpha = 1/10) + 
-  scale_x_continuous(name = "Log2FoldChange - GLM") + 
-  scale_y_continuous(name = "Log2FoldChange - Fisher Exact Test") + 
-  theme_bw() + 
-  ggtitle("Log2FoldChange GLM/Fisher Exact Test") + 
-  theme(plot.title = element_text(hjust = 0.5))
-  
-pdf(file = "LogFC GLM-ET.pdf", height = 10, width = 10, family = "Helvetica")
-g4
-dev.off()
-
-plot()
-
-fc <- data.frame(qlf$table$logCPM, a$tagwise.dispersion, qlf$table$logFC, qlf$table$PValue)
-names(fc) <- c("cpm", "tag", "logfc", "pvalue")
-fc$threshold <- as.factor(fc$pvalue < 0.05)
-
-g5 <- ggplot(fc, aes(x = cpm, y = tag)) + 
-  geom_point(aes(x = cpm, y = tag, color = threshold), alpha = 1) + 
-  scale_x_continuous(name = "LogCPM") + 
-  scale_y_continuous(name = "Tagwise dispresion") + 
-  theme_bw() + 
-  ggtitle("LogCPM/Tagwise dispersion") + 
-  theme(plot.title = element_text(hjust = 0.5)) + 
-  geom_smooth(se = FALSE)
-
-#pdf(file = "LogCPM/tagwise dispersion.pdf", height = 10, width = 10, family = "Helvetica")
-g5
-dev.off()
-
-
-fc <- data.frame(qlf$table$logCPM, a$trended.dispersion)
-names(fc) <- c("cpm", "trend")
-
-g6 <- ggplot(fc, aes(x = cpm, y = trend)) + 
-  geom_point(aes(x = cpm, y = trend), alpha = 1/10) + 
-  scale_x_continuous(name = "LogCPM") + 
-  scale_y_continuous(name = "Trended dispersion") + 
-  theme_bw() + 
-  ggtitle("LogCPM/dispersion trend") + 
-  theme(plot.title = element_text(hjust = 0.5)) + 
-  geom_smooth(se = FALSE)
-
-pdf(file = "LogCPM/trended dispersion.pdf", height = 10, width = 10, family = "Helvetica")
-g6
-dev.off()
+}
 
 y$genes$Symbol <- mapIds(org.Dm.eg.db, 
                          keys=row.names(et_annot_non_filtered), 
@@ -466,12 +487,19 @@ if (analyze_all_samples == TRUE){
 }
 getwd()
 ### FILTRATION
-
+et.full <- nrow(et_annot)
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
+et.cpm <- nrow(et_annot)
 et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
-et_annot <- as.data.frame(subset(et_annot, FDR < pvalue_cutoff))
+et.pval <- nrow(et_annot)
+et_annot <- as.data.frame(subset(et_annot, FDR < fdr_cutoff))
+et.fdr <- nrow(et_annot)
 et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
+et.fc <- nrow(et_annot)
 et_annot <- et_annot[complete.cases(et_annot), ]
+et.case <- nrow(et_annot)
+et.cpm/et.full
+
 
 
 ### TESTING A HYPOTESIS
@@ -563,15 +591,11 @@ header <- c('all genes', 'mean of logCPM', 'padj<0,05', 'genes with > high', 'ge
 meaning <- c(print(all), print(avg_cpm), print(allpadj), print(up), print(down))
 df <- data.frame(header, meaning)
 
-cpm_subset <- cpm[(rownames(cpm) %in% rownames(et_annot)),]
-cpm_subset <- cpm_subset[,1:length(sampleCondition)]
-m <- data.frame()
-m <- cpm_subset
-m <- cbind(et_annot, m)
+
 # WRITE RESULTS
 write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append = TRUE)
 write.xlsx(top, file = "Results edgeR.xlsx", sheetName = "Top Tags (with FDR)", append = TRUE)
-write.xlsx(m, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
+write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
 m <- NULL
 ##TEXT SUMMARY
 et_annot_high <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff))
@@ -886,6 +910,116 @@ if (analyze_all_samples == TRUE){
   setwd(stattest)
 }
 
+
+#MF
+
+GOdata = new("topGOdata", ontology = "MF", allGenes = all_genes, geneSel = function(s) s < 
+               0.05, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", nodeSize = 2)
+resultFisher <- runTest(GOdata, algorithm = "classic", statistic = "fisher")
+resultKS <- runTest(GOdata, algorithm = "classic", statistic = "ks")
+resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
+
+top30.res.mf <- GenTable(GOdata, classicFisher = resultFisher,
+                         classicKS = resultKS, elimKS = resultKS.elim,
+                         orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 30)
+
+top100.res.mf <- GenTable(GOdata, classicFisher = resultFisher,
+                          classicKS = resultKS, elimKS = resultKS.elim,
+                          orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 100)
+
+top500.res.mf <- GenTable(GOdata, classicFisher = resultFisher,
+                          classicKS = resultKS, elimKS = resultKS.elim,
+                          orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 500)
+
+write.xlsx(top30.res.mf, file = "topGO eliminations.xlsx", sheetName = "MF, top 30", append = TRUE)
+write.xlsx(top100.res.mf, file = "topGO eliminations.xlsx", sheetName = "MF, top 100", append = TRUE)
+write.xlsx(top500.res.mf, file = "topGO eliminations.xlsx", sheetName = "MF, top 500", append = TRUE)
+
+
+setwd("GO graphs")
+
+pdf(file = "top 5 GO graph, MF.pdf", width = 10, height = 10)
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 5, useInfo = 'all')
+dev.off()
+
+pdf(file = "top 15 GO graph, MF.pdf", width = 10, height = 10)
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 15, useInfo = 'all')
+dev.off()
+
+pdf(file = "top 30 GO graph, MF.pdf", width = 10, height = 10)
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 30, useInfo = 'all')
+dev.off()
+
+pdf(file = "top 50 GO graph, MF.pdf", width = 10, height = 10)
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 50, useInfo = 'all')
+dev.off()
+
+setwd(results.dir)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else {
+  setwd(stattest)
+}
+
+
+
+##CC
+
+
+GOdata = new("topGOdata", ontology = "CC", allGenes = all_genes, geneSel = function(s) s < 
+               0.05, description = "Test", annot = annFUN.org, mapping = "org.Dm.eg.db", nodeSize = 2)
+resultFisher <- runTest(GOdata, algorithm = "classic", statistic = "fisher")
+resultKS <- runTest(GOdata, algorithm = "classic", statistic = "ks")
+resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
+
+top30.res.cc <- GenTable(GOdata, classicFisher = resultFisher,
+                         classicKS = resultKS, elimKS = resultKS.elim,
+                         orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 30)
+
+top100.res.cc <- GenTable(GOdata, classicFisher = resultFisher,
+                          classicKS = resultKS, elimKS = resultKS.elim,
+                          orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 100)
+
+top500.res.cc <- GenTable(GOdata, classicFisher = resultFisher,
+                          classicKS = resultKS, elimKS = resultKS.elim,
+                          orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 500)
+
+write.xlsx(top30.res.cc, file = "topGO eliminations.xlsx", sheetName = "cc, top 30", append = TRUE)
+write.xlsx(top100.res.cc, file = "topGO eliminations.xlsx", sheetName = "cc, top 100", append = TRUE)
+write.xlsx(top500.res.cc, file = "topGO eliminations.xlsx", sheetName = "cc, top 500", append = TRUE)
+
+
+setwd("GO graphs")
+
+pdf(file = "top 5 GO graph, cc.pdf", width = 10, height = 10)
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 5, useInfo = 'all')
+dev.off()
+
+pdf(file = "top 15 GO graph, cc.pdf", width = 10, height = 10)
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 15, useInfo = 'all')
+dev.off()
+
+pdf(file = "top 30 GO graph, cc.pdf", width = 10, height = 10)
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 30, useInfo = 'all')
+dev.off()
+
+pdf(file = "top 50 GO graph, cc.pdf", width = 10, height = 10)
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 50, useInfo = 'all')
+dev.off()
+
+
+setwd(results.dir)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else {
+  setwd(stattest)
+}
+
+
+
+
+
+
 ## CORELLATION MARIX
 correl <- logCPM
 correl <- as.data.frame(correl)
@@ -937,6 +1071,26 @@ pdf(file = "Smear plot.pdf", width = 10, height = 10)
 plotSmear(qlf, de.tags = rownames(tt$table), lowess = TRUE)
 
 dev.off()
+
+pdf(file = "BCV plot.pdf", width = 10, height = 10)
+plotBCV(y = a, xlab = "Average LogCPM", ylab = "Biological coefficient of variation")
+dev.off()
+
+
+pdf(file = "Quasi-likelhood dispersion.pdf", width = 10, height = 10)
+plotQLDisp(fit)
+dev.off()
+
+
+pdf(file = "Barcode plot-logFC.pdf", width = 10, height = 10)
+barcodeplot(statistics = et_annot$PValue, gene.weights = et_annot$logFC, weights.label = "Log2 Fold Change", worm = TRUE, xlab = "P-value")
+dev.off()
+
+
+pdf(file = "Barcode plot-logCPM.pdf", width = 10, height = 10)
+barcodeplot(statistics = et_annot$logCPM, gene.weights = et_annot$logFC, weights.label = "Log2 Fold Change", worm = TRUE, xlab = "logCPM")
+dev.off()
+
 
 ### REACTOME PART
 dfa <- as.character(et_annot$entrez)

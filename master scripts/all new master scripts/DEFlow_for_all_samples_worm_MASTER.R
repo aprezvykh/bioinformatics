@@ -50,154 +50,174 @@
   library(cowplot)
   library(gapminder)
   library(gridExtra)
+  library(PoissonSeq)
   
   
   ###BIOCBARALLEL SETTINGS
-  default <- registered()
-  register(BatchJobsParam(workers = 10), default = TRUE)
-  options(MulticoreParam=quote(MulticoreParam(workers=8)))
-  param <- SnowParam(workers = 2, type = "SOCK")
-  
-  
-    heatmaps <- TRUE
-    custom_genes_plots <- FALSE
-    analyze_all_samples <- FALSE
-    disease_association <- FALSE
-    kegg_plots <- TRUE
-    panther_analysis <- TRUE
-    deseq2_part <- TRUE
-    qlm_test <- TRUE
-    logging <- FALSE
-    boxplots <- TRUE
-    biotype <- FALSE
-    distrib <- FALSE
-    summary <- FALSE
-    ### CONSTANTS BLOCK
+    default <- registered()
+    register(BatchJobsParam(workers = 10), default = TRUE)
+    options(MulticoreParam=quote(MulticoreParam(workers=8)))
+    param <- SnowParam(workers = 2, type = "SOCK")
     
-    pvalue_cutoff <- 0.05
-    logfchigh_cutoff <- 0.8
-    logfclow_cutoff <- -0.8
-    cpm_cutoff <- 0.5
-    gs_size <- 3
-    diseases_set <- 50
-    number_of_kegg_plots <- 100
-    go_terms_set <- 50
-    pathways_set <- 30
-    genes_in_term <- 3
-    filter_thresh <- 5
-    baseMean_cutoff <- 1.5
-    go_heatmap_count <- 20
-    stattest_number <- 1
     
-
-  directory <- '~/counts/AIKAR/'
-  setwd(directory)
-  gr_control <- c("aikar_early")
-  gr_case <- c("aikar_late")
-  
-  ### BUILDING A SPECIFIC DESIGN TABLE
-  if (logging == TRUE){
-    zz <- file("error.log", open="wt")
-    sink(zz, type="message")
-  }
-  
-  col.pan <- colorpanel(100, "blue", "white", "red")
-  ###DIRECTORY WHERE SAMPLES ARE LOCATED
-  library(dplyr)
-  sampleFiles
-  if (analyze_all_samples == TRUE){
-          sampleFiles <- grep('counts',list.files(directory),value=TRUE)
-          sampleCondition <- c('control_early',
-                               'aikar_late',
-                               'control_late',
-                               'aikar_late',
-                               'aikar_early',
-                               'control_early',
-                               'aikar_early',
-                               'control_early',
-                               'aikar_early',
-                               'control_late',
-                               'aikar_late',
-                               'control_late'
-                               )
-          sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
-          col <- as.vector(sampleTable$sampleName)
-          y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
-  } else if (analyze_all_samples == FALSE){
-          files_control <- grep(paste(gr_control),list.files(directory),value=TRUE)
-          files_case <- grep(paste(gr_case),list.files(directory),value=TRUE)
-          sampleFiles <- c(files_control, files_case)
-          cond_control <- rep(paste(gr_control), length(files_control))
-          cond_case <- rep(paste(gr_case), length(files_case))
-          sampleCondition <- c(cond_control, cond_case)
-          sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
-          y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
-  }
-  
-  
-  
-  setwd("results")
-  stattest <- paste(gr_control, gr_case, sep = "-")
-  results.dir <- paste(directory, "results", sep = "")
-  setwd(results.dir)
-  
-  if (analyze_all_samples == FALSE){
-    dir.create(stattest)
-    setwd(stattest)
-    } else if (analyze_all_samples == TRUE){
-      dir.create("all")
-      setwd("all")
+      heatmaps <- TRUE
+      custom_genes_plots <- FALSE
+      analyze_all_samples <- FALSE
+      disease_association <- FALSE
+      kegg_plots <- TRUE
+      panther_analysis <- TRUE
+      deseq2_part <- TRUE
+      qlm_test <- FALSE
+      logging <- FALSE
+      boxplots <- TRUE
+      biotype <- FALSE
+      distrib <- FALSE
+      summary <- FALSE
+      ### CONSTANTS BLOCK
+      
+      pvalue_cutoff <- 0.05
+      logfchigh_cutoff <- 0.5
+      logfclow_cutoff <- -0.5
+      cpm_cutoff <- 0.5
+      gs_size <- 3
+      diseases_set <- 50
+      number_of_kegg_plots <- 100
+      go_terms_set <- 50
+      pathways_set <- 30
+      genes_in_term <- 3
+      filter_thresh <- 5
+      baseMean_cutoff <- 1.5
+      go_heatmap_count <- 20
+      stattest_number <- 1
+      fdr_cutoff <- 0.05
+    directory <- '~/counts/AIKAR.elim.3.early/'
+    setwd(directory)
+    gr_control <- c("control_early")
+    gr_case <- c("aikar_early")
+    
+    ### BUILDING A SPECIFIC DESIGN TABLE
+    if (logging == TRUE){
+      zz <- file("error.log", open="wt")
+      sink(zz, type="message")
     }
-  # PLOTTING HTSEQ QUALITY BARPLOTS
-  row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "__too_low_aQual", "__not_aligned" )
+    
+    col.pan <- colorpanel(100, "blue", "white", "red")
+    ###DIRECTORY WHERE SAMPLES ARE LOCATED
+    library(dplyr)
+    sampleFiles
+    if (analyze_all_samples == TRUE){
+            sampleFiles <- grep('worm',list.files(directory),value=TRUE)
+            sampleFiles
+            sampleCondition <- c('control_early',
+                                 'aikar_late',
+                                 'control_late',
+                                 'aikar_late',
+                                 'aikar_early',
+                                 'control_early',
+                                 'aikar_early',
+                                 'control_early',
+                                 'aikar_early',
+                                 'control_late',
+                                 'aikar_late',
+                                 'control_late'
+                                )
+            sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
+            col <- as.vector(sampleTable$sampleName)
+            y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
+    } else if (analyze_all_samples == FALSE){
+            files_control <- grep(paste(gr_control),list.files(directory),value=TRUE)
+            files_case <- grep(paste(gr_case),list.files(directory),value=TRUE)
+            sampleFiles <- c(files_control, files_case)
+            cond_control <- rep(paste(gr_control), length(files_control))
+            cond_case <- rep(paste(gr_case), length(files_case))
+            sampleCondition <- c(cond_control, cond_case)
+            sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
+            y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
+    }
+    
+    
+    
+    setwd("results")
+    stattest <- paste(gr_control, gr_case, sep = "-")
+    results.dir <- paste(directory, "results", sep = "")
+    setwd(results.dir)
+    
+    if (analyze_all_samples == FALSE){
+      dir.create(stattest)
+      setwd(stattest)
+      } else if (analyze_all_samples == TRUE){
+        dir.create("all")
+        setwd("all")
+      }
+    # PLOTTING HTSEQ QUALITY BARPLOTS
+    row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "__too_low_aQual", "__not_aligned" )
+    
+    ### DIFFEXPRESSION STATISTICAL ANALYSIS - EXACT NEGATIVE-
+    ### BINOMIAL OR QLM TEST
+    
+    if (qlm_test == TRUE){ 
+      a <- DGEList(counts=y, group = sampleTable$condition) 
+      CountsTable <- as.data.frame(y$counts)
+      cpm <- cpm(y) 
+      cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ] 
+      cpm <- as.data.frame(cpm(y)) 
+      #cpm$rowsum <- rowSums(cpm) 
+      keep <- rowSums(cpm > cpm_cutoff) >= ncol(sampleTable) 
+      logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
+      logCPM <- logCPM[!(row.names(logCPM) %in% row.names.remove), ]
+      logCPM <- logCPM[keep,]
+      nrow(a$counts)
+      a <- a[keep, , keep.lib.sizes=FALSE] 
+      a <- calcNormFactors(a, method = "TMM") 
+      design <- model.matrix(~sampleTable$condition) 
+      a <- estimateDisp(a,design) 
+      fit <- glmQLFit(a,design, robust = TRUE) 
+      qlf <- glmQLFTest(fit,coef=ncol(fit$design))
+      et_annot <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BY"))
+      
+      et_annot_non_filtered <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BH"))
+      top <- as.data.frame(topTags(qlf, n = 20, adjust.method = "BH", sort.by = "PValue"))
+      et <- exactTest(a)
+    } else if (qlm_test == FALSE){ 
+      design <- model.matrix(~sampleTable$condition) 
+      normalized_lib_sizes <- calcNormFactors(y, method = "TMM") 
+      CountsTable <- as.data.frame(y$counts) 
+      raw_counts <- as.data.frame(y$counts) 
+      y <- estimateCommonDisp(y) 
+      y <- estimateTagwiseDisp(y) 
+      y <- estimateDisp(y, design = design) 
+      nf <- exactTest(y) 
+      no_filtered <- as.data.frame(nf$table) 
+      keep <- rowSums(cpm(y) > cpm_cutoff) >= ncol(sampleTable) 
+      cpm <- cpm(y) 
+      cpm <- as.data.frame(cpm(y)) 
+      cpm$rowsum <- rowSums(cpm) 
+      #y <- y[keep, ,keep.lib.sizes=FALSE] 
+      logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
+      et <- exactTest(y) 
+      top <- as.data.frame(topTags(et)) 
+      et_annot <- as.data.frame(topTags(et, n = nrow(logCPM), adjust.method = "BH", sort.by = "PValue"))
+      et_annot_non_filtered <- as.data.frame(et$table) 
+    }
   
-  ### DIFFEXPRESSION STATISTICAL ANALYSIS - EXACT NEGATIVE-
-  ### BINOMIAL OR QLM TEST
-  
-  if (qlm_test == TRUE){ 
-    a <- DGEList(counts=y, group = sampleTable$condition) 
-    CountsTable <- as.data.frame(y$counts)
-    cpm <- cpm(y) 
-    cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ] 
-    cpm <- as.data.frame(cpm(y)) 
-    cpm$rowsum <- rowSums(cpm) 
-    keep <- rowSums(cpm > cpm_cutoff) >= ncol(sampleTable) 
-    logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
-    logCPM <- logCPM[!(row.names(logCPM) %in% row.names.remove), ]
-    logCPM <- logCPM[keep,]
-    a <- a[keep, , keep.lib.sizes=FALSE] 
-    a <- calcNormFactors(a, method = "TMM") 
-    design <- model.matrix(~sampleTable$condition) 
-    a <- estimateDisp(a,design) 
-    fit <- glmQLFit(a,design, robust = TRUE) 
-    qlf <- glmQLFTest(fit,coef=ncol(fit$design))
-    et_annot <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BH"))
-    et_annot_non_filtered <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BH"))
-    top <- as.data.frame(topTags(qlf, n = 20))
-    et <- exactTest(a)
-  } else if (qlm_test == FALSE){ 
-    design <- model.matrix(~sampleTable$condition) 
-    normalized_lib_sizes <- calcNormFactors(y, method = "TMM") 
-    CountsTable <- as.data.frame(y$counts) 
-    raw_counts <- as.data.frame(y$counts) 
-    y <- estimateCommonDisp(y) 
-    y <- estimateTagwiseDisp(y) 
-    y <- estimateDisp(y, design = design) 
-    nf <- exactTest(y) 
-    no_filtered <- as.data.frame(nf$table) 
-    keep <- rowSums(cpm(y) > cpm_cutoff) >= ncol(sampleTable) 
-    cpm <- cpm(y) 
-    cpm <- as.data.frame(cpm(y)) 
-    cpm$rowsum <- rowSums(cpm) 
-    #y <- y[keep, ,keep.lib.sizes=FALSE] 
-    logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
-    et <- exactTest(y) 
-    top <- as.data.frame(topTags(et)) 
-    et_annot <- as.data.frame(topTags(et, n = nrow(logCPM), adjust.method = "BH", sort.by = "PValue"))
-    et_annot_non_filtered <- as.data.frame(et$table) 
-  }
 
-
+et_annot$score <- round((et_annot$logCPM*abs(et_annot$logFC))/et_annot$PValue + et_annot$FDR, digits = 0)
+    
+### DENSITY DISTRIBUTION
+pallete = c("#F46D43", "#66C2A5", "#cd8845", "#3288BD", "#a8bf32", "#5E4FA2", "#D53E4F", "#d6d639", "#8ed384", "#9E0142", "#ebba2f")
+density.cols = colorRampPalette(pallete)(dim(y$counts)[2])
+pdf(file = "All samples density.pdf", height = 10, width = 10, family = "Helvetica")
+lty.n = 1
+lty.count = 4
+plot(density(log(y$counts[,1])),col=density.cols[1], xlim=c(-4,10), main = 'Log2(CPM) density, non-normalized', lty = lty.n)
+for (x in 2:dim(y$counts)[2]){
+  lty.n = (lty.n +1) %% lty.count 
+  lines(density(log(y$counts[,x])),col=density.cols[x], lty = lty.n)
+}
+legend.x.pos = (par("usr")[2] - par("usr")[1])*0.73 + par("usr")[1]
+legend.y.pos = (par("usr")[4] - par("usr")[3])*0.93 + par("usr")[3]
+legend(legend.x.pos, legend.y.pos, legend = colnames(y$counts), col = density.cols, cex = 0.8, lty = 1:4)
+dev.off()  
 
 
 if (distrib == TRUE){
@@ -446,6 +466,7 @@ cpm$term <- mapIds(GO.db,
                    multiVals="first")
 cpm$term <- as.character(cpm$term)
 
+write.csv(cpm, "cpm.csv")
 
 ###TopTags Boxplots
 
@@ -497,25 +518,13 @@ getwd()
 et_annot <- as.data.frame(subset(et_annot, logCPM > cpm_cutoff))
 et_annot <- as.data.frame(subset(et_annot, PValue < pvalue_cutoff))
 
-if(qlm_test == TRUE){
 et_annot <- as.data.frame(subset(et_annot, FDR < pvalue_cutoff))
-}
+
 
 et_annot <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff | logFC < logfclow_cutoff))
 et_annot <- et_annot[complete.cases(et_annot), ]
 
 
-if(nrow(et_annot < 50)){
-  for(i in seq(1:2)){
-    beep()
-    Sys.sleep(0.1)
-    beep()
-    Sys.sleep(0.2)
-    print("Too low number of differentialy expressed genes found!
-           reduce LogFC cutoff or check your data!")  
-  }
-  break
-}
 
 
 ### BIOTYPE ANNOT FIX IT!
@@ -643,23 +652,10 @@ header <- c('all genes', 'mean of logCPM', 'padj<0,05', 'genes with > high', 'ge
 meaning <- c(print(all), print(avg_cpm), print(allpadj), print(up), print(down))
 df <- data.frame(header, meaning)
 
-cpm_subset <- cpm[(rownames(cpm) %in% rownames(et_annot)),]
-cpm_subset <- cpm_subset[,1:length(sampleCondition)]
-m <- data.frame()
-m <- cpm_subset
-m <- cbind(et_annot, m)
 # WRITE RESULTS
 write.xlsx(df, file = "Results edgeR.xlsx", sheetName = "Simple Summary", append = TRUE)
 write.xlsx(top, file = "Results edgeR.xlsx", sheetName = "Top Tags (with FDR)", append = TRUE)
-write.xlsx(m, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
-m <- NULL
-
-
-
-
-
-
-
+write.xlsx(et_annot, file = "Results edgeR.xlsx", sheetName = "Filtered Genes, logCPM, logfc", append = TRUE)
 
 ##TEXT SUMMARY
 et_annot_high <- as.data.frame(subset(et_annot, logFC > logfchigh_cutoff))
@@ -972,6 +968,114 @@ if (analyze_all_samples == TRUE){
   setwd(stattest)
 }
 
+
+#MF
+
+GOdata = new("topGOdata", ontology = "MF", allGenes = all_genes, geneSel = function(s) s < 
+               0.05, description = "Test", annot = annFUN.org, mapping = "org.Ce.eg.db", nodeSize = 2)
+resultFisher <- runTest(GOdata, algorithm = "classic", statistic = "fisher")
+resultKS <- runTest(GOdata, algorithm = "classic", statistic = "ks")
+resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
+
+top30.res.mf <- GenTable(GOdata, classicFisher = resultFisher,
+                         classicKS = resultKS, elimKS = resultKS.elim,
+                         orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 30)
+
+top100.res.mf <- GenTable(GOdata, classicFisher = resultFisher,
+                          classicKS = resultKS, elimKS = resultKS.elim,
+                          orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 100)
+
+top500.res.mf <- GenTable(GOdata, classicFisher = resultFisher,
+                          classicKS = resultKS, elimKS = resultKS.elim,
+                          orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 500)
+
+write.xlsx(top30.res.mf, file = "topGO eliminations.xlsx", sheetName = "MF, top 30", append = TRUE)
+write.xlsx(top100.res.mf, file = "topGO eliminations.xlsx", sheetName = "MF, top 100", append = TRUE)
+write.xlsx(top500.res.mf, file = "topGO eliminations.xlsx", sheetName = "MF, top 500", append = TRUE)
+
+
+setwd("GO graphs")
+
+pdf(file = "top 5 GO graph, MF.pdf", width = 10, height = 10)
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 5, useInfo = 'all')
+dev.off()
+
+pdf(file = "top 15 GO graph, MF.pdf", width = 10, height = 10)
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 15, useInfo = 'all')
+dev.off()
+
+pdf(file = "top 30 GO graph, MF.pdf", width = 10, height = 10)
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 30, useInfo = 'all')
+dev.off()
+
+pdf(file = "top 50 GO graph, MF.pdf", width = 10, height = 10)
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 50, useInfo = 'all')
+dev.off()
+
+setwd(results.dir)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else {
+  setwd(stattest)
+}
+
+
+
+##CC
+
+
+GOdata = new("topGOdata", ontology = "CC", allGenes = all_genes, geneSel = function(s) s < 
+               0.05, description = "Test", annot = annFUN.org, mapping = "org.Ce.eg.db", nodeSize = 2)
+resultFisher <- runTest(GOdata, algorithm = "classic", statistic = "fisher")
+resultKS <- runTest(GOdata, algorithm = "classic", statistic = "ks")
+resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
+
+top30.res.cc <- GenTable(GOdata, classicFisher = resultFisher,
+                         classicKS = resultKS, elimKS = resultKS.elim,
+                         orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 30)
+
+top100.res.cc <- GenTable(GOdata, classicFisher = resultFisher,
+                          classicKS = resultKS, elimKS = resultKS.elim,
+                          orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 100)
+
+top500.res.cc <- GenTable(GOdata, classicFisher = resultFisher,
+                          classicKS = resultKS, elimKS = resultKS.elim,
+                          orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 500)
+
+write.xlsx(top30.res.cc, file = "topGO eliminations.xlsx", sheetName = "cc, top 30", append = TRUE)
+write.xlsx(top100.res.cc, file = "topGO eliminations.xlsx", sheetName = "cc, top 100", append = TRUE)
+write.xlsx(top500.res.cc, file = "topGO eliminations.xlsx", sheetName = "cc, top 500", append = TRUE)
+
+
+setwd("GO graphs")
+
+pdf(file = "top 5 GO graph, cc.pdf", width = 10, height = 10)
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 5, useInfo = 'all')
+dev.off()
+
+pdf(file = "top 15 GO graph, cc.pdf", width = 10, height = 10)
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 15, useInfo = 'all')
+dev.off()
+
+pdf(file = "top 30 GO graph, cc.pdf", width = 10, height = 10)
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 30, useInfo = 'all')
+dev.off()
+
+pdf(file = "top 50 GO graph, cc.pdf", width = 10, height = 10)
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 50, useInfo = 'all')
+dev.off()
+
+
+setwd(results.dir)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else {
+  setwd(stattest)
+}
+
+
+
+
 ## CORELLATION MARIX
 correl <- logCPM
 correl <- as.data.frame(correl)
@@ -1032,6 +1136,27 @@ if (qlm_test == TRUE){
   
 }
 dev.off()
+
+pdf(file = "BCV plot.pdf", width = 10, height = 10)
+plotBCV(y = a, xlab = "Average LogCPM", ylab = "Biological coefficient of variation")
+dev.off()
+
+
+pdf(file = "Quasi-likelhood dispersion.pdf", width = 10, height = 10)
+plotQLDisp(fit)
+dev.off()
+
+
+pdf(file = "Barcode plot-logFC.pdf", width = 10, height = 10)
+barcodeplot(statistics = et_annot$PValue, gene.weights = et_annot$logFC, weights.label = "Log2 Fold Change", worm = TRUE, xlab = "P-value")
+dev.off()
+
+
+pdf(file = "Barcode plot-logCPM.pdf", width = 10, height = 10)
+barcodeplot(statistics = et_annot$logCPM, gene.weights = et_annot$logFC, weights.label = "Log2 Fold Change", worm = TRUE, xlab = "logCPM")
+dev.off()
+
+
 
 ### REACTOME PART
 dfa <- as.character(et_annot$entrez)
@@ -1150,6 +1275,8 @@ heatmap.2(logCPMpval, col=col.pan, Rowv=TRUE, scale="none",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top FDR genes, p < 0.05")
 dev.off()
 
+
+
 # TOP 100 LOGFC GENES
 o <- order(et$table$logFC)
 logCPMfc <- logCPM[o[1:100],]
@@ -1263,8 +1390,9 @@ if (analyze_all_samples == TRUE){
 }
 
 
+p <- prcomp(t(y$counts), center = TRUE, scale. = TRUE)
 
-
+ggbiplot(p, choices = c(3,4))
 
 
 ### DESEQ2 PART (ADDITIONAL)
@@ -1281,10 +1409,9 @@ if (analyze_all_samples == TRUE){
 }
 
 
-
 res <- as.data.frame(res)
 png(file = "PCAPlot.png", width = 1024, height = 768)
-pca <- plotPCA(rld, intgroup=c('condition'))
+pca <- plotPCA(res, intgroup=c('condition'))
 print(plotPCA(rld, intgroup=c('condition')))
 dev.off()
 
@@ -1554,4 +1681,79 @@ if (summary == TRUE){
 }
 
 
+
+
+
+
+r <- grep("WBGene00006575", rownames(cpm), ignore.case = TRUE)
+thm <- cpm[r,]
+rownames(thm) <- thm$Symbol
+plot.name <- as.character(rownames(thm))
+plot.description <- as.character(thm$Name)
+plot.term <- as.character(thm$term)
+thm$Symbol <- NULL
+thm$Name <- NULL
+thm$GOID <- NULL
+thm$term <- NULL
+thm$entrez <- NULL
+colnames(thm) <- sampleCondition
+thm <-as.data.frame(t(thm))
+thm$Condition <- rownames(thm)
+thm$Group <- thm$Condition
+names(thm) <- c("gene", "Condition", "Group")
+
+g <- ggplot(thm, aes(x = Condition, y = gene)) + 
+  geom_boxplot(aes(fill = Group), alpha = 0.5, coef = 1) + 
+  stat_boxplot(geom = "errorbar", width = 0.5) + 
+  geom_line(aes(x = Condition, y = mean(gene))) + 
+  scale_x_discrete(name = "Experimental Groups") + 
+  scale_y_continuous(name = "Log10(Counts per million)") + 
+  theme_bw() + 
+  geom_signif(comparisons = list(c("Tg-2", "Tg-3")), map_signif_level = TRUE) + 
+  #geom_signif(comparisons = list(c("Tg-2", "Tg-3")), map_signif_level = TRUE) + 
+  ggtitle(paste("Gene official symbol: ", plot.name, "\n", "Gene name:", plot.description, "\n", "Direct GO term:", plot.term)) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+
+g
+
+ggsave(filename = paste(plot.name, "pdf", sep = "."), plot = g, height = 20, width = 20, units = "cm")
+
+
+r <- grep("WBGene00000913", rownames(cpm), ignore.case = TRUE)
+thm <- cpm[r,]
+rownames(thm) <- thm$Symbol
+plot.name <- as.character(rownames(thm))
+plot.description <- as.character(thm$Name)
+plot.term <- as.character(thm$term)
+thm$Symbol <- NULL
+thm$Name <- NULL
+thm$GOID <- NULL
+thm$term <- NULL
+thm$entrez <- NULL
+colnames(thm) <- sampleCondition
+thm <-as.data.frame(t(thm))
+thm$Condition <- rownames(thm)
+thm$Group <- thm$Condition
+names(thm) <- c("gene", "Condition", "Group")
+
+g <- ggplot(thm, aes(x = Condition, y = gene)) + 
+  geom_boxplot(aes(fill = Group), alpha = 0.5, coef = 1) + 
+  stat_boxplot(geom = "errorbar", width = 0.5) + 
+  geom_line(aes(x = Condition, y = mean(gene))) + 
+  scale_x_discrete(name = "Experimental Groups") + 
+  scale_y_continuous(name = "Log10(Counts per million)") + 
+  theme_bw() + 
+  geom_signif(comparisons = list(c("Tg-2", "Tg-3")), map_signif_level = TRUE) + 
+  geom_signif(comparisons = list(c("Tg-1", "Tg-2")), map_signif_level = TRUE) + 
+  geom_signif(comparisons = list(c("Control-1", "Tg-1")), map_signif_level = TRUE) + 
+  
+  
+  #geom_signif(comparisons = list(c("Tg-2", "Tg-3")), map_signif_level = TRUE) + 
+  ggtitle(paste("Gene official symbol: ", plot.name, "\n", "Gene name:", plot.description, "\n", "Direct GO term:", plot.term)) + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+g
 

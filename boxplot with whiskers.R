@@ -43,7 +43,9 @@ cpm$term <- mapIds(GO.db,
                    multiVals="first")
 cpm$term <- as.character(cpm$term)
 
-r <- grep("ENSMUSG00000028381", rownames(cpm), ignore.case = TRUE)
+
+setwd("~/counts/ALS Mice/experimental/results/all/lipids/")
+r <- grep("WBGene00000898", rownames(cpm), ignore.case = TRUE)
 thm <- cpm[r,]
 rownames(thm) <- thm$Symbol
 plot.name <- as.character(rownames(thm))
@@ -68,6 +70,10 @@ g <- ggplot(thm, aes(x = Condition, y = gene)) +
         scale_y_continuous(name = "Log10(Counts per million)") + 
         theme_bw() + 
         geom_signif(comparisons = list(c("Tg-2", "Tg-3")), map_signif_level = TRUE) + 
+        geom_signif(comparisons = list(c("Tg-1", "Tg-2")), map_signif_level = TRUE) + 
+        geom_signif(comparisons = list(c("Control-1", "Tg-1")), map_signif_level = TRUE) + 
+  
+  
         #geom_signif(comparisons = list(c("Tg-2", "Tg-3")), map_signif_level = TRUE) + 
         ggtitle(paste("Gene official symbol: ", plot.name, "\n", "Gene name:", plot.description, "\n", "Direct GO term:", plot.term)) + 
         theme(plot.title = element_text(hjust = 0.5))
