@@ -1,11 +1,13 @@
 source("http://www.bioconductor.org/biocLite.R")
-setwd("~/cufflinks/10_11_diffout.celegans/")
+remove.packages("cummeRbund")
 biocLite("cummeRbund")
 install.packages("Rcpp")
+install.packages("digest")
 install_version("RSQLite", version = "1.1-2", repos = "http://cran.us.r-project.org")
 install_version("RSQLite", version = "2.0", repos = "http://cran.us.r-project.org")
 install_github("r-dbi/RSQLite")
 install.packages("RSQLite")
+install.packages("yaml")
 library(devtools)
 library(Rcpp)
 library("RSQLite")
@@ -17,7 +19,10 @@ library(fastcluster)
 library(rtracklayer)
 library(Gviz)
 library(BiocGenerics)
-cuff_data <- readCufflinks(dbFile = "cuffData.db", gtfFile = "Caenorhabditis_elegans.WBcel235.90.gtf")
+
+cuff_data<-readCufflinks(system.file("extdata", package="cummeRbund"), rebuild = T)
+cuff_data 
+
 
 csDensity(genes(cuff_data))
 csScatter(genes(cuff_data), "10", "11")
