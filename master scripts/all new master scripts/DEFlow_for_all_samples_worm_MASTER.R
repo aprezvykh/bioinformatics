@@ -32,6 +32,7 @@
   library(PANTHER.db)
   library(GO.db)
   library(Hmisc)
+  library(knitr)
   library(DESeq2)
   library(checkmate)
   library(biomaRt)
@@ -51,6 +52,9 @@
   library(gapminder)
   library(gridExtra)
   library(PoissonSeq)
+  library(ggplot2)
+  library(yaml)
+  library(tibble)
   
   
   ###BIOCBARALLEL SETTINGS
@@ -63,7 +67,7 @@
   
   heatmaps <- TRUE
   custom_genes_plots <- FALSE
-  analyze_all_samples <- FALSE
+  analyze_all_samples <- TRUE
   disease_association <- FALSE
   kegg_plots <- TRUE
   panther_analysis <- TRUE
@@ -77,9 +81,9 @@
     ### CONSTANTS BLOCK
     
   
-  pvalue_cutoff <- 0.05
-  logfchigh_cutoff <- 0.5
-  logfclow_cutoff <- -0.5
+  pvalue_cutoff <- 0.02
+  logfchigh_cutoff <- 1
+  logfclow_cutoff <- -1
   cpm_cutoff <- 0.5
   gs_size <- 3
   diseases_set <- 50
@@ -93,10 +97,10 @@
   stattest_number <- 1
   fdr_cutoff <- 0.05
   
-directory <- '~/counts/AIKAR.coverage.elim/'
+directory <- '~/counts/AIKAR.truncated/'
 setwd(directory)
-gr_control <- c("control_early")
- gr_case <- c("aikar_late")
+gr_control <- c("control_late")
+gr_case <- c("aikar_late")
     
 ### BUILDING A SPECIFIC DESIGN TABLE
 if (logging == TRUE){
@@ -107,7 +111,7 @@ col.pan <- colorpanel(100, "blue", "white", "red")
 ###DIRECTORY WHERE SAMPLES ARE LOCATED
 library(dplyr)
 if (analyze_all_samples == TRUE){
-            sampleFiles <- grep('worm',list.files(directory),value=TRUE)
+            sampleFiles <- grep('counts',list.files(directory),value=TRUE)
             sampleFiles
             sampleCondition <- c('control_early',
                                  'aikar_late',
@@ -470,7 +474,6 @@ cpm$term <- as.character(cpm$term)
 write.csv(cpm, "cpm.csv")
 
 ###TopTags Boxplots
-
 if (boxplots == TRUE){
   dir.create("TopTags Boxplots")
   setwd("TopTags Boxplots")
@@ -1232,6 +1235,7 @@ barplot(kk, showCategory=30,  font.size = 9)
 dev.off()
 
 ###KEGGA
+library(limma)
 keg_com <- kegga(de = et_annot$entrez, species="Ce", convert = TRUE)
 tk_common <- topKEGG(keg_com, n=100)
 tk_common <- subset(tk_common, tk_common$P.DE < 0.05)
@@ -1367,6 +1371,8 @@ if (analyze_all_samples == TRUE){
 }
 
 
+install.packages("curl")
+library(curl)
 plot_pathway = function(pid){
          pathview(gene.data=foldchanges, 
          pathway.id=pid, 
@@ -1377,7 +1383,10 @@ plot_pathway = function(pid){
 
 dir.create("another kegg plots")
 setwd("another kegg plots")
+getwd()
 
+tk_common <- tk_common[which(rownames(tk_common) != "cel04215"),]
+tk_common
 
 for (f in rownames(tk_common)){
   plot_pathway(f)
@@ -1397,6 +1406,8 @@ ggbiplot(p, choices = c(3,4))
 
 
 ### DESEQ2 PART (ADDITIONAL)
+install.packages("stringi")
+install.packages("knitr")
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
 res <- results(dds, tidy = FALSE )

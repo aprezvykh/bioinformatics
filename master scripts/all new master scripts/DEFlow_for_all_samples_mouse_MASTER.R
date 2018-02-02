@@ -65,7 +65,7 @@ param <- SnowParam(workers = 2, type = "SOCK")
 
   heatmaps <- TRUE
   custom_genes_plots <- FALSE
-  analyze_all_samples <- FALSE
+  analyze_all_samples <- TRUE
   disease_association <- FALSE
   kegg_plots <- TRUE
   panther_analysis <- TRUE
@@ -207,6 +207,30 @@ if (qlm_test == TRUE){
 
 
 plot(et$table$logCPM, y$tagwise.dispersion, pch = ".")
+
+z <- as.data.frame(et)
+pallete = c("#F46D43", "#66C2A5", "#cd8845", "#3288BD", "#a8bf32", "#5E4FA2", "#D53E4F", "#d6d639", "#8ed384", "#9E0142", "#ebba2f")
+density.cols = colorRampPalette(pallete)(dim(y$counts)[2])
+pdf(file = "All samples density.pdf", height = 10, width = 10, family = "Helvetica")
+lty.n = 1
+lty.count = 4
+plot(density(log(y$counts[,1])),col=density.cols[1], xlim=c(-4,10), main = 'Log2(CPM) density, non-normalized', lty = lty.n)
+for (x in 2:dim(y$counts)[2]){
+  lty.n = (lty.n +1) %% lty.count 
+  lines(density(log(y$counts[,x])),col=density.cols[x], lty = lty.n)
+}
+legend.x.pos = (par("usr")[2] - par("usr")[1])*0.73 + par("usr")[1]
+legend.y.pos = (par("usr")[4] - par("usr")[3])*0.93 + par("usr")[3]
+legend(legend.x.pos, legend.y.pos, legend = colnames(y$counts), col = density.cols, cex = 0.8, lty = 1:4)
+dev.off()  
+
+getwd()
+
+libz <- data.frame(y$counts)
+
+
+libz.colsums <- data.frame(colSums(libz))
+
 
 lib <- data.frame(fit$samples$lib.size, sampleTable$condition)
 names(lib) <- c("size", "group")

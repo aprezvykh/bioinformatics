@@ -1,26 +1,12 @@
-source("http://www.bioconductor.org/biocLite.R")
-remove.packages("cummeRbund")
-biocLite("cummeRbund")
-install.packages("Rcpp")
-install.packages("digest")
-install_version("RSQLite", version = "1.1-2", repos = "http://cran.us.r-project.org")
-install_version("RSQLite", version = "2.0", repos = "http://cran.us.r-project.org")
-install_github("r-dbi/RSQLite")
-install.packages("RSQLite")
-install.packages("yaml")
+source("https://bioconductor.org/biocLite.R")
+biocLite()
 library(devtools)
-library(Rcpp)
-library("RSQLite")
-library(cummeRbund)
-library(reshape2)
-library(ggplot2)
-library(plyr)
-library(fastcluster)
-library(rtracklayer)
-library(Gviz)
-library(BiocGenerics)
+devtools::install_github("rstats-db/RSQLite")
+devtools::install_github("rstats-db/RSQLite@b-%23223-icc")
 
-cuff_data<-readCufflinks(system.file("extdata", package="cummeRbund"), rebuild = T)
+library(cummeRbund)
+
+cuff_data<-readCufflinks(system.file("extdata", package="cummeRbund", lib.loc = .libPaths()[1]), rebuild = TRUE)
 cuff_data 
 
 

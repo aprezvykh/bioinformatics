@@ -67,8 +67,8 @@ param <- SnowParam(workers = 2, type = "SOCK")
   disease_association <- FALSE
   kegg_plots <- TRUE
   panther_analysis <- TRUE
-  deseq2_part <- TRUE
-  qlm_test <- TRUE
+  deseq2_part <- FALSE
+  qlm_test <- FALSE
   logging <- FALSE
   motiv <- TRUE
   boxplots <- TRUE
@@ -77,10 +77,10 @@ param <- SnowParam(workers = 2, type = "SOCK")
   ### CONSTANTS BLOCK
   
   pvalue_cutoff <- 0.05
-  fdr_cutoff <- 0.5
-  logfchigh_cutoff <- 0.1
-  logfclow_cutoff <- -0.1
-  cpm_cutoff <- 0.5
+  fdr_cutoff <- 0.05
+  logfchigh_cutoff <- 0
+  logfclow_cutoff <- 0
+  cpm_cutoff <- -1
   gs_size <- 10
   diseases_set <- 50
   number_of_kegg_plots <- 100
@@ -193,12 +193,13 @@ if (qlm_test == TRUE){
     logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
     et <- exactTest(y) 
     top <- as.data.frame(topTags(et)) 
-    et_annot <- as.data.frame(topTags(et, n = nrow(logCPM), adjust.method = "BH", sort.by = "PValue"))
+    et_annot <- as.data.frame(et$table)
+    #et_annot <- as.data.frame(topTags(et, n = nrow(logCPM), adjust.method = "BH", sort.by = "PValue"))
     et_annot_non_filtered <- as.data.frame(et$table)
     
   }
 
-
+z <- as.data.frame(et)
 pallete = c("#F46D43", "#66C2A5", "#cd8845", "#3288BD", "#a8bf32", "#5E4FA2", "#D53E4F", "#d6d639", "#8ed384", "#9E0142", "#ebba2f")
 density.cols = colorRampPalette(pallete)(dim(y$counts)[2])
 pdf(file = "All samples density.pdf", height = 10, width = 10, family = "Helvetica")
@@ -1615,9 +1616,9 @@ intersect(rownames(res_df), rownames(et_annot))
 
 #z <- grep("behavior", cpm$term, ignore.case = TRUE)
 
-#for (f in z){
-    #r <- grep("FBgn0013278", rownames(cpm), ignore.case = TRUE)
-    thm <- cpm[f,]
+
+    r <- grep("FBgn0267366", rownames(cpm), ignore.case = TRUE)
+    thm <- cpm[r,]
     rownames(thm) <- thm$Symbol
     plot.name <- as.character(rownames(thm))
     plot.description <- as.character(thm$Name)
@@ -1638,13 +1639,13 @@ intersect(rownames(res_df), rownames(et_annot))
       geom_boxplot(data = thm, aes(fill = Group), alpha = 0.5) + 
       scale_x_discrete(name = "Experimental Groups") + 
       scale_y_continuous(name = "Counts per million") + 
-      theme_bw() + 
-      geom_signif(comparisons = list(c("N", "K")), map_signif_level = FALSE, annotations = "***", test = "t.test") 
+      theme_bw()
     
     g <- g + ggtitle(paste("Gene official symbol: ", plot.name, "\n", "Gene name:", plot.description, "\n", "Direct GO term:", plot.term)) + 
       theme(plot.title = element_text(hjust = 0.5))
-    ggsave(filename = paste(plot.name, "png", sep = "."), plot = g)
-}
+    g
+    #ggsave(filename = paste(plot.name, "png", sep = "."), plot = g)
+
 
 #dev.off()
   

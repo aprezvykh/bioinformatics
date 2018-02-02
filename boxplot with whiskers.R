@@ -44,8 +44,15 @@ cpm$term <- mapIds(GO.db,
 cpm$term <- as.character(cpm$term)
 
 
-setwd("~/counts/ALS Mice/experimental/results/all/lipids/")
-r <- grep("WBGene00000898", rownames(cpm), ignore.case = TRUE)
+setwd("~/counts/ALS Mice/experimental/results/all/lipids.new/")
+
+
+library(xlsx)
+lipids <- read.xlsx("lipids.xlsx", sheetIndex = 1)
+
+for (f in lipids$genes){
+print(f)
+r <- grep(paste(f), rownames(cpm), ignore.case = TRUE)
 thm <- cpm[r,]
 rownames(thm) <- thm$Symbol
 plot.name <- as.character(rownames(thm))
@@ -78,9 +85,13 @@ g <- ggplot(thm, aes(x = Condition, y = gene)) +
         ggtitle(paste("Gene official symbol: ", plot.name, "\n", "Gene name:", plot.description, "\n", "Direct GO term:", plot.term)) + 
         theme(plot.title = element_text(hjust = 0.5))
 
+        ggsave(filename = paste(plot.name, "png", sep = "."), plot = g, height = 20, width = 20, units = "cm")
 
-g
-ggsave(filename = paste(plot.name, "pdf", sep = "."), plot = g, height = 20, width = 20, units = "cm")
+}
+
+
+
+
 ###dekta-FUS
 
 #g <- ggplot(thm, aes(x = Condition, y = gene)) + 

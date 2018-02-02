@@ -1,4 +1,4 @@
-dir <- c('~/coverage/')
+dir <- c('~/coverage.mouse/')
 setwd(dir)
 files <- grep("txt", list.files(dir), value = TRUE)
 n = length(files)
@@ -19,7 +19,7 @@ leg <- rownames(df)
 df <- as.data.frame(t(df))
 
 
-plot(df$`8.bam.geneBodyCoverage.txt`, type = "l")
+plot(df$, type = "l")
 
 
 sas <- data.frame()
