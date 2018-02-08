@@ -20,9 +20,9 @@ data(go.subs.mm)
 
 library("dplyr")
 
-dir <- c("~/counts/AIKAR.final/")
+dir <- c("~/counts/AIKAR.tag.count.1000.3tag.individual/results/")
 setwd(dir)
-et_annot <- read.xlsx("filtered diffexpression ET_tt_LFC0,5.xlsx", sheetIndex = 2)
+et_annot <- read.xlsx("genes for aikar.xlsx", sheetIndex = 1)
 
 
 
@@ -32,8 +32,8 @@ et_annot_low <- subset(et_annot, et_annot$logFC < 0)
 foldchanges = et_annot$logFC
 names(foldchanges) = et_annot$entrez
 
-dir.create("early")
-setwd("early")
+dir.create("aikar")
+setwd("aikar")
 
 dfa <- as.character(et_annot$entrez)
 x <- enrichPathway(gene=dfa, organism = "celegans", minGSSize=1, readable = TRUE )

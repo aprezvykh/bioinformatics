@@ -1,212 +1,239 @@
-  library(r2excel)
-  library(BatchJobs)
-  library(BiocParallel)
-  library(ENCODExplorer)
-  library(DT)
-  library(reshape2)
-  library(htmlwidgets)
-  library(visNetwork)
-  library(beepr)
-  library(AnnotationDbi)
-  library(Rcpp)
-  library(gplots)
-  library(edgeR)
-  library(org.Ce.eg.db)
-  library(gplots)
-  library(pheatmap)
-  library(xlsx)
-  library(gage)
-  library(gageData)
-  library(topGO)
-  library(ggplot2)
-  library(ReactomePA)
-  library(reshape)
-  require(clusterProfiler)
-  require(reactome.db)
-  library(data.table)
-  library(pathview)
-  library(plyr)
-  library(dplyr)
-  library(RColorBrewer)
-  library(Matrix)
-  library(PANTHER.db)
-  library(GO.db)
-  library(Hmisc)
-  library(knitr)
-  library(DESeq2)
-  library(checkmate)
-  library(biomaRt)
-  library(RcisTarget)
-  library(devtools)
-  library(enrichR)
-  library(zoo)
-  library(rvest)
-  library(XML)
-  library(plyr)
-  library(AnnotationDbi)
-  library(ggsignif)
-  library(grid)
-  library(pcaExplorer)
-  library(ggbiplot)
-  library(cowplot)
-  library(gapminder)
-  library(gridExtra)
-  library(PoissonSeq)
-  library(ggplot2)
-  library(yaml)
-  library(tibble)
+    library(r2excel)
+    library(BatchJobs)
+    library(BiocParallel)
+    library(ENCODExplorer)
+    library(DT)
+    library(reshape2)
+    library(htmlwidgets)
+    library(visNetwork)
+    library(beepr)
+    library(AnnotationDbi)
+    library(Rcpp)
+    library(gplots)
+    library(edgeR)
+    library(org.Ce.eg.db)
+    library(gplots)
+    library(pheatmap)
+    library(xlsx)
+    library(gage)
+    library(gageData)
+    library(topGO)
+    library(ggplot2)
+    library(ReactomePA)
+    library(reshape)
+    require(clusterProfiler)
+    require(reactome.db)
+    library(data.table)
+    library(pathview)
+    library(plyr)
+    library(dplyr)
+    library(RColorBrewer)
+    library(Matrix)
+    library(PANTHER.db)
+    library(GO.db)
+    library(Hmisc)
+    library(knitr)
+    library(DESeq2)
+    library(checkmate)
+    library(biomaRt)
+    library(RcisTarget)
+    library(devtools)
+    library(enrichR)
+    library(zoo)
+    library(rvest)
+    library(XML)
+    library(plyr)
+    library(AnnotationDbi)
+    library(ggsignif)
+    library(grid)
+    library(pcaExplorer)
+    library(ggbiplot)
+    library(cowplot)
+    library(gapminder)
+    library(gridExtra)
+    library(PoissonSeq)
+    library(ggplot2)
+    library(yaml)
+    library(tibble)
+    
+    
+    ###BIOCBARALLEL SETTINGS
   
-  
-  ###BIOCBARALLEL SETTINGS
-
-  default <- registered()
-  register(BatchJobsParam(workers = 10), default = TRUE)
-  options(MulticoreParam=quote(MulticoreParam(workers=8)))
-  param <- SnowParam(workers = 2, type = "SOCK")
-  
-  
-  heatmaps <- TRUE
-  custom_genes_plots <- FALSE
-  analyze_all_samples <- TRUE
-  disease_association <- FALSE
-  kegg_plots <- TRUE
-  panther_analysis <- TRUE
-  deseq2_part <- TRUE
-  qlm_test <- FALSE
-  logging <- FALSE
-  boxplots <- TRUE
-  biotype <- FALSE
-  distrib <- FALSE
-  summary <- FALSE
-    ### CONSTANTS BLOCK
-    
-  
-  pvalue_cutoff <- 0.02
-  logfchigh_cutoff <- 1
-  logfclow_cutoff <- -1
-  cpm_cutoff <- 0.5
-  gs_size <- 3
-  diseases_set <- 50
-  number_of_kegg_plots <- 100
-  go_terms_set <- 50
-  pathways_set <- 30
-  genes_in_term <- 3
-  filter_thresh <- 5
-  baseMean_cutoff <- 1.5
-  go_heatmap_count <- 20
-  stattest_number <- 1
-  fdr_cutoff <- 0.05
-  
-directory <- '~/counts/AIKAR.truncated/'
-setwd(directory)
-gr_control <- c("control_late")
-gr_case <- c("aikar_late")
-    
-### BUILDING A SPECIFIC DESIGN TABLE
-if (logging == TRUE){
-   zz <- file("error.log", open="wt")
-      sink(zz, type="message")
-    }
-col.pan <- colorpanel(100, "blue", "white", "red")
-###DIRECTORY WHERE SAMPLES ARE LOCATED
-library(dplyr)
-if (analyze_all_samples == TRUE){
-            sampleFiles <- grep('counts',list.files(directory),value=TRUE)
-            sampleFiles
-            sampleCondition <- c('control_early',
-                                 'aikar_late',
-                                 'control_late',
-                                 'aikar_late',
-                                 'aikar_early',
-                                 'control_early',
-                                 'aikar_early',
-                                 'control_early',
-                                 'aikar_early',
-                                 'control_late',
-                                 'aikar_late',
-                                 'control_late'
-                                )
-            sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
-            col <- as.vector(sampleTable$sampleName)
-            y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
-    } else if (analyze_all_samples == FALSE){
-            files_control <- grep(paste(gr_control),list.files(directory),value=TRUE)
-            files_case <- grep(paste(gr_case),list.files(directory),value=TRUE)
-            sampleFiles <- c(files_control, files_case)
-            cond_control <- rep(paste(gr_control), length(files_control))
-            cond_case <- rep(paste(gr_case), length(files_case))
-            sampleCondition <- c(cond_control, cond_case)
-            sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
-            y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
-    }
+    default <- registered()
+    register(BatchJobsParam(workers = 10), default = TRUE)
+    options(MulticoreParam=quote(MulticoreParam(workers=8)))
+    param <- SnowParam(workers = 2, type = "SOCK")
     
     
-    
-    setwd("results")
-    stattest <- paste(gr_control, gr_case, sep = "-")
-    results.dir <- paste(directory, "results", sep = "")
-    setwd(results.dir)
-    
-    if (analyze_all_samples == FALSE){
-      dir.create(stattest)
-      setwd(stattest)
-      } else if (analyze_all_samples == TRUE){
-        dir.create("all")
-        setwd("all")
-      }
-    # PLOTTING HTSEQ QUALITY BARPLOTS
-    row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "__too_low_aQual", "__not_aligned" )
-    
-    ### DIFFEXPRESSION STATISTICAL ANALYSIS - EXACT NEGATIVE-
-    ### BINOMIAL OR QLM TEST
-    
-    if (qlm_test == TRUE){ 
-      a <- DGEList(counts=y, group = sampleTable$condition) 
-      CountsTable <- as.data.frame(y$counts)
-      cpm <- cpm(y) 
-      cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ] 
-      cpm <- as.data.frame(cpm(y)) 
-      #cpm$rowsum <- rowSums(cpm) 
-      keep <- rowSums(cpm > cpm_cutoff) >= ncol(sampleTable) 
-      logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
-      logCPM <- logCPM[!(row.names(logCPM) %in% row.names.remove), ]
-      logCPM <- logCPM[keep,]
-      nrow(a$counts)
-      a <- a[keep, , keep.lib.sizes=FALSE] 
-      a <- calcNormFactors(a, method = "TMM") 
-      design <- model.matrix(~sampleTable$condition) 
-      a <- estimateDisp(a,design) 
-      fit <- glmQLFit(a,design, robust = TRUE) 
-      qlf <- glmQLFTest(fit,coef=ncol(fit$design))
-      et_annot <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BY"))
+    heatmaps <- TRUE
+    custom_genes_plots <- FALSE
+    analyze_all_samples <- FALSE
+    disease_association <- FALSE
+    kegg_plots <- TRUE
+    panther_analysis <- TRUE
+    deseq2_part <- TRUE
+    qlm_test <- TRUE
+    logging <- FALSE
+    boxplots <- TRUE
+    biotype <- FALSE
+    distrib <- FALSE
+    summary <- FALSE
+      ### CONSTANTS BLOCK
       
-      et_annot_non_filtered <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BH"))
-      top <- as.data.frame(topTags(qlf, n = 20, adjust.method = "BH", sort.by = "PValue"))
-      et <- exactTest(a)
-    } else if (qlm_test == FALSE){ 
-      design <- model.matrix(~sampleTable$condition) 
-      normalized_lib_sizes <- calcNormFactors(y, method = "TMM") 
-      CountsTable <- as.data.frame(y$counts) 
-      raw_counts <- as.data.frame(y$counts) 
-      y <- estimateCommonDisp(y) 
-      y <- estimateTagwiseDisp(y) 
-      y <- estimateDisp(y, design = design) 
-      nf <- exactTest(y) 
-      no_filtered <- as.data.frame(nf$table) 
-      keep <- rowSums(cpm(y) > cpm_cutoff) >= ncol(sampleTable) 
-      cpm <- cpm(y) 
-      cpm <- as.data.frame(cpm(y)) 
-      cpm$rowsum <- rowSums(cpm) 
-      #y <- y[keep, ,keep.lib.sizes=FALSE] 
-      logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
-      et <- exactTest(y) 
-      top <- as.data.frame(topTags(et)) 
-      et_annot <- as.data.frame(topTags(et, n = nrow(logCPM), adjust.method = "BH", sort.by = "PValue"))
-      et_annot_non_filtered <- as.data.frame(et$table) 
-}
+    
+    pvalue_cutoff <- 0.05
+    logfchigh_cutoff <- 0.5
+    logfclow_cutoff <- -0.5
+    cpm_cutoff <- -1
+    gs_size <- 1
+    diseases_set <- 50
+    number_of_kegg_plots <- 100
+    go_terms_set <- 50
+    pathways_set <- 30
+    genes_in_term <- 3
+    filter_thresh <- 5
+    baseMean_cutoff <- 1.5
+    go_heatmap_count <- 20
+    stattest_number <- 1
+    fdr_cutoff <- 0.05
+    
+  directory <- '~/counts/worm_test_2/'
+  setwd(directory)
+  gr_control <- c("wt")
+  gr_case <- c("tg")
+      
+  ### BUILDING A SPECIFIC DESIGN TABLE
+  if (logging == TRUE){
+     zz <- file("error.log", open="wt")
+        sink(zz, type="message")
+      }
+  col.pan <- colorpanel(100, "blue", "white", "red")
+  ###DIRECTORY WHERE SAMPLES ARE LOCATED
+  library(dplyr)
+  if (analyze_all_samples == TRUE){
+              sampleFiles <- grep('worm',list.files(directory),value=TRUE)
+              sampleFiles
+              sampleCondition <- c('control_early',
+                                   'aikar_late',
+                                   'control_late',
+                                   'aikar_late',
+                                   'aikar_early',
+                                   'control_early',
+                                   'aikar_early',
+                                   'control_early',
+                                   'aikar_early',
+                                   'control_late',
+                                   'aikar_late',
+                                   'control_late'
+                                  )
+              sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
+              col <- as.vector(sampleTable$sampleName)
+              y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
+      } else if (analyze_all_samples == FALSE){
+              files_control <- grep(paste(gr_control),list.files(directory),value=TRUE)
+              files_case <- grep(paste(gr_case),list.files(directory),value=TRUE)
+              sampleFiles <- c(files_control, files_case)
+              cond_control <- rep(paste(gr_control), length(files_control))
+              cond_case <- rep(paste(gr_case), length(files_case))
+              sampleCondition <- c(cond_control, cond_case)
+              sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
+              y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
+      }
+      
+  
+  
+  
+      setwd("results")
+      stattest <- paste(gr_control, gr_case, sep = "-")
+      results.dir <- paste(directory, "results", sep = "")
+      setwd(results.dir)
+      
+      if (analyze_all_samples == FALSE){
+        dir.create(stattest)
+        setwd(stattest)
+        } else if (analyze_all_samples == TRUE){
+          dir.create("all")
+          setwd("all")
+        }
+      # PLOTTING HTSEQ QUALITY BARPLOTS
+      row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "__too_low_aQual", "__not_aligned" )
+      
+      ### DIFFEXPRESSION STATISTICAL ANALYSIS - EXACT NEGATIVE-
+      ### BINOMIAL OR QLM TEST
+      
+      if (qlm_test == TRUE){ 
+        a <- DGEList(counts=y, group = sampleTable$condition) 
+        CountsTable <- as.data.frame(y$counts)
+        cpm <- cpm(y) 
+        cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ] 
+        cpm <- as.data.frame(cpm(y)) 
+        #cpm$rowsum <- rowSums(cpm) 
+        keep <- rowSums(cpm > cpm_cutoff) >= ncol(sampleTable) 
+        logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
+        logCPM <- logCPM[!(row.names(logCPM) %in% row.names.remove), ]
+        logCPM <- logCPM[keep,]
+        nrow(a$counts)
+        a <- a[keep, , keep.lib.sizes=FALSE] 
+        a <- calcNormFactors(a, method = "TMM") 
+        design <- model.matrix(~sampleTable$condition) 
+        a <- estimateDisp(a,design) 
+        fit <- glmQLFit(a,design, robust = TRUE) 
+        qlf <- glmQLFTest(fit,coef=ncol(fit$design))
+        et_annot <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BY"))
+        
+        et_annot_non_filtered <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BH"))
+        top <- as.data.frame(topTags(qlf, n = 20, adjust.method = "BH", sort.by = "PValue"))
+        et <- exactTest(a)
+      } else if (qlm_test == FALSE){ 
+        design <- model.matrix(~sampleTable$condition) 
+        normalized_lib_sizes <- calcNormFactors(y, method = "TMM") 
+        CountsTable <- as.data.frame(y$counts) 
+        raw_counts <- as.data.frame(y$counts) 
+        y <- estimateCommonDisp(y) 
+        y <- estimateTagwiseDisp(y) 
+        y <- estimateDisp(y, design = design) 
+        nf <- exactTest(y) 
+        no_filtered <- as.data.frame(nf$table) 
+        keep <- rowSums(cpm(y) > cpm_cutoff) >= ncol(sampleTable) 
+        cpm <- cpm(y) 
+        cpm <- as.data.frame(cpm(y)) 
+        cpm$rowsum <- rowSums(cpm) 
+        #y <- y[keep, ,keep.lib.sizes=FALSE] 
+        logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
+        et <- exactTest(y) 
+        top <- as.data.frame(topTags(et)) 
+        et_annot <- as.data.frame(topTags(et, n = nrow(logCPM), adjust.method = "BH", sort.by = "PValue"))
+        et_annot_non_filtered <- as.data.frame(et$table) 
+  }
+  
+  
+      correl <- logCPM
+      correl <- as.data.frame(correl)
+      correl <- correl[complete.cases(correl),]
+      x <- cor(correl, method = "pearson")
+      pdf(file = "Corellation matrix Spearman.pdf", width = 10, height = 10)
+      heatmap.2(x, col=col.pan, Rowv=TRUE, scale="none",
+                trace="none", dendrogram="both", cexRow=1.4, cexCol=1.4, density.info="none",
+                margin=c(18,18), lhei=c(2,10), lwid=c(2,6), main = "Spearman corellation")
+      
+      dev.off()
+    
+    
+      
+      
+      pch <- c(0,1,2,15,16,17)
+    colors <- rep(c("darkgreen", "red", "blue"), 2)
+    # pdf(file = "PCAPlot.pdf", width = 12, height = 17, family = "Helvetica")
+    pdf(file = "MDSPlot.pdf", width = 10, height = 10)
+    plotMDS(y, col=colors[sampleTable$condition], pch = pch[sampleTable$condition], labels = sampleTable$condition)
+    legend("topleft", legend=levels(sampleTable$condition), pch=pch, col=colors, ncol=2)
+    dev.off()
+    
 
-
-et_annot$score <- round((et_annot$logCPM*abs(et_annot$logFC))/et_annot$PValue + et_annot$FDR, digits = 0)
+    
+    
+    
+    
     
 ### DENSITY DISTRIBUTION
 pallete = c("#F46D43", "#66C2A5", "#cd8845", "#3288BD", "#a8bf32", "#5E4FA2", "#D53E4F", "#d6d639", "#8ed384", "#9E0142", "#ebba2f")
@@ -1279,7 +1306,7 @@ heatmap.2(logCPMpval, col=col.pan, Rowv=TRUE, scale="none",
           trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
           margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top FDR genes, p < 0.05")
 dev.off()
-
+getwd()
 
 
 # TOP 100 LOGFC GENES
@@ -1371,7 +1398,6 @@ if (analyze_all_samples == TRUE){
 }
 
 
-install.packages("curl")
 library(curl)
 plot_pathway = function(pid){
          pathview(gene.data=foldchanges, 
@@ -1406,8 +1432,6 @@ ggbiplot(p, choices = c(3,4))
 
 
 ### DESEQ2 PART (ADDITIONAL)
-install.packages("stringi")
-install.packages("knitr")
 ddsHTSeq<-DESeqDataSetFromHTSeqCount(sampleTable=sampleTable, directory=directory, design=~condition)
 dds<-DESeq(ddsHTSeq)
 res <- results(dds, tidy = FALSE )

@@ -63,7 +63,7 @@ param <- SnowParam(workers = 2, type = "SOCK")
 
   heatmaps <- TRUE
   custom_genes_plots <- FALSE
-  analyze_all_samples <- FALSE
+  analyze_all_samples <- TRUE
   disease_association <- FALSE
   kegg_plots <- TRUE
   panther_analysis <- TRUE
@@ -76,8 +76,8 @@ param <- SnowParam(workers = 2, type = "SOCK")
   distrib <- FALSE
   ### CONSTANTS BLOCK
   
-  pvalue_cutoff <- 0.05
-  fdr_cutoff <- 0.05
+  pvalue_cutoff <- 0.01
+  fdr_cutoff <- 0.01
   logfchigh_cutoff <- 0
   logfclow_cutoff <- 0
   cpm_cutoff <- -1
@@ -99,10 +99,10 @@ param <- SnowParam(workers = 2, type = "SOCK")
 #gr_control <- as.character(a[1,1])
 #gr_case <- as.character(a[1,2])
 
-directory <- '~/counts/dmel_memory_new/'
+directory <- '~/counts/dmel_memory_filtering/'
 setwd(directory)
 gr_control <- c("K")
-gr_case <- c("F")
+gr_case <- c("mem")
 
 ### BUILDING A SPECIFIC DESIGN TABLE
 if (logging == TRUE){
@@ -117,7 +117,7 @@ library(dplyr)
 if (analyze_all_samples == TRUE){
         sampleFiles <- grep('fly',list.files(directory),value=TRUE)
         sampleFiles
-        sampleCondition <- c('mem', 'F', 'F', 'K', 'K', 'mem')
+        sampleCondition <- c('F', 'F', 'F', 'K', 'K', 'K', 'mem', 'mem', 'mem')
 
         sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
         col <- as.vector(sampleTable$sampleName)
@@ -199,7 +199,6 @@ if (qlm_test == TRUE){
     
   }
 
-z <- as.data.frame(et)
 pallete = c("#F46D43", "#66C2A5", "#cd8845", "#3288BD", "#a8bf32", "#5E4FA2", "#D53E4F", "#d6d639", "#8ed384", "#9E0142", "#ebba2f")
 density.cols = colorRampPalette(pallete)(dim(y$counts)[2])
 pdf(file = "All samples density.pdf", height = 10, width = 10, family = "Helvetica")
@@ -440,6 +439,25 @@ cpm$term <- mapIds(GO.db,
 cpm$term <- as.character(cpm$term)
 write.csv(cpm, file = "cpm.csv")
 
+
+####
+
+sub <- cpm[(rownames(cpm) %in% new.km$NA.),]
+rownames(sub) <- sub$Symbol
+sub <- sub[,1:4]
+logCPMpval <- t(scale(t(sub)))
+col.pan <- colorpanel(100, "blue", "white", "red")
+pdf(file = "Heatmap-KM-ONLY.pdf", width = 12, height = 17, family = "Helvetica")
+heatmap.2(logCPMpval, col=col.pan, Rowv=TRUE, scale="none",
+          trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
+          margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top FDR genes, p < 0.05")
+dev.off()
+
+
+
+
+
+
 ###TopTags Boxplots
 
 if (boxplots == TRUE){
@@ -511,17 +529,19 @@ rownames(diff) <- rownames(CountsTable)
 
 fc <- et_annot[order(et_annot$logFC),]
 lfgene <- rownames(fc[4,])
+lfgene
 c <- grep(paste(lfgene), rownames(diff))
 dfc <- as.data.frame(diff[c,])
 lfgenefc <- fc[4,1]
 stat <- dfc$counts_control.rowsum.control > dfc$counts_case.rowsum.case
-
+lfgene
 if (stat == TRUE & lfgenefc < 0){
   print("No Correction Needed!")
 } else {
   et_annot$logFC <- et_annot$logFC*(-1)
   print("Correction protocol executed, logFC have been inverted!")
 }
+
 
 
 
@@ -1152,6 +1172,7 @@ dev.off()
 ###KEGG expression profile (without lfc, but with generatio)
 
 kk <- enrichKEGG(gene = df_high, organism = "dme", pvalueCutoff = 0.05)
+
 write.xlsx(kk, file = "KEGG.xlsx", sheetName = "KEGG_upreg", append = TRUE)
 pdf(file = "KEGG_upreg.pdf", width = 12, height = 17, family = "Helvetica")
 barplot(kk, showCategory=30,  font.size = 9)
@@ -1164,14 +1185,14 @@ barplot(kk, showCategory=30,  font.size = 9)
 dev.off()
 
 ###KEGGA
-keg_com <- kegga(de = et_annot$entrez, species="Dm")
+keg_com <- kegga(de = et_annot$entrez, species="Dm", convert = TRUE)
 tk_common <- topKEGG(keg_com, n=100)
 tk_common <- subset(tk_common, tk_common$P.DE < 0.05)
 tk_common$perc <- (tk_common$DE/tk_common$N)*100
 tk_common <- tk_common[order(tk_common$perc, decreasing = TRUE),]
 write.xlsx(tk_common, file = "kegga.xlsx", sheetName = "all Kegg", append = TRUE)
 
-keg_up <- kegga(de = et_annot_high$entrez, species="Dm")
+keg_up <- kegga(de = et_annot_high$entrez, species="Dm", convert = TRUE)
 tk_up <- topKEGG(keg_up, n=100)
 tk_up <- subset(tk_up, tk_up$P.DE < 0.05)
 tk_up$perc <- (tk_up$DE/tk_up$N)*100
@@ -1179,7 +1200,7 @@ tk_up <- tk_up[order(tk_up$perc, decreasing = TRUE),]
 write.xlsx(tk_up, file = "kegga.xlsx", sheetName = "Upreg", append = TRUE)
 
 
-keg_down <- kegga(de = et_annot_low$entrez, species="Dm")
+keg_down <- kegga(de = et_annot_low$entrez, species="Dm", convert = TRUE)
 tk_down <- topKEGG(keg_down, n=100)
 tk_down <- subset(tk_down, tk_down$P.DE < 0.05)
 tk_down$perc <- (tk_down$DE/tk_down$N)*100
@@ -1187,26 +1208,27 @@ tk_down <- tk_down[order(tk_down$perc, decreasing = TRUE),]
 write.xlsx(tk_down, file = "kegga.xlsx", sheetName = "Downreg", append = TRUE)
 getwd()
 rownames(tk_common) <- substring(rownames(tk_common), 6)
-
+rownames(tk_up) <- substring(rownames(tk_up), 6)
+rownames(tk_down) <- substring(rownames(tk_down), 6)
 
 write.xlsx(tk_up, file = "Results edgeR.xlsx", sheetName = "top 100 Upregulated KEGG pathways", append = TRUE)
 write.xlsx(tk_down, file = "Results edgeR.xlsx", sheetName = "top 100 Downregulated KEGG pathways", append = TRUE)
 
 
 # TOP 100 PVALUE GENES
-logCPM <- as.data.frame(logCPM)
-nrow(logCPM)
-rownames(logCPM) <- make.names(y$genes$Symbol, unique = TRUE)
-colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
-o <- order(et$table$PValue)
-logCPMpval <- logCPM[o[1:100],]
-logCPMpval <- t(scale(t(logCPMpval)))
-col.pan <- colorpanel(100, "blue", "white", "red")
-pdf(file = "Top 100 Pvalue Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
-heatmap.2(logCPMpval, col=col.pan, Rowv=TRUE, scale="none",
-          trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-          margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top FDR genes, p < 0.05")
-dev.off()
+  logCPM <- as.data.frame(logCPM)
+  nrow(logCPM)
+  rownames(logCPM) <- make.names(y$genes$Symbol, unique = TRUE)
+  #colnames(logCPM) <- paste(y$samples$group, 1:2, sep="-")
+  o <- order(et$table$PValue)
+  logCPMpval <- logCPM[o[1:100],]
+  logCPMpval <- t(scale(t(logCPMpval)))
+  col.pan <- colorpanel(100, "blue", "white", "red")
+  pdf(file = "Top 100 Pvalue Heatmap.pdf", width = 12, height = 17, family = "Helvetica")
+  heatmap.2(logCPMpval, col=col.pan, Rowv=TRUE, scale="none",
+            trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
+            margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = "Top FDR genes, p < 0.05")
+  dev.off()
 
 # TOP 100 LOGFC GENES
 o <- order(et$table$logFC)
@@ -1287,7 +1309,6 @@ if (analyze_all_samples == TRUE){
 }
 
 
-
 # KEGG PLOTS
 setwd(results.dir)
 if (analyze_all_samples == TRUE){
@@ -1308,8 +1329,14 @@ plot_pathway = function(pid){
 dir.create("another kegg plots")
 setwd("another kegg plots")
 
-
 for (f in rownames(tk_common)){
+  plot_pathway(f)
+}
+
+dir.create("upregulated")
+setwd("upregulated/")
+
+for (f in rownames(tk_up)){
   plot_pathway(f)
 }
 
@@ -1319,6 +1346,21 @@ if (analyze_all_samples == TRUE){
 } else {
   setwd(stattest)
 }
+
+setwd("another kegg plots")
+dir.create("downregulated")
+setwd("downregulated/")
+
+  for (f in rownames(tk_down)){
+    plot_pathway(f)
+  }
+  
+  setwd(results.dir)
+  if (analyze_all_samples == TRUE){
+    setwd("all")
+  } else {
+    setwd(stattest)
+  }
 
 
 ### DESEQ2 PART (ADDITIONAL)
@@ -1615,9 +1657,10 @@ intersect(rownames(res_df), rownames(et_annot))
 #setwd("behavior")
 
 #z <- grep("behavior", cpm$term, ignore.case = TRUE)
-
-
-    r <- grep("FBgn0267366", rownames(cpm), ignore.case = TRUE)
+dir.create("updown")
+setwd("updown")
+for (f in updown$flybase){
+    r <- grep(paste(f), rownames(cpm), ignore.case = TRUE)
     thm <- cpm[r,]
     rownames(thm) <- thm$Symbol
     plot.name <- as.character(rownames(thm))
@@ -1643,9 +1686,15 @@ intersect(rownames(res_df), rownames(et_annot))
     
     g <- g + ggtitle(paste("Gene official symbol: ", plot.name, "\n", "Gene name:", plot.description, "\n", "Direct GO term:", plot.term)) + 
       theme(plot.title = element_text(hjust = 0.5))
-    g
-    #ggsave(filename = paste(plot.name, "png", sep = "."), plot = g)
+    ggsave(filename = paste(plot.name, "png", sep = "."), plot = g, height = 20, width = 20, units = "cm")
 
+    
+}
 
+setwd(results.dir)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else {
+  setwd(stattest)
+}
 #dev.off()
-  
