@@ -82,8 +82,8 @@
       
     
     pvalue_cutoff <- 0.05
-    logfchigh_cutoff <- 0.5
-    logfclow_cutoff <- -0.5
+    logfchigh_cutoff <- 0
+    logfclow_cutoff <- -0
     cpm_cutoff <- -1
     gs_size <- 1
     diseases_set <- 50
@@ -97,10 +97,10 @@
     stattest_number <- 1
     fdr_cutoff <- 0.05
     
-  directory <- '~/counts/worm_test_2/'
+  directory <- '~/counts/AIKAR.tag.count.1000.3tag.individual/'
   setwd(directory)
-  gr_control <- c("wt")
-  gr_case <- c("tg")
+  gr_control <- c("early")
+  gr_case <- c("late")
       
   ### BUILDING A SPECIFIC DESIGN TABLE
   if (logging == TRUE){

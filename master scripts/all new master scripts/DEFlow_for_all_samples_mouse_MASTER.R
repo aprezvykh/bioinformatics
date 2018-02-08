@@ -65,7 +65,7 @@ param <- SnowParam(workers = 2, type = "SOCK")
 
   heatmaps <- TRUE
   custom_genes_plots <- FALSE
-  analyze_all_samples <- TRUE
+  analyze_all_samples <- FALSE
   disease_association <- FALSE
   kegg_plots <- TRUE
   panther_analysis <- TRUE
@@ -78,8 +78,8 @@ param <- SnowParam(workers = 2, type = "SOCK")
   ### CONSTANTS BLOCK
   
   pvalue_cutoff <- 0.05
-  logfchigh_cutoff <- 0.8
-  logfclow_cutoff <- -0.8
+  logfchigh_cutoff <- 1
+  logfclow_cutoff <- -1
   cpm_cutoff <- 0.5
   gs_size <- 10
   diseases_set <- 50
@@ -101,8 +101,8 @@ param <- SnowParam(workers = 2, type = "SOCK")
 
 directory <- '~/counts/ALS Mice/experimental/'
 setwd(directory)
-gr_control <- c("Tg-2")
-gr_case <- c("Tg-3")
+gr_control <- c("Tg-1")
+gr_case <- c("Tg-2")
 
 ### BUILDING A SPECIFIC DESIGN TABLE
 if (logging == TRUE){

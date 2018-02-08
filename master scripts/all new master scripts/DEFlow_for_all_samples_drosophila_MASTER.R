@@ -63,7 +63,7 @@ param <- SnowParam(workers = 2, type = "SOCK")
 
   heatmaps <- TRUE
   custom_genes_plots <- FALSE
-  analyze_all_samples <- TRUE
+  analyze_all_samples <- FALSE
   disease_association <- FALSE
   kegg_plots <- TRUE
   panther_analysis <- TRUE
@@ -99,10 +99,10 @@ param <- SnowParam(workers = 2, type = "SOCK")
 #gr_control <- as.character(a[1,1])
 #gr_case <- as.character(a[1,2])
 
-directory <- '~/counts/dmel_memory_filtering/'
+directory <- '~/counts/Drosophila.rin.compare/'
 setwd(directory)
-gr_control <- c("K")
-gr_case <- c("mem")
+gr_control <- c("new")
+gr_case <- c("old")
 
 ### BUILDING A SPECIFIC DESIGN TABLE
 if (logging == TRUE){
