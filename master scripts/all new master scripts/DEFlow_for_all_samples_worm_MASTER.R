@@ -72,7 +72,7 @@
     kegg_plots <- TRUE
     panther_analysis <- TRUE
     deseq2_part <- TRUE
-    qlm_test <- TRUE
+    qlm_test <- FALSE
     logging <- FALSE
     boxplots <- TRUE
     biotype <- FALSE
@@ -97,10 +97,10 @@
     stattest_number <- 1
     fdr_cutoff <- 0.05
     
-  directory <- '~/counts/AIKAR.tag.count.1000.3tag.individual/'
+  directory <- '~/counts/AIKAR.permutation.test.late/'
   setwd(directory)
-  gr_control <- c("early")
-  gr_case <- c("late")
+  gr_control <- c("control_late")
+  gr_case <- c("aikar_late")
       
   ### BUILDING A SPECIFIC DESIGN TABLE
   if (logging == TRUE){

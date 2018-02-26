@@ -1,3 +1,4 @@
+library(RDAVIDWebService)
 library(r2excel)
 library(BatchJobs)
 library(BiocParallel)
@@ -101,8 +102,8 @@ param <- SnowParam(workers = 2, type = "SOCK")
 
 directory <- '~/counts/ALS Mice/experimental/'
 setwd(directory)
-gr_control <- c("Tg-1")
-gr_case <- c("Tg-2")
+gr_control <- c("Tg-2")
+gr_case <- c("Tg-3")
 
 ### BUILDING A SPECIFIC DESIGN TABLE
 if (logging == TRUE){
@@ -177,7 +178,7 @@ if (qlm_test == TRUE){
   a <- calcNormFactors(a, method = "TMM") 
   design <- model.matrix(~sampleTable$condition) 
   a <- estimateDisp(a,design) 
-  fit <- glmQLFit(a,design, robust = TRUE) 
+  fit <- glmQLFit(a,design = design, robust = TRUE) 
   qlf <- glmQLFTest(fit,coef=ncol(fit$design))
   et_annot <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BH"))
   et_annot_non_filtered <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BH"))
@@ -188,6 +189,7 @@ if (qlm_test == TRUE){
   normalized_lib_sizes <- calcNormFactors(y, method = "TMM") 
   CountsTable <- as.data.frame(y$counts) 
   raw_counts <- as.data.frame(y$counts) 
+  y <- calcNormFactors(y, method = "TMM") 
   y <- estimateCommonDisp(y) 
   y <- estimateTagwiseDisp(y) 
   y <- estimateDisp(y, design = design) 
@@ -205,7 +207,7 @@ if (qlm_test == TRUE){
   et_annot_non_filtered <- as.data.frame(et$table) 
 }
 
-
+top
 plot(et$table$logCPM, y$tagwise.dispersion, pch = ".")
 
 z <- as.data.frame(et)
@@ -226,12 +228,20 @@ dev.off()
 
 getwd()
 
+
+pdf(file = "Average expression level difference.pdf", height = 10, width = 10, family = "Helvetica")
+barplot(colSums(y$counts), legend = colnames(y$counts),
+        col=seq(1:length(colnames(y$counts))),
+        main = "Average expression level difference")
+dev.off()
+
+
+
+y$samples
+
+
 libz <- data.frame(y$counts)
-
-
 libz.colsums <- data.frame(colSums(libz))
-
-
 lib <- data.frame(fit$samples$lib.size, sampleTable$condition)
 names(lib) <- c("size", "group")
 lib
@@ -244,7 +254,6 @@ g <- ggplot(lib) + geom_boxplot(aes(x = group, y = size, fill = group)) +
 pdf(file = "Library Size.pdf", height = 10, width = 10, family = "Helvetica")
 g
 dev.off()
-
 
 
 disp <- data.frame(fit$dispersion, et_annot_non_filtered$logFC)
@@ -516,6 +525,54 @@ if(nrow(et_annot < 50)){
   }
   break
 }
+
+
+###PRcomp of differentially expressed genes 
+àdir.create("prcomp")
+setwd("prcomp")
+fp <- et_annot
+fp$is.upreg <- ifelse(fp$logFC > 0, "Upregulated", "Downregulated")
+fp$is.expressed <- ifelse(fp$logCPM > 1, "High-expressed", "Low-expressed")
+
+p <- prcomp(fp[,1:5], center = TRUE, scale. = TRUE)
+
+pdf(file = "PCA-plot dim 1-2-FoldChange.pdf", width = 12, height = 17, family = "Helvetica")
+ggbiplot(p, choices = c(1,2), labels = fp$symbol, groups = fp$is.upreg)
+dev.off()
+pdf(file = "PCA-plot dim 1-2-CPM.pdf", width = 12, height = 17, family = "Helvetica")
+ggbiplot(p, choices = c(1,2), labels = fp$symbol, groups = fp$is.expressed)
+dev.off()
+
+pdf(file = "PCA-plot dim 3-4-FoldChange.pdf", width = 12, height = 17, family = "Helvetica")
+ggbiplot(p, choices = c(3,4), labels = fp$symbol, groups = fp$is.upreg)
+dev.off()
+pdf(file = "PCA-plot dim 3-4-CPM.pdf", width = 12, height = 17, family = "Helvetica")
+ggbiplot(p, choices = c(3,4), labels = fp$symbol, groups = fp$is.expressed)
+dev.off()
+
+setwd(results.dir)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else if (analyze_all_samples == FALSE){
+  setwd(stattest)  
+}
+
+
+dir.create("densities")
+setwd("densities")
+pdf(file = "Fold Change density.pdf", width = 12, height = 17, family = "Helvetica")
+plot(density(et_annot$logFC), main = "Fold Change Density")
+dev.off()
+pdf(file = "logCPM density.pdf", width = 12, height = 17, family = "Helvetica")
+plot(density(et_annot$logCPM), main = "logCPM Density")
+dev.off()
+pdf(file = "FDR density.pdf", width = 12, height = 17, family = "Helvetica")
+plot(density(et_annot$FDR), main = "FDR Density")
+dev.off()
+pdf(file = "PValue density.pdf", width = 12, height = 17, family = "Helvetica")
+plot(density(et_annot$PValue), main = "PValue Density")
+dev.off()
+
 
 
 ### BIOTYPE ANNOT FIX IT!
@@ -933,6 +990,9 @@ for (f in rownames(go_fc_res)){
 }
 df <- df[complete.cases(df),]
 write.xlsx(df, file = "goana tests with foldchanges.xlsx", sheetName = "Top 1000 GO terms")
+
+rownames(df)
+
 
 ### FISHER GO TEST WITH ELIMINATION
 ### WARNING! THIS TEST MIGHT BE USELESS!
@@ -1635,3 +1695,6 @@ xlsx.addPlot(wb, sheet3, plotFunction = function(){print(r.bp.down)}, startCol =
 saveWorkbook(wb, "graphical summary.xlsx")
 xlsx.openFile("graphical summary.xlsx")
 
+
+
+### goplot
