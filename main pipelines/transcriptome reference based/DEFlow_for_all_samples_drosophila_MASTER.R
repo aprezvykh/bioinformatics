@@ -197,7 +197,7 @@ if (qlm_test == TRUE){
     et <- exactTest(y) 
     top <- as.data.frame(topTags(et)) 
     #et_annot <- as.data.frame(et$table)
-    et_annot <- as.data.frame(topTags(et, n = nrow(logCPM), adjust.method = "BH"))
+    et_annot <- as.data.frame(topTags(et, n = nrow(logCPM), adjust.method = "BH", sort.by = "PValue"))
     et_annot_non_filtered <- as.data.frame(et$table)
     
     
@@ -447,49 +447,7 @@ write.csv(cpm, file = "cpm.csv")
 ####
 
 
-### transcript length distribution
-taxon = 'Drosophila Melanogaster'
-taxon = tolower(taxon)
-tmp = unlist(strsplit(x = taxon, split = ' '))
-dataset.name = tolower(sprintf('%s%s_gene_ensembl', substr(tmp[1],1,1), tmp[2]))
-mart <- useMart("ensembl", dataset=dataset.name) #, host="www.ensembl.org"
-needed.attributes = c("ensembl_gene_id","external_gene_name", "description","gene_biotype","entrezgene", "transcript_length")
 
-gmt_flt = getBM(attributes=needed.attributes,filters="ensembl_gene_id",values=rownames(et_annot), mart=mart)
-gmt_flt = gmt_flt[!(duplicated(gmt_flt[,"ensembl_gene_id"])),]
-rownames(gmt_flt) = gmt_flt[,"ensembl_gene_id"]
-
-###transcript length-logFC
-
-trlen.common <- intersect(rownames(et_annot.trlen), gmt_flt$ensembl_gene_id)
-et_annot.trlen.common <- et_annot.trlen[(rownames(et_annot.trlen) %in% trlen.common),]
-gmt_flt.common <- gmt_flt[(gmt_flt$ensembl_gene_id %in% trlen.common),]
-
-
-et_annot.trlen.common <- et_annot.trlen.common[order(rownames(et_annot.trlen.common), decreasing = TRUE),]
-gmt_flt.common <- gmt_flt.common[order(gmt_flt.common$ensembl_gene_id, decreasing = TRUE),]
-
-
-trlen.distrib <- data.frame(et_annot.trlen.common$logFC, gmt_flt.common$transcript_length, et_annot.trlen.common$logCPM)
-names(trlen.distrib) <- c("fc", "tl", "cpm")
-trlen.distrib <- trlen.distrib[which(trlen.distrib$cpm > 2),]
-trlen.distrib$tl <- log2(trlen.distrib$tl)
-
-
-fit <- lm(fc~tl, data = trlen.distrib)
-rmse <- round(sqrt(mean(resid(fit)^2)), 2)
-coefs <- coef(fit)
-b0 <- round(coefs[1], 2)
-b1 <- round(coefs[2],2)
-r2 <- round(summary(fit)$r.squared, 2)
-
-eqn <- bquote(italic(y) == .(b0) + .(b1)*italic(x) * "," ~~ 
-                r^2 == .(r2) * "," ~~ RMSE == .(rmse))
-
-png("Transcript length - LogFC distribution.png", height = 20, width = 20)
-plot(fc ~ tl, data = trlen.distrib, pch = ".", xlab = "Log2(Transcript Length)", ylab = "Log2(Fold Change)", main = "Transcript Length vs LogFC")
-abline(fit)
-dev.off()
 
 
 ###TopTags Boxplots

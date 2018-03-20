@@ -1,6 +1,4 @@
 ### BASIC FILTERING
-
-
 library(xlsx)
 library(ggplot2)
 library(gplots)
@@ -151,4 +149,35 @@ dev.off()
 #hm <- as.matrix(hm)
 
 
+intersect(gl_aff$compare.glia.X, moto_aff$compare.glia.X)
 
+directory <- '~/counts/ALS Mice/experimental/'
+setwd(directory)
+sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
+sampleCondition <- c('Control-1', 'Control-1', 'Control-1', 'Control-1', 'Control-1', 
+                     'Control-3', 'Control-3', 'Control-3', 'Control-3', 'Control-3', 
+                     'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 
+                     'Tg-2', 'Tg-2', 'Tg-2', 'Tg-2', 
+                     'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3')
+
+
+sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
+y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
+df <- data.frame(y$counts)
+
+
+colnames(df)
+g <- df[(rownames(df) %in% gl_aff$compare.glia.X),]
+m <- df[(rownames(df) %in% moto_aff$compare.glia.X),]
+
+cs.g <- as.data.frame(colSums(g))
+cs.m <- as.data.frame(colSums(m))
+cs.split <- data.frame(cs.g$`colSums(g)`, cs.m$`colSums(m)`)
+rownames(cs.split) <- rownames(cs.g)
+
+
+
+
+
+
+c1.mean.g <- as.data.frame(t(lapply(df[,grep("Control.1", colnames(df))], mean)))
