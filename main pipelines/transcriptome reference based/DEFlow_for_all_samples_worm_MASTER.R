@@ -546,7 +546,7 @@ if (analyze_all_samples == TRUE){
 getwd()
 
 ### transcript length distribution
-taxon = 'Caenorhabditis Elegans'
+taxon = 'Caenorhabditis elegans'
 taxon = tolower(taxon)
 tmp = unlist(strsplit(x = taxon, split = ' '))
 dataset.name = tolower(sprintf('%s%s_gene_ensembl', substr(tmp[1],1,1), tmp[2]))
@@ -568,12 +568,12 @@ et_annot.trlen.common <- et_annot.trlen.common[order(rownames(et_annot.trlen.com
 gmt_flt.common <- gmt_flt.common[order(gmt_flt.common$ensembl_gene_id, decreasing = TRUE),]
 
 
-trlen.distrib <- data.frame(et_annot.trlen.common$logFC, gmt_flt.common$transcript_length, et_annot.trlen.common$logCPM)
-names(trlen.distrib) <- c("fc", "tl", "cpm")
+trlen.distrib <- data.frame(et_annot.trlen.common$logFC, gmt_flt.common$transcript_length, et_annot.trlen.common$logCPM, et_annot.trlen.common$PValue, ed_annot.trlen.common$FDR)
+names(trlen.distrib) <- c("fc", "tl", "cpm", "pvalue", "FDR")
+
+##expressed
 trlen.distrib <- trlen.distrib[which(trlen.distrib$cpm > 2),]
 trlen.distrib$tl <- log2(trlen.distrib$tl)
-
-
 fit <- lm(fc~tl, data = trlen.distrib)
 rmse <- round(sqrt(mean(resid(fit)^2)), 2)
 coefs <- coef(fit)
@@ -583,13 +583,27 @@ r2 <- round(summary(fit)$r.squared, 2)
 
 eqn <- bquote(italic(y) == .(b0) + .(b1)*italic(x) * "," ~~ 
                 r^2 == .(r2) * "," ~~ RMSE == .(rmse))
-
-png("Transcript length - LogFC distribution.png", height = 20, width = 20)
-plot(fc ~ tl, data = trlen.distrib, pch = ".", xlab = "Log2(Transcript Length)", ylab = "Log2(Fold Change)", main = "Transcript Length vs LogFC")
+png("Transcript length - LogFC distribution, expressed.png", height = 20, width = 20)
+plot(fc ~ tl, data = trlen.distrib, pch = ".", xlab = "Log2(Transcript Length)", ylab = "Log2(Fold Change)", main = "Transcript Length vs LogFC (all genes, logCPM>2)")
 abline(fit)
 dev.off()
 
+###significant
+trlen.distrib <- trlen.distrib[which(trlen.distrib$pvalue < pvalue_cutoff && trlen.distrib$FDR < pvalue_cutoff),]
+trlen.distrib$tl <- log2(trlen.distrib$tl)
+fit <- lm(fc~tl, data = trlen.distrib)
+rmse <- round(sqrt(mean(resid(fit)^2)), 2)
+coefs <- coef(fit)
+b0 <- round(coefs[1], 2)
+b1 <- round(coefs[2],2)
+r2 <- round(summary(fit)$r.squared, 2)
 
+eqn <- bquote(italic(y) == .(b0) + .(b1)*italic(x) * "," ~~ 
+                r^2 == .(r2) * "," ~~ RMSE == .(rmse))
+png("Transcript length - LogFC distribution, significant.png", height = 20, width = 20)
+plot(fc ~ tl, data = trlen.distrib, pch = ".", xlab = "Log2(Transcript Length)", ylab = "Log2(Fold Change)", main = "Transcript Length vs LogFC (significant)")
+abline(fit)
+dev.off()
 
 
 ### FILTRATION
