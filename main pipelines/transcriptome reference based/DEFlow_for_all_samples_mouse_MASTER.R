@@ -66,7 +66,7 @@ param <- SnowParam(workers = 2, type = "SOCK")
 
   heatmaps <- TRUE
   custom_genes_plots <- FALSE
-  analyze_all_samples <- FALSE
+  analyze_all_samples <- TRUE
   disease_association <- FALSE
   kegg_plots <- TRUE
   panther_analysis <- TRUE
@@ -514,7 +514,7 @@ taxon = 'Mus Musculus'
 taxon = tolower(taxon)
 tmp = unlist(strsplit(x = taxon, split = ' '))
 dataset.name = tolower(sprintf('%s%s_gene_ensembl', substr(tmp[1],1,1), tmp[2]))
-mart <- useMart("ensembl", dataset=dataset.name) #, host="www.ensembl.org"
+mart <- useMart("ensembl", dataset=dataset.name)
 needed.attributes = c("ensembl_gene_id","external_gene_name", "description","gene_biotype","entrezgene", "transcript_length")
 
 gmt_flt = getBM(attributes=needed.attributes,filters="ensembl_gene_id",values=rownames(et_annot), mart=mart)
@@ -522,7 +522,7 @@ gmt_flt = gmt_flt[!(duplicated(gmt_flt[,"ensembl_gene_id"])),]
 rownames(gmt_flt) = gmt_flt[,"ensembl_gene_id"]
 
 ###transcript length-logFC
-
+et_annot.trlen <- et_annot
 trlen.common <- intersect(rownames(et_annot.trlen), gmt_flt$ensembl_gene_id)
 et_annot.trlen.common <- et_annot.trlen[(rownames(et_annot.trlen) %in% trlen.common),]
 gmt_flt.common <- gmt_flt[(gmt_flt$ensembl_gene_id %in% trlen.common),]
@@ -1147,7 +1147,7 @@ dev.off()
 ### VOLCANO PLOT
 allgenes <- nrow(et_annot_non_filtered)
 max <- max(-log10(et_annot_non_filtered$PValue))
-et_annot_non_filtered$threshold = as.factor(abs(et_annot_non_filtered$logFC) > logfchigh_cutoff & et_annot_non_filtered$PValue < 0.05/allgenes)
+et_annot_non_filtered$threshold = as.factor(abs(et_annot_non_filtered$logFC) > logfchigh_cutoff & et_annot_non_filtered$PValue < 0.05)
 pdf(file = "Volcano plot.pdf", width = 10, height = 10)
 volc = ggplot(data=et_annot_non_filtered, aes(x=logFC, y=-log10(PValue), colour=threshold)) +
   geom_point(alpha=1, size=2) +
@@ -1763,3 +1763,102 @@ xlsx.openFile("graphical summary.xlsx")
 
 
 ### goplot
+
+
+cpm <- as.data.frame(cpm(y, log = TRUE))
+
+cpm$Symbol <- mapIds(org.Mm.eg.db, 
+                     keys=row.names(cpm), 
+                     column="SYMBOL", 
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+cpm$Name <- mapIds(org.Mm.eg.db, 
+                   keys=row.names(cpm), 
+                   column="GENENAME", 
+                   keytype="ENSEMBL",
+                   multiVals="first")
+
+cpm$entrez <- mapIds(org.Mm.eg.db, 
+                     keys=row.names(cpm), 
+                     column="ENTREZID", 
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+cpm$GOID <-     mapIds(org.Mm.eg.db, 
+                       keys=row.names(cpm), 
+                       column="GO", 
+                       keytype="ENSEMBL",
+                       multiVals="first")
+
+cpm$term <- mapIds(GO.db, 
+                   keys=cpm$GOID, 
+                   column="TERM", 
+                   keytype="GOID",
+                   multiVals="first")
+cpm$term <- as.character(cpm$term)
+
+
+
+b <- read.xlsx("~/FUS.xlsx", sheetIndex = 1, header = TRUE)
+
+z <- grep("ENSMUSG00000032011", rownames(cpm))
+
+for (f in z){
+  r <- grep(paste(f), rownames(cpm), ignore.case = TRUE)
+  thm <- cpm[f,]
+  rownames(thm) <- thm$Symbol
+  plot.name <- as.character(rownames(thm))
+  plot.description <- as.character(thm$Name)
+  plot.term <- as.character(thm$term)
+  thm$Symbol <- NULL
+  thm$Name <- NULL
+  thm$GOID <- NULL
+  thm$term <- NULL
+  thm$entrez <- NULL
+  colnames(thm) <- sampleCondition
+  thm <-as.data.frame(t(thm))
+  thm$Condition <- rownames(thm)
+  thm$Group <- thm$Condition
+  names(thm) <- c("gene", "Condition", "Group")
+  g <- ggplot(thm, aes(x = Condition, y = gene)) + 
+    geom_boxplot(data = thm, aes(fill = Group), alpha = 0.5) + 
+    scale_x_discrete(name = "Experimental Groups") + 
+    scale_y_continuous(name = "Counts per million") + 
+    theme_bw()
+  g <- g + ggtitle(paste("Gene official symbol: ", plot.name, "\n", "Gene name:", plot.description, "\n", "Direct GO term:", plot.term)) + 
+    theme(plot.title = element_text(hjust = 0.5))
+  ggsave(filename = paste(plot.name, "png", sep = "."), plot = g, height = 25, width = 25, units = "cm")
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+b <- read.xlsx("~/FUS.xlsx", sheetIndex = 1, header = TRUE)
+b$cpm <- log10(b$cpm)
+
+  g <- ggplot(b, aes(x = group, y = cpm)) + 
+    geom_boxplot(data = b, aes(fill = group), alpha = 0.5) + 
+    scale_x_discrete(name = "Experimental Groups") + 
+    scale_y_continuous(name = "Counts per million") + 
+    theme_bw()
+  g <- g + ggtitle("??FUS-dRRM(1-359)") + 
+    theme(plot.title = element_text(hjust = 0.5))
+  ggsave(filename = paste("delta-FUS.png"), plot = g, height = 25, width = 25, units = "cm")
+
+  g
+
+
+
+
