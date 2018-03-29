@@ -5,10 +5,10 @@ library(GO.db)
 analyze_all_samples <- FALSE
 qlm_test <- TRUE
 cpm_cutoff <- -1
-directory <- '~/counts/BAP.cutted.counts/'
+directory <- '~/counts/BAP/'
 setwd(directory)
-gr_control <- c("CONTROL_ADULT")
-gr_case <- c("10MM_ADULT")
+gr_control <- c("new_K")
+gr_case <- c("new_F")
 
 if (analyze_all_samples == TRUE){
   sampleFiles <- grep('fly',list.files(directory),value=TRUE)
@@ -121,14 +121,12 @@ if (stat == TRUE & lfgenefc < 0){
   print("Correction protocol executed, logFC have been inverted!")
 }
 
-
-
 taxon = 'Drosophila Melanogaster'
 taxon = tolower(taxon)
 tmp = unlist(strsplit(x = taxon, split = ' '))
 dataset.name = tolower(sprintf('%s%s_gene_ensembl', substr(tmp[1],1,1), tmp[2]))
 mart <- useMart("ensembl", dataset=dataset.name) #, host="www.ensembl.org"
-needed.attributes = c("ensembl_gene_id","external_gene_name", "description","gene_biotype","entrezgene", "transcript_length")
+needed.attributes = c("ensembl_gene_id","external_gene_name", "transcript_length")
 
 gmt_flt = getBM(attributes=needed.attributes,filters="ensembl_gene_id",values=rownames(et_annot), mart=mart)
 gmt_flt = gmt_flt[!(duplicated(gmt_flt[,"ensembl_gene_id"])),]
@@ -144,24 +142,21 @@ gmt_flt.common <- gmt_flt.common[order(gmt_flt.common$ensembl_gene_id, decreasin
 trlen.distrib <- data.frame(et_annot.trlen.common$logFC, gmt_flt.common$transcript_length, et_annot.trlen.common$logCPM, et_annot.trlen.common$PValue, et_annot.trlen.common$FDR)
 names(trlen.distrib) <- c("fc", "tl", "cpm", "pvalue", "FDR")
 
-##trlen - logFC
-trlen.distrib <- trlen.distrib[which(trlen.distrib$cpm > 2),]
-trlen.distrib$tl <- log2(trlen.distrib$tl)
-fit <- lm(fc~tl, data = trlen.distrib)
+for.cor <- trlen.distrib[which(trlen.distrib$pvalue < 1),]
+for.cor$tl <- log2(for.cor$tl)
+
+fit <- lm(fc~tl, data = for.cor)
 coefs <- coef(fit)
 b1 <- round(coefs[2],2)
-correl <- cor(trlen.distrib$fc, trlen.distrib$tl)
+correl <- cor(for.cor$fc, for.cor$tl, method = "spearman")
 #png("Raw.png")
-plot.fc.raw <- plot(fc ~ tl, data = trlen.distrib, pch = ".",
-     xlab = "Log2(Transcript Length)",
-     ylab = "Log2(Fold Change)",
-     main = paste("Raw data:", "\n", "slope = ",b1, ", Transcript Length vs LogFC (all genes, logCPM>-1)", "\n", "Correlation = ", correl, sep = ""))
+plot.fc.raw <- plot(fc ~ tl, data = for.cor, pch = ".",
+                    xlab = "Log2(Transcript Length)",
+                    ylab = "Log2(Fold Change)",
+                    main = paste("Raw data:", "\n", "slope = ",b1, ", Transcript Length vs LogFC (all genes, logCPM>-1)", "\n", "Correlation = ", correl, sep = ""))
 abline(fit)
 #dev.off()
 
-
-trlen.distrib <- data.frame(et_annot.trlen.common$logFC, gmt_flt.common$transcript_length, et_annot.trlen.common$logCPM, et_annot.trlen.common$PValue, et_annot.trlen.common$FDR)
-names(trlen.distrib) <- c("fc", "tl", "cpm", "pvalue", "FDR")
 tr.len.median <- median(trlen.distrib$tl)
 m.low <- trlen.distrib[which(trlen.distrib$tl < tr.len.median),]$cpm 
 m.low <- mean(10^m.low)
@@ -187,121 +182,13 @@ for(bin_n in 1:(length(bins) - 1)){
   adjusted_pseudo.counts.table <- rbind(current.adjusted_pseudo.counts.table, adjusted_pseudo.counts.table)
 }
 
-
 adjusted_pseudo.counts.table = round(adjusted_pseudo.counts.table)
-head(adjusted_pseudo.counts.table)
-head(df)
-#cs = colSums(adjusted_pseudo.counts.table)
-#dummy.row = t(as.data.frame(max(cs) - cs))
-#rownames(dummy.row) = 'dummy'
-#adjusted_pseudo.counts.table = rbind(adjusted_pseudo.counts.table, dummy.row)
+cs = colSums(adjusted_pseudo.counts.table)
+dummy.row = t(as.data.frame(max(cs) - cs))
+rownames(dummy.row) = 'dummy'
+adjusted_pseudo.counts.table = rbind(adjusted_pseudo.counts.table, dummy.row)
 
-a$counts <- adjusted_pseudo.counts.table
-head(a$counts)
-design <- model.matrix(~sampleTable$condition)
-#a <- DGEList(counts = a$counts, group = sampleTable$condition)
-a <- estimateDisp(a, design,  tagwise = TRUE, trend.method = "loess") 
-fit <- glmQLFit(a,design, robust = TRUE, abundance.trend = TRUE) 
-qlf <- glmQLFTest(fit,coef=ncol(fit$design))
-et_annot.fixed <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BH"))
-
-counts_control <- CountsTable[,grep(gr_control, names(CountsTable))]
-counts_case <- as.data.frame(CountsTable[,grep(gr_case, names(CountsTable))])
-counts_control$rowsum.control <- rowSums(counts_control)
-counts_case$rowsum.case <- rowSums(counts_case)
-diff <- data.frame(counts_control$rowsum.control, counts_case$rowsum.case)
-rownames(diff) <- rownames(CountsTable) 
-
-fc <- et_annot.fixed[order(et_annot.fixed$logFC),]
-lfgene <- rownames(fc[4,])
-lfgene
-c <- grep(paste(lfgene), rownames(diff))
-dfc <- as.data.frame(diff[c,])
-lfgenefc <- fc[4,1]
-stat <- dfc$counts_control.rowsum.control > dfc$counts_case.rowsum.case
-lfgene
-if (stat == TRUE & lfgenefc < 0){
-  print("No Correction Needed!")
-} else {
-  et_annot.fixed$logFC <- et_annot.fixed$logFC*(-1)
-  print("Correction protocol executed, logFC have been inverted!")
-}
-
-taxon = 'Drosophila Melanogaster'
-taxon = tolower(taxon)
-tmp = unlist(strsplit(x = taxon, split = ' '))
-dataset.name = tolower(sprintf('%s%s_gene_ensembl', substr(tmp[1],1,1), tmp[2]))
-mart <- useMart("ensembl", dataset=dataset.name) #, host="www.ensembl.org"
-needed.attributes = c("ensembl_gene_id","external_gene_name", "description","gene_biotype","entrezgene", "transcript_length")
-
-gmt_flt = getBM(attributes=needed.attributes,filters="ensembl_gene_id",values=rownames(et_annot.fixed), mart=mart)
-gmt_flt = gmt_flt[!(duplicated(gmt_flt[,"ensembl_gene_id"])),]
-rownames(gmt_flt) = gmt_flt[,"ensembl_gene_id"]
-
-
-et_annot.trlen <- et_annot.fixed
-trlen.common <- intersect(rownames(et_annot.trlen), gmt_flt$ensembl_gene_id)
-et_annot.trlen.common <- et_annot.trlen[(rownames(et_annot.trlen) %in% trlen.common),]
-gmt_flt.common <- gmt_flt[(gmt_flt$ensembl_gene_id %in% trlen.common),]
-et_annot.trlen.common <- et_annot.trlen.common[order(rownames(et_annot.trlen.common), decreasing = TRUE),]
-gmt_flt.common <- gmt_flt.common[order(gmt_flt.common$ensembl_gene_id, decreasing = TRUE),]
-trlen.distrib <- data.frame(et_annot.trlen.common$logFC, gmt_flt.common$transcript_length, et_annot.trlen.common$logCPM, et_annot.trlen.common$PValue, et_annot.trlen.common$FDR)
-names(trlen.distrib) <- c("fc", "tl", "cpm", "pvalue", "FDR")
-
-##trlen - logFC
-trlen.distrib <- data.frame(et_annot.trlen.common$logFC, gmt_flt.common$transcript_length, et_annot.trlen.common$logCPM, et_annot.trlen.common$PValue, et_annot.trlen.common$FDR)
-names(trlen.distrib) <- c("fc", "tl", "cpm", "pvalue", "FDR")
-trlen.distrib <- trlen.distrib[which(trlen.distrib$cpm > -1),]
-trlen.distrib$tl <- log2(trlen.distrib$tl)
-fit <- lm(fc~tl, data = trlen.distrib)
-fit$coefficients
-rmse <- round(sqrt(mean(resid(fit)^2)), 2)
-b1 <- round(coefs[2],2)
-r2 <- round(summary(fit)$r.squared, 2)
-
-png("Corrected.png")
-plot(fc ~ tl, data = trlen.distrib, pch = ".",
-     xlab = "Log2(Transcript Length)",
-     ylab = "Log2(Fold Change)",
-     main = paste("Bias corrected data:", "\n", "slope = ",b1, ", Transcript Length vs LogFC (all genes, logCPM>2)", "\n", "Correlation = ", correl, sep = ""))
-abline(fit)
-dev.off()
-
-cor(et_annot$logFC, et_annot$logCPM)
-
-cor(et_annot.fixed$logFC, et_annot.fixed$logCPM)
-
-et_annot.fixed$symbol <- mapIds(org.Dm.eg.db, 
-                          keys=row.names(et_annot.fixed), 
-                          column="SYMBOL", 
-                          keytype="FLYBASE",
-                          multiVals="first")
-
-et_annot.fixed$name <- mapIds(org.Dm.eg.db, 
-                        keys=row.names(et_annot.fixed), 
-                        column="GENENAME", 
-                        keytype="FLYBASE",
-                        multiVals="first")
-
-
-et_annot.fixed$entrez <- mapIds(org.Dm.eg.db, 
-                          keys=row.names(et_annot.fixed), 
-                          column="ENTREZID", 
-                          keytype="FLYBASE",
-                          multiVals="first")
-
-et_annot.fixed$GOID <-     mapIds(org.Dm.eg.db, 
-                            keys=row.names(et_annot.fixed), 
-                            column="GO", 
-                            keytype="FLYBASE",
-                            multiVals="first")
-
-et_annot.fixed$term <- mapIds(GO.db, 
-                        keys=et_annot.fixed$GOID, 
-                        column="TERM", 
-                        keytype="GOID",
-                        multiVals="first")
-
-et_annot.fixed$term <- as.character(et_annot.fixed$term)
-
+d = DGEList(counts = adjusted_pseudo.counts.table)
+d = calcNormFactors(d, method = 'none')
+ 
 
