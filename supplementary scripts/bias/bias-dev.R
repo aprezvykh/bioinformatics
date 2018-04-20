@@ -5,10 +5,10 @@ library(GO.db)
 analyze_all_samples <- FALSE
 qlm_test <- TRUE
 cpm_cutoff <- -1
-directory <- '~/counts/BAP/'
+directory <- '~/counts/BAP.cutted.counts/'
 setwd(directory)
-gr_control <- c("new_K")
-gr_case <- c("new_F")
+gr_control <- c("CONTROL_ADULT")
+gr_case <- c("10MM_ADULT")
 
 if (analyze_all_samples == TRUE){
   sampleFiles <- grep('fly',list.files(directory),value=TRUE)

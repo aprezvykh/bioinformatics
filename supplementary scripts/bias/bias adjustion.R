@@ -7,8 +7,8 @@ qlm_test <- TRUE
 cpm_cutoff <- -1
 directory <- '~/counts/BAP.cutted.counts/'
 setwd(directory)
-gr_control <- c("CONTROL_ADULT")
-gr_case <- c("10MM_ADULT")
+gr_control <- c("CONTROL_LARVAE")
+gr_case <- c("10MM_LARVAE")
 
 if (analyze_all_samples == TRUE){
   sampleFiles <- grep('fly',list.files(directory),value=TRUE)
@@ -190,7 +190,15 @@ for(bin_n in 1:(length(bins) - 1)){
 
 adjusted_pseudo.counts.table = round(adjusted_pseudo.counts.table)
 head(adjusted_pseudo.counts.table)
-head(df)
+
+
+
+library(dplyr)
+
+splitted.df <- bind_cols(df, adjusted_pseudo.counts.table)
+
+
+plotMDS(splitted.df)
 #cs = colSums(adjusted_pseudo.counts.table)
 #dummy.row = t(as.data.frame(max(cs) - cs))
 #rownames(dummy.row) = 'dummy'

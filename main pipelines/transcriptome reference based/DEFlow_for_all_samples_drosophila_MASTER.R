@@ -74,7 +74,7 @@ param <- SnowParam(workers = 2, type = "SOCK")
   distrib <- TRUE
   ### CONSTANTS BLOCK
   
-  pvalue_cutoff <- 0.05
+  pvalue_cutoff <- 0.5
   fdr_cutoff <- 0.5
   logfchigh_cutoff <- 0
   logfclow_cutoff <- -0
@@ -104,16 +104,10 @@ if (logging == TRUE){
 col.pan <- colorpanel(100, "blue", "white", "red")
 ###DIRECTORY WHERE SAMPLES ARE LOCATED
 library(dplyr)
-sampleFiles
 if (analyze_all_samples == TRUE){
         sampleFiles <- grep('counts',list.files(directory),value=TRUE)
         sampleFiles
-        sampleCondition <- c("10MM_ADULT", "10MM_ADULT", "10MM_ADULT", 
-                             "10MM_LARVAE", "10MM_LARVAE", "10MM_LARVAE", 
-                             "5MM_ADULT", "5MM_ADULT", "5MM_ADULT", 
-                             "5MM_LARVAE", "5MM_LARVAE", "5MM_LARVAE", 
-                             "CONTROL_ADULT", "CONTROL_ADULT", "CONTROL_ADULT", 
-                             "CONTROL_LARVAE", "CONTROL_LARVAE", "CONTROL_LARVAE")
+        sampleCondition <- c("F", "F", "K", "K", "mem", "mem")
 
         sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
         col <- as.vector(sampleTable$sampleName)
@@ -410,6 +404,7 @@ top$Name<- mapIds(org.Dm.eg.db,
 top <- top[complete.cases(top),]
 ### CPM
 cpm <- as.data.frame(cpm(y))
+cpm$rowsum <- rowSums(cpm)
 
 cpm$Symbol <- mapIds(org.Dm.eg.db, 
                      keys=row.names(cpm), 
@@ -621,6 +616,11 @@ pdf(file = "PValue density.pdf", width = 12, height = 17, family = "Helvetica")
 plot(density(et_annot$PValue), main = "PValue Density")
 dev.off()
 
+
+fit <- lm(logFC~logCPM, data = et_annot)
+
+plot(et_annot$logCPM, et_annot$logFC)
+abline(fit)
 
 
 
@@ -1811,18 +1811,15 @@ intersect(rownames(res_df), rownames(et_annot))
 
 
 
-### BOXPLOTS
-#setwd("~/counts/dmel_memory/results/all/")
-#dir.create("behavior")
-#setwd("behavior")
 
-z <- grep("behavior", cpm$term, ignore.case = TRUE)
-dir.create("query boxplots")
-setwd("query boxplots")
-query <- c("heat shock protein", "ceramide", "memory")
-for (f in query){
-    qgrep <- grep(paste(f), cpm$Name, ignore.case = TRUE)
-    for (r in qgrep){
+setwd(results.dir)
+if (analyze_all_samples == TRUE){
+  setwd("all")
+} else {
+  setwd(stattest)
+}
+f <- c("FBgn0038257")
+        r <- grep(paste(f), rownames(cpm), ignore.case = TRUE)
         thm <- cpm[r,]
         rownames(thm) <- thm$Symbol
         plot.name <- as.character(rownames(thm))
@@ -1848,38 +1845,5 @@ for (f in query){
         g <- g + ggtitle(paste("Gene official symbol: ", plot.name, "\n", "Gene name:", plot.description, "\n", "Direct GO term:", plot.term)) + 
               theme(plot.title = element_text(hjust = 0.5))
         ggsave(filename = paste(plot.name, "png", sep = "."), plot = g, height = 20, width = 20, units = "cm")
-    }
-}
 
 
-dir.create("HSP")
-setwd("HSP/")
-
-z <- grep("Heat shock", cpm$Name)
-
-for (f in z){
-    r <- grep(paste(f), rownames(cpm), ignore.case = TRUE)
-    thm <- cpm[f,]
-    rownames(thm) <- thm$Symbol
-    plot.name <- as.character(rownames(thm))
-    plot.description <- as.character(thm$Name)
-    plot.term <- as.character(thm$term)
-    thm$Symbol <- NULL
-    thm$Name <- NULL
-    thm$GOID <- NULL
-    thm$term <- NULL
-    thm$entrez <- NULL
-    colnames(thm) <- sampleCondition
-    thm <-as.data.frame(t(thm))
-    thm$Condition <- rownames(thm)
-    thm$Group <- thm$Condition
-    names(thm) <- c("gene", "Condition", "Group")
-    g <- ggplot(thm, aes(x = Condition, y = gene)) + 
-          geom_boxplot(data = thm, aes(fill = Group), alpha = 0.5) + 
-          scale_x_discrete(name = "Experimental Groups") + 
-          scale_y_continuous(name = "Counts per million") + 
-          theme_bw()
-    g <- g + ggtitle(paste("Gene official symbol: ", plot.name, "\n", "Gene name:", plot.description, "\n", "Direct GO term:", plot.term)) + 
-        theme(plot.title = element_text(hjust = 0.5))
-    ggsave(filename = paste(plot.name, "png", sep = "."), plot = g, height = 25, width = 25, units = "cm")
-}
