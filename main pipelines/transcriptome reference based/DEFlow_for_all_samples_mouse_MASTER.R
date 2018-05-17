@@ -54,8 +54,8 @@ library(gridExtra)
 
 ### TFES
 library(RcisTarget.mm9.motifDatabases.20k)
-data("mm9_10kbpAroundTss_motifRanking")
-data("mm9_direct_motifAnnotation")
+#data("mm9_10kbpAroundTss_motifRanking")
+#data("mm9_direct_motifAnnotation")
 
 ###BIOCBARALLEL SETTINGS
 default <- registered()
@@ -66,7 +66,7 @@ param <- SnowParam(workers = 2, type = "SOCK")
 
   heatmaps <- TRUE
   custom_genes_plots <- FALSE
-  analyze_all_samples <- TRUE
+  analyze_all_samples <- FALSE
   disease_association <- FALSE
   kegg_plots <- TRUE
   panther_analysis <- TRUE
@@ -79,8 +79,8 @@ param <- SnowParam(workers = 2, type = "SOCK")
   ### CONSTANTS BLOCK
   
   pvalue_cutoff <- 0.05
-  logfchigh_cutoff <- 1
-  logfclow_cutoff <- -1
+  logfchigh_cutoff <- 0
+  logfclow_cutoff <- 0
   cpm_cutoff <- 0.5
   gs_size <- 10
   diseases_set <- 50
@@ -100,10 +100,10 @@ param <- SnowParam(workers = 2, type = "SOCK")
 #gr_control <- as.character(a[1,1])
 #gr_case <- as.character(a[1,2])
 
-directory <- '~/counts/ALS Mice/experimental/'
+directory <- '~/counts/Early.markers/'
 setwd(directory)
-gr_control <- c("Tg-2")
-gr_case <- c("Tg-3")
+gr_control <- c("Control")
+gr_case <- c("Tg")
 
 ### BUILDING A SPECIFIC DESIGN TABLE
 if (logging == TRUE){
@@ -207,7 +207,35 @@ if (qlm_test == TRUE){
   et_annot_non_filtered <- as.data.frame(et$table) 
 }
 
-top
+
+####Dispresion
+
+cpm$rowsum <- NULL
+cpm <- as.data.frame(cpm)
+g_tg1 <- grepl("mouse_Control", colnames(cpm), ignore.case = T)
+g_tg2 <- grepl("mouse_Tg", colnames(cpm), ignore.case = T)
+tg1 <- cpm[,g_tg1]
+tg2 <- cpm[,g_tg2]
+
+tg1$sd_tg1 <- apply(tg1,1, sd, na.rm = TRUE)
+
+tg2$sd_tg2 <- apply(tg2,1, sd, na.rm = TRUE)
+
+sas <- data.frame(tg1$sd_tg1, tg2$sd_tg2)
+rownames(sas) <- rownames(tg1)
+sas <- sas[rownames(sas) %in% rownames(et_annot),]
+et_annot$disp1 <- sas$tg1.sd_tg1
+et_annot$disp2 <- sas$tg2.sd_tg2
+
+
+
+et_annot$disp_div <- et_annot$disp2/et_annot$disp1
+et_annot_disp <- et_annot[which(et_annot$disp_div > 0.98 & et_annot$disp_div < 1.02),]
+
+et_annot_disp <- et_annot_disp[which(et_annot_disp$PValue < 0.05),]
+et_annot_disp <- et_annot_disp[which(et_annot_disp$FDR < 0.05),]
+et_annot <- et_annot_disp
+
 plot(et$table$logCPM, y$tagwise.dispersion, pch = ".")
 
 z <- as.data.frame(et)
@@ -699,6 +727,8 @@ if (stat == TRUE & lfgenefc < 0){
 }
 
 
+filt <- et_annot[which(abs(et_annot$FDR) < 0.05),]
+
 
 ### Distribution, with moda and median
 pdf(file = "Distributions.pdf", width = 10, height = 10, family = "Helvetica")
@@ -851,377 +881,6 @@ write.xlsx(goccres, file = "GO.xlsx", sheetName = "GO_CC", append = TRUE)
 
 
 ### GOANA
-et_annot_high <- as.data.frame(subset(et_annot, logFC > 0))
-et_annot_low <- as.data.frame(subset(et_annot, logFC < 0))
-
-goana_up <- goana(de = et_annot_high$entrez, species = "Mm")
-go_up_30 <- topGO(goana_up, n=30)
-go_up_30$perc = (go_up_30$DE/go_up_30$N)*100
-go_up_100 <- topGO(goana_up, n=100)
-go_up_100$perc = (go_up_100$DE/go_up_100$N)*100
-go_up_500 <- topGO(goana_up, n=500)
-go_up_500$perc = (go_up_500$DE/go_up_500$N)*100
-go_up_500$perc <- round(go_up_500$perc, digits = 4)
-
-goana_down <- goana(de = et_annot_low$entrez, species = "Mm")
-go_down_30 <- topGO(goana_down, n=30)
-go_down_30$perc = (go_down_30$DE/go_down_30$N)*100
-go_down_100 <- topGO(goana_down, n=100)
-go_down_100$perc = (go_down_100$DE/go_down_100$N)*100
-go_down_500 <- topGO(goana_down, n=500)
-go_down_500$perc = (go_down_500$DE/go_down_500$N)*100
-go_down_500$perc <- round(go_down_500$perc, digits = 4)
-
-
-write.xlsx(go_up_30, file = "Goana GO tests, upreg.xlsx", sheetName = "top30", append = TRUE)
-write.xlsx(go_up_100, file = "Goana GO tests, upreg.xlsx", sheetName = "top100", append = TRUE)
-write.xlsx(go_up_500, file = "Goana GO tests, upreg.xlsx", sheetName = "top500", append = TRUE)
-
-write.xlsx(go_down_30, file = "Goana GO tests, downreg.xlsx", sheetName = "top30", append = TRUE)
-write.xlsx(go_down_100, file = "Goana GO tests, downreg.xlsx", sheetName = "top100", append = TRUE)
-write.xlsx(go_down_500, file = "Goana GO tests, downreg.xlsx", sheetName = "top500", append = TRUE)
-
-
-write.xlsx(go_up_100, file = "Results edgeR.xlsx", sheetName = "top 100 Upregulated GO terms", append = TRUE)
-write.xlsx(go_down_100, file = "Results edgeR.xlsx", sheetName = "top 100 Downregulated GO terms", append = TRUE)
-
-###ANNOTATE LOGCPM FOR GO HEATMAPS
-for_go_heatmap <- logCPM
-
-for_go_heatmap$entrez <- mapIds(org.Mm.eg.db, 
-                                keys=row.names(for_go_heatmap), 
-                                column="ENTREZID", 
-                                keytype="ENSEMBL",
-                                multiVals="first")
-
-for_go_heatmap$symbol <- mapIds(org.Mm.eg.db, 
-                                keys=row.names(for_go_heatmap), 
-                                column="SYMBOL", 
-                                keytype="ENSEMBL",
-                                multiVals="first")
-
-
-
-### GO HEATMAPS OF VARIOUS GENES
-
-all_genes = c(et_annot$logFC)
-names(all_genes) <- et_annot$entrez
-GOdata = new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = function(s) s < 
-               0.05, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", nodeSize = 2)
-
-allGO <- genesInTerm(GOdata)
-
-##UP
-remove <- c("MF", "CC")
-dir.create("GO heatmap plots upregulated")
-setwd("GO heatmap plots upregulated")
-
-go_up_subset <- subset(go_up_500, go_up_500$DE > 40)
-go_up_subset <- subset(go_up_subset, go_up_subset$DE < 60)
-go_up_subset <- subset(go_up_subset, go_up_subset$N < 400)
-go_up_subset <- go_up_subset[!(go_up_subset$Ont %in% remove), ] 
-up_terms <- data.frame(go_up_subset$Term)
-rownames(up_terms) <- rownames(go_up_subset)
-
-
-for (f in seq(1:nrow(go_up_subset))){
-      z <- allGO[paste(rownames(up_terms))[f]]
-      z <- as.data.frame(z)
-      goid <- names(z)
-      goname <- go_up_subset[f,1]
-      goperc <- go_up_subset[f,6]
-      gopvalue <- go_up_subset[f,5]
-      statperc <- paste("Percent of involved genes", goperc, sep = ":")
-      name <-paste(goid, goname, sep = ":")
-      name <- as.character(name)
-      name <- gsub('[.]', "", name)
-      name <- paste(name, statperc, sep = "\n")
-      names(z) <- c("sus")
-      mat <- for_go_heatmap[(for_go_heatmap$entrez %in% z$sus),]
-      rownames(mat) <- mat$symbol
-      mat$symbol <- NULL
-      mat$entrez <- NULL
-      mat <- t(scale(t(mat)))
-      pdf(file = paste(goid,"upreg_GO.pdf",sep=""), width = 12, height = 17, family = "Helvetica")
-      heatmap.2(mat, col=col.pan, Rowv=TRUE, scale="none",
-                trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-                margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = paste(name))
-      dev.off()
-      
-}
-
-##DOWN
-
-setwd(results.dir)
-if (analyze_all_samples == TRUE){
-  setwd("all")
-} else {
-  setwd(stattest)
-}
-
-dir.create("GO heatmap plots downregulated")
-setwd("GO heatmap plots downregulated")
-go_down_subset <- subset(go_down_500, go_down_500$DE > 40)
-go_down_subset <- subset(go_down_subset, go_down_subset$DE < 60)
-go_down_subset <- subset(go_down_subset, go_down_subset$N < 400)
-go_down_subset <- go_down_subset[!(go_down_subset$Ont %in% remove), ] 
-down_terms <- data.frame(go_down_subset$Term)
-rownames(down_terms) <- rownames(go_down_subset)
-
-for (f in seq(1:nrow(go_down_subset))){
-  z <- allGO[paste(rownames(down_terms))[f]]
-  z <- as.data.frame(z)
-  goid <- names(z)
-  goname <- go_down_subset[f,1]
-  goperc <- go_down_subset[f,6]
-  gopvalue <- go_down_subset[f,5]
-  statperc <- paste("Percent of involved genes", goperc, sep = ":")
-  name <-paste(goid, goname, sep = ":")
-  name <- as.character(name)
-  name <- gsub('[.]', "", name)
-  name <- paste(name, statperc, sep = "\n")
-  names(z) <- c("sus")
-  mat <- for_go_heatmap[(for_go_heatmap$entrez %in% z$sus),]
-  rownames(mat) <- mat$symbol
-  mat$symbol <- NULL
-  mat$entrez <- NULL
-  mat <- t(scale(t(mat)))
-  pdf(file = paste(goid,"downreg_GO.pdf",sep=""), width = 12, height = 17, family = "Helvetica")
-  heatmap.2(mat, col=col.pan, Rowv=TRUE, scale="none",
-            trace="none", dendrogram="both", cexRow=1, cexCol=1.4, density.info="none",
-            margin=c(10,9), lhei=c(2,10), lwid=c(2,6), main = paste(name))
-  dev.off()
-  
-}
-
-setwd(results.dir)
-if (analyze_all_samples == TRUE){
-  setwd("all")
-} else {
-  setwd(stattest)
-}
-
-s <- subset(go_up_500, go_up_500$perc > 20 & go_up_500$P.DE < 0.001)
-s <- s[which(s$Ont == "BP"),]
-s <- s[which(nchar(s$Term) < 50),]
-s <- s[order(s$DE, decreasing = FALSE),]
-s <- s[seq(1:30),]
-s <- s[complete.cases(s),]
-png(file = "Go terms upreg.png", width = 1024, height = 768)
-#pdf(file = "Go terms upreg.pdf", width = 12, height = 17, family = "Helvetica")
-g_u <- ggplot(s, aes(x = reorder(Term, DE), y = DE, fill = P.DE)) + 
-  geom_bar(stat="identity") + 
-  scale_x_discrete(breaks = s$Term, name = "Significant Upregulated Terms") + 
-  coord_flip() +
-  scale_y_continuous(name = "Number of differentialy expressed genes") +
-  theme_bw() + 
-  theme(axis.text.y = element_text(colour="grey20",size=15,angle=0,hjust=1,vjust=0,face="plain"))
-g_u
-dev.off()
-
-s <- subset(go_down_500, go_down_500$perc > 20 & go_down_500$P.DE < 0.001)
-s <- s[which(s$Ont == "BP"),]
-s <- s[which(nchar(s$Term) < 50),]
-s <- s[order(s$DE, decreasing = FALSE),]
-s <- s[seq(1:30),]
-s <- s[complete.cases(s),]
-png(file = "Go terms downreg.png", width = 1024, height = 768)
-#pdf(file = "Go terms downreg.pdf", width = 12, height = 17, family = "Helvetica")
-g_d <- ggplot(s, aes(x = reorder(Term, DE), y = DE, fill = P.DE)) + 
-  geom_bar(stat="identity") + 
-  scale_x_discrete(breaks = s$Term, name = "Significant Downregulated Terms") + 
-  coord_flip() +
-  scale_y_continuous(name = "Number of differentialy expressed genes") +
-  theme_bw() + 
-  theme(axis.text.y = element_text(colour="grey20",size=15,angle=0,hjust=1,vjust=0,face="plain"))
-g_d
-dev.off()
-
-getwd()
-
-### GO with foldchanges
-go_fc <- goana(de = et_annot$entrez, species = "Mm")
-go_fc_res <- topGO(go_fc, n=1000, ontology = "BP")
-df <- data.frame()
-for (f in rownames(go_fc_res)){
-  x <- allGO[[paste(f)]]
-  z <- et_annot[(et_annot$entrez %in% x),]
-  mean.logfc<- mean(z$logFC)
-  mean.cpm <- mean(z$logCPM)
-  b <- go_fc_res[which(rownames(go_fc_res) == f),]
-  b$logFC <- mean.logfc
-  b$cpm <- mean.cpm
-  df <- rbind(b, df)
-}
-df <- df[complete.cases(df),]
-write.xlsx(df, file = "goana tests with foldchanges.xlsx", sheetName = "Top 1000 GO terms")
-
-rownames(df)
-
-
-### FISHER GO TEST WITH ELIMINATION
-### WARNING! THIS TEST MIGHT BE USELESS!
-all_genes = c(et_annot$logFC)
-names(all_genes) <- et_annot$entrez
-
-GOdata = new("topGOdata", ontology = "BP", allGenes = all_genes, geneSel = function(s) s < 
-               0.05, description = "Test", annot = annFUN.org, mapping = "org.Mm.eg.db", nodeSize = 2)
-resultFisher <- runTest(GOdata, algorithm = "classic", statistic = "fisher")
-resultKS <- runTest(GOdata, algorithm = "classic", statistic = "ks")
-resultKS.elim <- runTest(GOdata, algorithm = "elim", statistic = "ks")
-
-top30.res.bp <- GenTable(GOdata, classicFisher = resultFisher,
-                   classicKS = resultKS, elimKS = resultKS.elim,
-                   orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 30)
-
-top100.res.bp <- GenTable(GOdata, classicFisher = resultFisher,
-                         classicKS = resultKS, elimKS = resultKS.elim,
-                         orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 100)
-
-top500.res.bp <- GenTable(GOdata, classicFisher = resultFisher,
-                          classicKS = resultKS, elimKS = resultKS.elim,
-                          orderBy = "elimKS", ranksOf = "classicFisher", topNodes = 500)
-
-write.xlsx(top30.res.bp, file = "topGO eliminations.xlsx", sheetName = "BP, top 30", append = TRUE)
-write.xlsx(top100.res.bp, file = "topGO eliminations.xlsx", sheetName = "BP, top 100", append = TRUE)
-write.xlsx(top500.res.bp, file = "topGO eliminations.xlsx", sheetName = "BP, top 500", append = TRUE)
-
-
-dir.create("GO graphs")
-setwd("GO graphs")
-
-pdf(file = "top 5 GO graph.pdf", width = 10, height = 10)
-showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 5, useInfo = 'all')
-dev.off()
-
-pdf(file = "top 15 GO graph.pdf", width = 10, height = 10)
-showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 15, useInfo = 'all')
-dev.off()
-
-pdf(file = "top 30 GO graph.pdf", width = 10, height = 10)
-showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 30, useInfo = 'all')
-dev.off()
-
-pdf(file = "top 50 GO graph.pdf", width = 10, height = 10)
-showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 50, useInfo = 'all')
-dev.off()
-
-setwd(results.dir)
-if (analyze_all_samples == TRUE){
-  setwd("all")
-} else {
-  setwd(stattest)
-}
-
-## CORELLATION MARIX
-correl <- logCPM
-correl <- as.data.frame(correl)
-correl <- correl[complete.cases(correl),]
-x <- cor(correl, method = "pearson")
-pdf(file = "Corellation matrix Spearman.pdf", width = 10, height = 10)
-heatmap.2(x, col=col.pan, Rowv=TRUE, scale="none",
-          trace="none", dendrogram="both", cexRow=1.4, cexCol=1.4, density.info="none",
-          margin=c(18,18), lhei=c(2,10), lwid=c(2,6), main = "Spearman corellation")
-
-dev.off()
-#legend("bottomright",
-#       legend = c("Control-1", "Control-3", "Tg-1", "Tg-2", "Tg-3"),
-#       col = c("yellow", "purple", "green", "red", "blue"),
-#       lty= 1,
-#       lwd = 10)
-
-#heatmap.2(x, margins = c(10,10))      
-### MDS PLOT
-getwd()
-
-pch <- c(0,1,2,15,16,17)
-colors <- rep(c("darkgreen", "red", "blue"), 2)
-# pdf(file = "PCAPlot.pdf", width = 12, height = 17, family = "Helvetica")
-pdf(file = "MDSPlot.pdf", width = 10, height = 10)
-plotMDS(y, col=colors[sampleTable$condition], pch = pch[sampleTable$condition])
-legend("topleft", legend=levels(sampleTable$condition), pch=pch, col=colors, ncol=2)
-dev.off()
-
-
-
-### VOLCANO PLOT
-allgenes <- nrow(et_annot_non_filtered)
-max <- max(-log10(et_annot_non_filtered$PValue))
-et_annot_non_filtered$threshold = as.factor(abs(et_annot_non_filtered$logFC) > logfchigh_cutoff & et_annot_non_filtered$PValue < 0.05)
-pdf(file = "Volcano plot.pdf", width = 10, height = 10)
-volc = ggplot(data=et_annot_non_filtered, aes(x=logFC, y=-log10(PValue), colour=threshold)) +
-  geom_point(alpha=1, size=2) +
-  labs(legend.position = "none") +
-  xlim(c(-6, 6)) + ylim(c(1.30103, max)) +
-  xlab("log2 fold change") + ylab("-log10 p-value") +
-  theme_bw()
-volc
-dev.off()
-
-#SMEAR PLOT
-tt <- topTags(qlf, n=nrow(y), p.value=0.05)
-pdf(file = "Smear plot.pdf", width = 10, height = 10)
-plotSmear(qlf, de.tags = rownames(tt$table), lowess = TRUE, smooth.scatter = TRUE)
-
-dev.off()
-
-### REACTOME PART
-dfa <- as.character(et_annot$entrez)
-x_com <- enrichPathway(gene=dfa, organism = "mouse", minGSSize=gs_size, readable = TRUE )
-write.xlsx(x, "Reactome.xlsx", sheetName = "All reactome", append = TRUE)
-if (nrow(x) == 0){
-  for(i in seq(1:2)){
-    beep()
-    Sys.sleep(0.1)
-    beep()
-    Sys.sleep(0.2)
-    print("No terms found!")  
-  }
-}
-dev.off()
-
-par(mar=c(1,1,1,1))
-pdf(file = "barplot.pdf", width = 12, height = 17, family = "Helvetica")
-r.bp.com <- barplot(x_com, showCategory=50,  font.size = 9)
-r.bp.com
-dev.off()
-
-pdf(file = "enrichmap.pdf", width = 12, height = 17, family = "Helvetica")
-r.em.com <- enrichMap(x_com, layout=igraph::layout.kamada.kawai, vertex.label.cex = 0.7, n = 20, font.size = 20)
-dev.off()
-
-pdf(file = "cnetplot.pdf", width = 12, height = 17, family = "Helvetica")
-r.cn.com <- cnetplot(x_com, foldChange = foldchanges, categorySize="pvalue", showCategory = 10)
-dev.off()
-
-#HIGH
-
-df_high <- et_annot_high$entrez
-x_up <- enrichPathway(gene=df_high, organism = "mouse", minGSSize=gs_size, readable = TRUE )
-write.xlsx(x_up, "Reactome.xlsx", sheetName = "High", append = TRUE)
-write.xlsx(x_up, file = "Results edgeR.xlsx", sheetName = "top 100 Upregulated Reactome pathways", append = TRUE)
-head(as.data.frame(x_up))
-dev.off()
-
-par(mar=c(1,1,1,1))
-pdf(file = "barplot_high.pdf", width = 12, height = 17, family = "Helvetica")
-r.bp.up <- barplot(x, showCategory=30,  font.size = 9)
-r.bp.up
-dev.off()
-
-#LOW
-
-df_low <- et_annot_low$entrez
-x_down <- enrichPathway(gene=df_low, organism = "mouse", minGSSize=gs_size, readable = TRUE )
-write.xlsx(x_down, "Reactome.xlsx", sheetName = "Low", append = TRUE)
-write.xlsx(x_down, file = "Results edgeR.xlsx", sheetName = "top 100 Downregulated Reactome pathways", append = TRUE)
-head(as.data.frame(x_down))
-
-par(mar=c(1,1,1,1))
-pdf(file = "barplot_low.pdf", width = 12, height = 17, family = "Helvetica")
-r.bp.down <- barplot(x_down, showCategory=30,  font.size = 9)
-dev.off()
-
 
 ###KEGG expression profile (without lfc, but with generatio)
 
@@ -1833,32 +1492,10 @@ for (f in z){
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-b <- read.xlsx("~/FUS.xlsx", sheetIndex = 1, header = TRUE)
-b$cpm <- log10(b$cpm)
-
-  g <- ggplot(b, aes(x = group, y = cpm)) + 
-    geom_boxplot(data = b, aes(fill = group), alpha = 0.5) + 
-    scale_x_discrete(name = "Experimental Groups") + 
-    scale_y_continuous(name = "Counts per million") + 
-    theme_bw()
-  g <- g + ggtitle("??FUS-dRRM(1-359)") + 
-    theme(plot.title = element_text(hjust = 0.5))
-  ggsave(filename = paste("delta-FUS.png"), plot = g, height = 25, width = 25, units = "cm")
-
-  g
-
-
-
-
+df <- cpm[which(rownames(cpm) == "ENSMUSG00000032688"),]
+df <- as.data.frame(t(df))
+df$names <- rownames(df)
+names(df) <- c("gene", "names")
+ggplot(df) + geom_bar(aes(x = names, y = gene), stat = "identity") +
+             theme(axis.text.x = element_text(angle = 90, hjust = 1))
+              

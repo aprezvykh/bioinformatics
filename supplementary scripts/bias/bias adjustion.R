@@ -7,8 +7,9 @@ qlm_test <- TRUE
 cpm_cutoff <- -1
 directory <- '~/counts/BAP.cutted.counts/'
 setwd(directory)
-gr_control <- c("CONTROL_LARVAE")
-gr_case <- c("10MM_LARVAE")
+
+gr_control <- c("ADULT_CONTROL")
+gr_case <- c("ADULT_10MM")
 
 if (analyze_all_samples == TRUE){
   sampleFiles <- grep('fly',list.files(directory),value=TRUE)
@@ -122,7 +123,6 @@ if (stat == TRUE & lfgenefc < 0){
 }
 
 
-
 taxon = 'Drosophila Melanogaster'
 taxon = tolower(taxon)
 tmp = unlist(strsplit(x = taxon, split = ' '))
@@ -147,18 +147,35 @@ names(trlen.distrib) <- c("fc", "tl", "cpm", "pvalue", "FDR")
 ##trlen - logFC
 trlen.distrib <- trlen.distrib[which(trlen.distrib$cpm > 2),]
 trlen.distrib$tl <- log2(trlen.distrib$tl)
+
+
+plot(trlen.distrib$pvalue, trlen.distrib$tl, pch = ".")
+abline(lm(tl~pvalue, data = trlen.distrib))
+lines(lowess(x = trlen.distrib$pvalue, y = trlen.distrib$tl, f = .04), col = "red")
+
+
+
 fit <- lm(fc~tl, data = trlen.distrib)
 coefs <- coef(fit)
 b1 <- round(coefs[2],2)
 correl <- cor(trlen.distrib$fc, trlen.distrib$tl)
-#png("Raw.png")
+png("Raw-Trlen vs LogFC.png")
 plot.fc.raw <- plot(fc ~ tl, data = trlen.distrib, pch = ".",
      xlab = "Log2(Transcript Length)",
      ylab = "Log2(Fold Change)",
      main = paste("Raw data:", "\n", "slope = ",b1, ", Transcript Length vs LogFC (all genes, logCPM>-1)", "\n", "Correlation = ", correl, sep = ""))
 abline(fit)
-#dev.off()
+lines(lowess(x = trlen.distrib$tl, y = trlen.distrib$fc, f = .02), col = "red")
+dev.off()
 
+png("Raw-Trlen vs CPM.png")
+plot(trlen.distrib$cpm, trlen.distrib$tl, pch = ".",
+     xlab = "Counts per million",
+     ylab = "Log2(Transcript Length)",
+     main = "Transcript length vs CPM")
+abline(lm(tl~cpm, data = trlen.distrib))
+lines(lowess(x = trlen.distrib$cpm, y = trlen.distrib$tl, f = .02), col = "red")
+dev.off()
 
 trlen.distrib <- data.frame(et_annot.trlen.common$logFC, gmt_flt.common$transcript_length, et_annot.trlen.common$logCPM, et_annot.trlen.common$PValue, et_annot.trlen.common$FDR)
 names(trlen.distrib) <- c("fc", "tl", "cpm", "pvalue", "FDR")
@@ -267,13 +284,35 @@ rmse <- round(sqrt(mean(resid(fit)^2)), 2)
 b1 <- round(coefs[2],2)
 r2 <- round(summary(fit)$r.squared, 2)
 
-png("Corrected.png")
+png("Corrected-Trlen vs LogFC.png")
 plot(fc ~ tl, data = trlen.distrib, pch = ".",
      xlab = "Log2(Transcript Length)",
      ylab = "Log2(Fold Change)",
      main = paste("Bias corrected data:", "\n", "slope = ",b1, ", Transcript Length vs LogFC (all genes, logCPM>2)", "\n", "Correlation = ", correl, sep = ""))
 abline(fit)
+lines(lowess(x = trlen.distrib$tl, y = trlen.distrib$fc, f = .02), col = "red")
 dev.off()
+
+
+cpm_fit <- lm(tl~cpm, data = trlen.distrib)
+b1 <- 
+b2 <- 
+png("Corrected-Trlen vs CPM.png")
+plot(trlen.distrib$cpm, trlen.distrib$tl, pch = ".",
+     xlab = "Counts per million",
+     ylab = "Log2(Transcript Length)",
+     main = "Transcript length vs CPM")
+abline(cpm_fit)
+lines(lowess(x = trlen.distrib$cpm, y = trlen.distrib$tl, f = .02), col = "red")
+dev.off()
+
+
+
+
+
+
+
+
 
 cor(et_annot$logFC, et_annot$logCPM)
 

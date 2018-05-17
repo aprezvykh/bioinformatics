@@ -149,13 +149,13 @@ fit <- lm(fc~tl, data = for.cor)
 coefs <- coef(fit)
 b1 <- round(coefs[2],2)
 correl <- cor(for.cor$fc, for.cor$tl, method = "spearman")
-#png("Raw.png")
+png("Raw.png")
 plot.fc.raw <- plot(fc ~ tl, data = for.cor, pch = ".",
                     xlab = "Log2(Transcript Length)",
                     ylab = "Log2(Fold Change)",
                     main = paste("Raw data:", "\n", "slope = ",b1, ", Transcript Length vs LogFC (all genes, logCPM>-1)", "\n", "Correlation = ", correl, sep = ""))
 abline(fit)
-#dev.off()
+dev.off()
 
 tr.len.median <- median(trlen.distrib$tl)
 m.low <- trlen.distrib[which(trlen.distrib$tl < tr.len.median),]$cpm 

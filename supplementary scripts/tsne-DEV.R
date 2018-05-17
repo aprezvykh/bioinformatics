@@ -14,8 +14,9 @@ df <- as.data.frame(t$Y)
 fit <- kmeans(df, 8)
 clusplot(df, fit$cluster, color=TRUE, shade = TRUE, lines = 2)
 
-ggplot(data = df) + geom_point(aes(x = V1, y = V2, fill = rowSums(cpm))) + theme_bw()
 
 
-### mummerplot
-mum <- read.delim("~/mummer/mummer.mums")
+
+
+
+
