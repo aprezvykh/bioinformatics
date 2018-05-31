@@ -66,7 +66,7 @@ param <- SnowParam(workers = 2, type = "SOCK")
 
   heatmaps <- TRUE
   custom_genes_plots <- FALSE
-  analyze_all_samples <- FALSE
+  analyze_all_samples <- TRUE
   disease_association <- FALSE
   kegg_plots <- TRUE
   panther_analysis <- TRUE
@@ -81,7 +81,7 @@ param <- SnowParam(workers = 2, type = "SOCK")
   pvalue_cutoff <- 0.05
   logfchigh_cutoff <- 0
   logfclow_cutoff <- 0
-  cpm_cutoff <- 0.5
+  cpm_cutoff <- -1000
   gs_size <- 10
   diseases_set <- 50
   number_of_kegg_plots <- 100
@@ -100,114 +100,114 @@ param <- SnowParam(workers = 2, type = "SOCK")
 #gr_control <- as.character(a[1,1])
 #gr_case <- as.character(a[1,2])
 
-directory <- '~/counts/Early.markers/'
-setwd(directory)
-gr_control <- c("Control")
-gr_case <- c("Tg")
-
-### BUILDING A SPECIFIC DESIGN TABLE
-if (logging == TRUE){
-  zz <- file("error.log", open="wt")
-  sink(zz, type="message")
-}
-
-col.pan <- colorpanel(100, "blue", "white", "red")
-###DIRECTORY WHERE SAMPLES ARE LOCATED
-library(dplyr)
-
-if (analyze_all_samples == TRUE){
-        sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
-        sampleCondition <- c('Control-1', 'Control-1', 'Control-1', 'Control-1', 'Control-1', 
-                             'Control-3', 'Control-3', 'Control-3', 'Control-3', 'Control-3', 
-                             'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 
-                             'Tg-2', 'Tg-2', 'Tg-2', 'Tg-2', 
-                             'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3')
+  directory <- '~/counts/ALS Mice/experimental/'
+  setwd(directory)
+  gr_control <- c("Tg-1")
+  gr_case <- c("Tg-2")
   
-
-        sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
-        col <- as.vector(sampleTable$sampleName)
-        names(col) <- c("yellow", "yellow", "yellow", "yellow", "yellow", 
-                        "purple", "purple", "purple", "purple", "purple", 
-                        "green", "green", "green", "green", "green", 
-                        "red", "red", "red", "red", 
-                        "blue", "blue", "blue", "blue", "blue")
-
-        y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
-} else if (analyze_all_samples == FALSE){
-        files_control <- grep(paste(gr_control),list.files(directory),value=TRUE)
-        files_case <- grep(paste(gr_case),list.files(directory),value=TRUE)
-        sampleFiles <- c(files_control, files_case)
-        cond_control <- rep(paste(gr_control), length(files_control))
-        cond_case <- rep(paste(gr_case), length(files_case))
-        sampleCondition <- c(cond_control, cond_case)
-        sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
-        y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
-}
-
-setwd("results")
-stattest <- paste(gr_control, gr_case, sep = "-")
-results.dir <- paste(directory, "results", sep = "")
-setwd(results.dir)
-
-
-  if (analyze_all_samples == FALSE){
-  dir.create(stattest)
-  setwd(stattest)
-  } else if (analyze_all_samples == TRUE){
-    dir.create("all")
-    setwd("all")
+  ### BUILDING A SPECIFIC DESIGN TABLE
+  if (logging == TRUE){
+    zz <- file("error.log", open="wt")
+    sink(zz, type="message")
   }
-# PLOTTING HTSEQ QUALITY BARPLOTS
-row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "__too_low_aQual", "__not_aligned" )
+  
+  col.pan <- colorpanel(100, "blue", "white", "red")
+  ###DIRECTORY WHERE SAMPLES ARE LOCATED
+  library(dplyr)
+  
+  if (analyze_all_samples == TRUE){
+          sampleFiles <- grep('mouse',list.files(directory),value=TRUE)
+          sampleCondition <- c('Control-1', 'Control-1', 'Control-1', 'Control-1', 'Control-1', 
+                               'Control-3', 'Control-3', 'Control-3', 'Control-3', 'Control-3', 
+                               'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 'Tg-1', 
+                               'Tg-2', 'Tg-2', 'Tg-2', 'Tg-2', 
+                               'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3', 'Tg-3')
+    
+  
+          sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
+          col <- as.vector(sampleTable$sampleName)
+          names(col) <- c("yellow", "yellow", "yellow", "yellow", "yellow", 
+                          "purple", "purple", "purple", "purple", "purple", 
+                          "green", "green", "green", "green", "green", 
+                          "red", "red", "red", "red", 
+                          "blue", "blue", "blue", "blue", "blue")
+  
+          y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
+  } else if (analyze_all_samples == FALSE){
+          files_control <- grep(paste(gr_control),list.files(directory),value=TRUE)
+          files_case <- grep(paste(gr_case),list.files(directory),value=TRUE)
+          sampleFiles <- c(files_control, files_case)
+          cond_control <- rep(paste(gr_control), length(files_control))
+          cond_case <- rep(paste(gr_case), length(files_case))
+          sampleCondition <- c(cond_control, cond_case)
+          sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
+          y <- readDGE(files = sampleTable$sampleName, group = sampleTable$condition, labels = sampleTable$fileName)
+  }
+  
+  setwd("results")
+  stattest <- paste(gr_control, gr_case, sep = "-")
+  results.dir <- paste(directory, "results", sep = "")
+  setwd(results.dir)
+  
+  
+    if (analyze_all_samples == FALSE){
+    dir.create(stattest)
+    setwd(stattest)
+    } else if (analyze_all_samples == TRUE){
+      dir.create("all")
+      setwd("all")
+    }
+  # PLOTTING HTSEQ QUALITY BARPLOTS
+  row.names.remove <- c("__ambiguous", "__alignment_not_unique", "__no_feature", "__too_low_aQual", "__not_aligned" )
+  
+  ### DIFFEXPRESSION STATISTICAL ANALYSIS - EXACT NEGATIVE-
+  ### BINOMIAL OR QLM TEST
+  
+  if (qlm_test == TRUE){ 
+    a <- DGEList(counts=y, group = sampleTable$condition) 
+    CountsTable <- as.data.frame(y$counts)
+    cpm <- cpm(y) 
+    cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ] 
+    cpm <- as.data.frame(cpm(y)) 
+    cpm$rowsum <- rowSums(cpm) 
+    keep <- rowSums(cpm > cpm_cutoff) >= ncol(sampleTable) 
+    logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
+    logCPM <- logCPM[!(row.names(logCPM) %in% row.names.remove), ]
+    logCPM <- logCPM[keep,]
+    a <- a[keep, , keep.lib.sizes=FALSE] 
+    a <- calcNormFactors(a, method = "TMM") 
+    design <- model.matrix(~sampleTable$condition) 
+    a <- estimateDisp(a,design) 
+    fit <- glmQLFit(a,design = design, robust = TRUE) 
+    qlf <- glmQLFTest(fit,coef=ncol(fit$design))
+    et_annot <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BH"))
+    et_annot_non_filtered <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BH"))
+    top <- as.data.frame(topTags(qlf, n = 20))
+    et <- exactTest(a)
+  } else if (qlm_test == FALSE){ 
+    design <- model.matrix(~sampleTable$condition) 
+    normalized_lib_sizes <- calcNormFactors(y, method = "TMM") 
+    CountsTable <- as.data.frame(y$counts) 
+    raw_counts <- as.data.frame(y$counts) 
+    y <- calcNormFactors(y, method = "TMM") 
+    y <- estimateCommonDisp(y) 
+    y <- estimateTagwiseDisp(y) 
+    y <- estimateDisp(y, design = design) 
+    nf <- exactTest(y) 
+    no_filtered <- as.data.frame(nf$table) 
+    keep <- rowSums(cpm(y) > cpm_cutoff) >= ncol(sampleTable) 
+    cpm <- cpm(y) 
+    cpm <- as.data.frame(cpm(y)) 
+    cpm$rowsum <- rowSums(cpm) 
+    y <- y[keep, , keep.lib.sizes=FALSE] 
+    logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
+    et <- exactTest(y) 
+    top <- as.data.frame(topTags(et)) 
+    et_annot <- as.data.frame(et$table) 
+    et_annot_non_filtered <- as.data.frame(et$table) 
+  }
 
-### DIFFEXPRESSION STATISTICAL ANALYSIS - EXACT NEGATIVE-
-### BINOMIAL OR QLM TEST
-
-if (qlm_test == TRUE){ 
-  a <- DGEList(counts=y, group = sampleTable$condition) 
-  CountsTable <- as.data.frame(y$counts)
-  cpm <- cpm(y) 
-  cpm <- cpm[!(row.names(cpm) %in% row.names.remove), ] 
-  cpm <- as.data.frame(cpm(y)) 
-  cpm$rowsum <- rowSums(cpm) 
-  keep <- rowSums(cpm > cpm_cutoff) >= ncol(sampleTable) 
-  logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
-  logCPM <- logCPM[!(row.names(logCPM) %in% row.names.remove), ]
-  logCPM <- logCPM[keep,]
-  a <- a[keep, , keep.lib.sizes=FALSE] 
-  a <- calcNormFactors(a, method = "TMM") 
-  design <- model.matrix(~sampleTable$condition) 
-  a <- estimateDisp(a,design) 
-  fit <- glmQLFit(a,design = design, robust = TRUE) 
-  qlf <- glmQLFTest(fit,coef=ncol(fit$design))
-  et_annot <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BH"))
-  et_annot_non_filtered <- as.data.frame(topTags(qlf, n = nrow(logCPM), adjust.method = "BH"))
-  top <- as.data.frame(topTags(qlf, n = 20))
-  et <- exactTest(a)
-} else if (qlm_test == FALSE){ 
-  design <- model.matrix(~sampleTable$condition) 
-  normalized_lib_sizes <- calcNormFactors(y, method = "TMM") 
-  CountsTable <- as.data.frame(y$counts) 
-  raw_counts <- as.data.frame(y$counts) 
-  y <- calcNormFactors(y, method = "TMM") 
-  y <- estimateCommonDisp(y) 
-  y <- estimateTagwiseDisp(y) 
-  y <- estimateDisp(y, design = design) 
-  nf <- exactTest(y) 
-  no_filtered <- as.data.frame(nf$table) 
-  keep <- rowSums(cpm(y) > cpm_cutoff) >= ncol(sampleTable) 
-  cpm <- cpm(y) 
-  cpm <- as.data.frame(cpm(y)) 
-  cpm$rowsum <- rowSums(cpm) 
-  y <- y[keep, , keep.lib.sizes=FALSE] 
-  logCPM <- as.data.frame(cpm(y, log = TRUE, lib.size = colSums(counts) * normalized_lib_sizes))
-  et <- exactTest(y) 
-  top <- as.data.frame(topTags(et)) 
-  et_annot <- as.data.frame(et$table) 
-  et_annot_non_filtered <- as.data.frame(et$table) 
-}
-
-
+#write.csv(cpm, "~/counts/Early.markers/all_cpm.csv")
 ####Dispresion
 
 cpm$rowsum <- NULL
@@ -1028,6 +1028,7 @@ if (analyze_all_samples == TRUE){
 } else {
   setwd(stattest)
 }
+
 data(kegg.sets.mm)
 data(sigmet.idx.mm)
 kegg.sets.mm = kegg.sets.mm[sigmet.idx.mm]
@@ -1051,6 +1052,10 @@ plot_pathway = function(pid){
          species="mmu", 
          new.signature=FALSE)
 }
+
+
+plot_pathway("mmu03050")
+
 detach("package:dplyr", unload=TRUE)
 dir.create("kegg")
 setwd("kegg")
@@ -1459,11 +1464,17 @@ cpm$term <- as.character(cpm$term)
 
 
 
-b <- read.xlsx("~/FUS.xlsx", sheetIndex = 1, header = TRUE)
 
-z <- grep("ENSMUSG00000032011", rownames(cpm))
 
-for (f in z){
+
+sub <- cpm[grepl("Hspa", cpm$Symbol),]
+
+
+z <- grep("ENSMUSG00000091971", rownames(cpm))
+
+dir.create("HSP")
+setwd("HSP")
+for (f in rownames(sub)){
   r <- grep(paste(f), rownames(cpm), ignore.case = TRUE)
   thm <- cpm[f,]
   rownames(thm) <- thm$Symbol
@@ -1484,18 +1495,38 @@ for (f in z){
     geom_boxplot(data = thm, aes(fill = Group), alpha = 0.5) + 
     scale_x_discrete(name = "Experimental Groups") + 
     scale_y_continuous(name = "Counts per million") + 
+    geom_signif(comparisons = list(c("Tg-2", "Tg-3")), map_signif_level = TRUE) + 
+    geom_signif(comparisons = list(c("Tg-1", "Tg-2")), map_signif_level = TRUE) +
     theme_bw()
   g <- g + ggtitle(paste("Gene official symbol: ", plot.name, "\n", "Gene name:", plot.description, "\n", "Direct GO term:", plot.term)) + 
     theme(plot.title = element_text(hjust = 0.5))
+  g
   ggsave(filename = paste(plot.name, "png", sep = "."), plot = g, height = 25, width = 25, units = "cm")
 }
 
 
 
-df <- cpm[which(rownames(cpm) == "ENSMUSG00000032688"),]
+
+
+
+
+cpm <- as.data.frame(cpm(y))
+write.csv(cpm, "~/counts/Early.markers/all_cpm.csv")
+
+df <- cpm[which(rownames(cpm) == "ENSMUSG00000033777"),]
 df <- as.data.frame(t(df))
 df$names <- rownames(df)
-names(df) <- c("gene", "names")
-ggplot(df) + geom_bar(aes(x = names, y = gene), stat = "identity") +
+df$group <- c("FUS-Control", "FUS-Control", "FUS-Control", "FUS-Control", "FUS-Control", 
+              "FUS-Control", "FUS-Control", "FUS-Control", "FUS-Control", "FUS-Control", 
+              "TDP-Control", "TDP-Control", "TDP-Control", "TDP-Control",
+              "TDP-Tg", "TDP-Tg", "TDP-Tg", "TDP-Tg", 
+              "FUS-Tg", "FUS-Tg", "FUS-Tg", "FUS-Tg", "FUS-Tg", 
+              "SOD-Control", "SOD-Control", "SOD-Control", 
+              "FUS-Tg", "FUS-Tg", "FUS-Tg", "FUS-Tg",
+              "SOD-Tg", "SOD-Tg", "SOD-Tg")
+
+names(df) <- c("gene", "names", "group")
+
+ggplot(df) + geom_bar(aes(x = names, y = gene, fill = group), stat = "identity") +
              theme(axis.text.x = element_text(angle = 90, hjust = 1))
               

@@ -23,6 +23,14 @@ moto_aff <- subset(moto_aff, moto_aff$compare.moto.affinity > 5)
 exp <- as.data.frame(read.xlsx("~/GitHub/counts/ALS Mice/new filtering-0.5/exp_tg1_tg2.xlsx", sheetIndex = 2))
 x <- read.xlsx(file = "~/GitHub/counts/ALS Mice/old diff/motoneurons marker.xlsx", sheetIndex = 1)
 
+setwd("~/counts/ALS Mice/")
+
+gl_aff$compare.glia.affinity <- NULL
+moto_aff$compare.moto.affinity <- NULL
+write.csv(gl_aff, "glial genes.csv")
+write.csv(moto_aff, "motoneuron genes.csv")
+
+
 exp <- exp[complete.cases(exp), ]
 flt <- as.data.frame(read.xlsx("~/GitHub/counts/ALS Mice/tg1-tg2/manifestation_genes_only_12.xlsx", sheetIndex = 1))
 r <- data.frame()
