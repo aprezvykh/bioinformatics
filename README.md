@@ -10,6 +10,6 @@ Research Interest Areas: Alzheimer's Disease, Amyotrophyc Lateral Sclerosis, Neu
 
 Contact information
 
-aprezvykh@yandex.ru
-aprezvykh@eimb.ru
-rezvykh.ap@phystech.edu
+aprezvykh@yandex.ru\t
+aprezvykh@eimb.ru\t
+rezvykh.ap@phystech.edu\t
