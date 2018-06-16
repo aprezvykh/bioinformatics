@@ -3,13 +3,13 @@ library(ggplot2)
 library(RColorBrewer)
 library(gplots)
 library(dplyr)
+library(ggbiplot)
 col.pan <- colorpanel(100, "blue", "white", "red")
 ##устанавливаем домашнюю директорию
 setwd("~/Documents/test_task/")
 #cчитываем данные, так как у нас тут Nan вкачестве проебанных ячеек, так и пишем
 df_main <- read.delim("Hugo.tsv", na.strings = "NaN")
 biomarkers <- read.delim("biomarkers_info.tsv")
-df_big <- read.delim("GSE91061.tsv", na.strings = "NaN")
 pat <- read.delim("Hugo_annotation.tsv", header = FALSE)
 #красим пациентов на основании ответа
 pat$col <- ifelse(pat$V2 == "R", "red", "blue")
@@ -34,6 +34,7 @@ df_main <- df_main[order(rownames(df_main)),]
 #простейшие матрицы корелляций, по датасету. цвет - ответ на лечение
 annot <- data.frame(pat$V1, pat$col)
 
+#pdf("Biomarkers.pdf")
 df_main.cor <- cor(t(df_main), method = "spearman")
 heatmap.2(df_main.cor, col = col.pan, Rowv=TRUE, Colv= TRUE, scale="none",
           trace="none", dendrogram="column", cexRow=1, cexCol=1.4, density.info="none",
@@ -46,16 +47,24 @@ legend("topright", legend = unique(pat$V2), col = pat$col, lty= 1, lwd = 5, cex=
 ##сделаем анализ главных компонент по всем образцам, c окраской по response-no response
 pr.main <- prcomp(df_main, center = TRUE)
 plot(pr.main$x, 
-     col = biomarkers$col,
+     col = pat$col,
      main = "Principle Component Analysis",
      pch = ".")
 text(pr.main$x, labels = rownames(df_main), col = pat$col)
-
 
 ###дендрограмма
 dd <- dist(scale(df_main), method = "euclidean")
 hc <- hclust(dd, method = "ward.D2")
 plot(hc)
 
+##сокращаем количество биомаркеров, до того, по которому есть данные
+biomarkers <- biomarkers[biomarkers$ID %in% names.bio.main$names,]
+df_trans <- data.frame(t(df_main))
+
+#еще один анализ главных компонент, по биомаркерам
+pr.main <- prcomp(df_trans, center = TRUE)
+ggbiplot(pr.main, groups = biomarkers$Direction, var.axes = F) + 
+  theme_bw() + 
+  ggtitle("Principle Component Analysis biomarkers")
 
 
