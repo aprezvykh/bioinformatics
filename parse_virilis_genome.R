@@ -3,25 +3,16 @@ rg <- rtracklayer::import('~/Documents/194.226.21.15/Rezvykh.stuff/RepMask/dvir-
 #df <- rg[which(rg$type == "mRNA"),]
 df <- as.data.frame(rg)
 
+z <- vector()
+
 for (f in unique(df$seqnames)){
   sub <- df[which(df$seqnames == f),]
   ss <- sub[which(sub$type == "start_codon"),]
     for (i in 1:nrow(ss)){
-      a <- as.numeric(ss$start[i+1]) - as.numeric(ss$start[i])
-      i <- i+1
-      if(is.na(a) == TRUE){
-        next
-      } else if (is.null(a) == TRUE){
-        next
-      } else if (length(a) < 1){
-        next
-      }
-      if(abs(as.numeric(a)) > 200000 | abs(as.numeric(a) < 300000)){
-      print(paste(f, "-", ss$start[i+1], ":",ss$end[i], sep = ""))
-      } else {
-        next
-      }
-    }
+     a <- as.numeric(ss$start[i+1]) - as.numeric(ss$start[i])
+     i <- i+1
+     z <- append(z,
+                 ifelse(a>200000, paste(f, ":",ss$start[i],"-",ss$start[i+1], 
+                                        "")))
+     }
 }
-
-
