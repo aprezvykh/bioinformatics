@@ -4,6 +4,8 @@ library(rtracklayer)
 library(dplyr)
 library(gridExtra)
 library(GenomicAlignments)
+library(lattice)
+library(ggbiplot)
 setwd("~/Documents/194.226.21.15/Rezvykh.stuff/RepMask/")
 df <- read.table("rmask.out")
 
@@ -89,7 +91,7 @@ parse.bed <- function(x){
 h3k9.bed <- parse.bed(h3k9.bed)
 pol2.bed <- parse.bed(pol2.bed)
 df <- as.data.frame(df)
-rg <- rtracklayer::import('dvir-all-r1.06.gtf')
+
 rg=as.data.frame(rg)
 
 rg <- rg[which(rg$seqnames == "scaffold_13050"),]
@@ -121,9 +123,9 @@ ggplot(data = df) +
   geom_line(data = pol2, aes(x = idx,
                              y = ifelse(-is.infinite(log2(xcov)), -150, log2(xcov)-150)),
                              size = 0.1, color = ifelse(pol2$xcov>0, "red", "white")) + 
-  #geom_line(data = pi, aes(x = idx,
-  #                           y = ifelse(-is.infinite(log2(xcov)), -175, log2(xcov)-175)),
-  #          size = 0.1, color = ifelse(pi$xcov>0, "green", "white")) + 
+  geom_line(data = pi, aes(x = idx,
+                             y = ifelse(-is.infinite(log2(xcov)), -175, log2(xcov)-175)),
+            size = 0.1, color = ifelse(pi$xcov>0, "green", "white")) + 
   geom_segment(data = h3k9.bed, aes(x = V2, xend = V3, y = -113, yend = -113), color = "blue", size = 1) + 
   geom_curve(data = h3k9.bed, aes(x = V2, xend = V3, y = -113, yend = -113), color = "blue", size = 0.1, curvature = 0.5) + 
   geom_segment(data = pol2.bed, aes(x = V2, xend = V3, y = -137, yend = -137), color = "red", size = 1) +
@@ -139,5 +141,9 @@ ggplot(data = df) +
                             ))
                             
 
-dev.off()  
-system("open PLOTZ.pdf")
+for_clust <- data.frame(df$div, df$del, df$ins, df$perc, df$repeat_id, df$class)
+names(for_clust) <- c("div", "del", "ins", "perc","repeat_id", "class")
+for_clust$perc <- as.numeric(for_clust$perc)
+p <- prcomp(for_clust[,1:4], center = TRUE, scale. = TRUE)
+ggbiplot(p, groups = for_clust$class, ellipse = TRUE) + theme_bw()
+
