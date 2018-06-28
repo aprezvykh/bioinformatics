@@ -1,11 +1,12 @@
+install.packages("rgdal")
 library(jpeg) 
 library(ggplot2) 
 library(raster)
 library(rgdal)
 library(reshape2)
 
-dir_cnt <- "~/Documents/immunofluorescence_images/AhR_Tj_control+IND/ÐšÐ¾Ð½Ñ‚Ñ€Ð¾Ð»ÑŒ//"
-dir_exp <- "~/Documents/immunofluorescence_images/AhR_Tj_control+IND/Ð˜Ð½Ð´Ð¸Ð½Ð¾Ð»//"
+dir_cnt <- "~/immunofluoriscence/AhR_Tj_control+IND/Êîíòðîëü/"
+dir_exp <- "~/immunofluoriscence/AhR_Tj_control+IND/Èíäèíîë/"
 
 
 list_cnt <- grep("tif", list.files(dir_cnt), value = TRUE)
@@ -23,6 +24,7 @@ get_value <- function(img_src){
 }
 
 
+
 setwd(dir_cnt)
 cnt <- lapply(list_cnt, get_value)
 cnt <- as.numeric(cnt)
@@ -31,8 +33,8 @@ setwd(dir_exp)
 exp <- lapply(list_exp, get_value)
 exp <- as.numeric(exp)
 
-paste(round(mean(cnt),4), "Â±", round(sd(cnt),4), sep = "")
-paste(round(mean(exp),4), "Â±", round(sd(exp),4), sep = "")
+paste(round(mean(cnt),4), "±", round(sd(cnt),4), sep = "")
+paste(round(mean(exp),4), "±", round(sd(exp),4), sep = "")
 df <- data.frame(head(cnt,10), exp)
 names(df) <- c("Control", "Indinol")
 
