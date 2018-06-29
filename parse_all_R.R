@@ -43,13 +43,11 @@ for (i in seq(1:9)){
     print(df)
     genes.count <- rbind(df, genes.count)
 }
-
-
 names(genes.count) <- c("stain", "genes", "sum.gene.length", "sum.trans.length")
-#percentages.df$spec <- coords$spec
-
-
 genes.count <- genes.count[order(genes.count$stain),]
+genes.count$ir.length <- coords$end-coords$start
+View(genes.count)
+
 genes.count$trans.idx <- 100*(genes.count$sum.trans.length/(coords$end-coords$start))
 genes.count$gene.idx <-100*(genes.count$sum.gene.length/(coords$end-coords$start))
 
@@ -87,8 +85,17 @@ tr.for.pca$df.sbegin <- gsub("\\(|\\)", "", tr.for.pca$df.sbegin)
 tr.for.pca$df.sbegin <- as.numeric(tr.for.pca$df.sbegin)
 View(tr.for.pca)
 p <- prcomp(tr.for.pca[,3:8],center = TRUE)
-g <- ggbiplot(p, groups = tr.for.pca$df.spec, var.axes = F, ellipse = TRUE)
-g
+ggbiplot(p, groups = tr.for.pca$df.spec, var.axes = TRUE, ellipse = TRUE, choices = c(1,3)) + theme_bw()
+
+
+plot(p$x, col = as.factor(tr.for.pca$df.spec), lwd = as.factor(tr.for.pca$df.class))
+
+legend("topright",unique(tr.for.pca$df.spec),col=1:length(tr.for.pca$df.spec),pch=1)
+
+
+
+dev.off()
+
 dev.off()
 ggsave(g, filename = "trans_PCA.pdf",device = "pdf",width = 32, height = 22)
 

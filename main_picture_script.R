@@ -8,7 +8,6 @@ library(lattice)
 library(ggbiplot)
 library(mgcv)
 library(data.table)
-install.packages("mgcv")
 setwd("~/genomes/IR.w.flanks.20kb/")
 df <- read.table("rmask.out")
 
