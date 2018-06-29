@@ -23,6 +23,10 @@ df$class <- as.character(df$class)
 unique(df$class)
 
 
+myb.3 <- 20001
+myb.5 <- 22879
+ran.3 <- 143218
+ran.5 <- 192819
 
 df[grepl("DNA", df$class),]$class <- "DNA"
 df[grepl("LINE", df$class),]$class <- "LINE"
@@ -41,5 +45,12 @@ ggplot(data = df) +
                size = 0.1 ,
                arrow = arrow(length = unit(0.3, "cm"), 
                              ends = ifelse(df$sum.inv == "Straight", "first", "last"), type = "closed")) + 
-  theme_bw()
-
+  theme_bw() + 
+  geom_segment(aes(x = myb.3, xend = myb.5, y = 0, yend = 0), size = 1.5) + 
+  geom_segment(aes(x = ran.3, xend = ran.5, y = 0, yend = 0), size = 1.5) + 
+  geom_hline(yintercept=0) + 
+  geom_text(aes(x = (myb.3+myb.5)/2, y = -10), label = "Myb") + 
+  geom_text(aes(x = (ran.3+ran.5)/2, y = -10), label = "Ranbp16") + 
+  scale_x_continuous(breaks = c(0,50000,100000,150000,200000), labels = c("0kb", "50kb","100kb","150kb","200kb"),name = "Genomic region") + 
+  scale_y_continuous(name = "% of query coverage")
+  
