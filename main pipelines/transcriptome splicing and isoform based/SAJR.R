@@ -1,74 +1,68 @@
-#!/usr/bin/Rscript
-setwd("~/transcriptomes/reads/intron_retention/sod_moto/sajr/")
+library("pheatmap")
+library(devtools)
+library(org.Mm.eg.db)
+library(ggbiplot)
+library(RColorBrewer)
+library(gplots)
+library("GenomicRanges")
 library(SAJR)
-library(edgeR)
-#pdf('output.pdf')
-data = loadSAData(ann.gff='a.gff',c(1,2,3,4))
-data = setSplSiteTypes(data,'a.gff')
-table(data$seg$sites)
-data.f = data[data$seg$type %in% c('ALT','INT') & data$seg$position %in% c('LAST','INTERNAL','FIRST') & apply(data$i+data$e>=10,1,sum)==2 & apply(data$ir,1,sd,na.rm=TRUE) > 0,]
-# split genes into alternatives
-all.alts = makeAlts(data$seg,'a.gff',remove.exn.ext = F)
-par(mfrow=c(4,4))
-plotAllAlts(all.alts,to.plot = 16)
-no.int.ret.alt = filterAlts(all.alts,TRUE)
-plotAllAlts(no.int.ret.alt,to.plot = 16)
-par(mfrow=c(1,1))
-plotAllAlts(all.alts, min.cnt = TRUE)
-alt.summary(all.alts)
+library("genefilter")
+
+ncol.pan <- colorpanel(100, "blue", "white", "red")
+setwd("~/Documents/intron_retention/")
+data <- readRDS("data.rds")
+data.f <- readRDS("data_filtered.rds")
+all.alts <- readRDS("alts.rds")
+
+mod = list(f=factor(c('tg1', 'tg1', 'tg1', 'tg1', 'tg1', 
+                      'tg2', 'tg2', 'tg2', 'tg2', 
+                      'tg3', 'tg3', 'tg3', 'tg3', 'tg3', 
+                      'wt1', 'wt1', 'wt1', 'wt1', 'wt1', 
+                      'wt3', 'wt3', 'wt3', 'wt3', 'wt3')))
+
+n <- c('tg1', 'tg1', 'tg1', 'tg1', 'tg1', 
+       'tg2', 'tg2', 'tg2', 'tg2', 
+       'tg3', 'tg3', 'tg3', 'tg3', 'tg3', 
+       'wt1', 'wt1', 'wt1', 'wt1', 'wt1', 
+       'wt3', 'wt3', 'wt3', 'wt3', 'wt3')
 
 
-mod = list(f=factor(c('control','control','treatment','treatment')))
-data.f.glm = fitSAGLM(data.f,terms(x ~ f),mod,overdisp = F)
-df <- data.frame(data.f)
-# calculate p-value. Since there are no replicates, use binomial distribution
-# newer use 'overdisp = FALSE' in real work.
+
+data.f.glm = fitSAGLM(data.f,terms(x~mod$f), mod, .parallel = TRUE)
+
+
 data.f.pv = calcSAPvalue(data.f.glm)
-data.f.pv[1:10,]
-#plot histogramm of p-values
-hist(data.f.pv[,2])
-data.f.pv[1:10,]
-#make BH correction
 data.f.pv[,2] = p.adjust(data.f.pv[,2],method='BH')
-#choose significant ones:
 data.sign = data.f[data.f.pv[,2] <=0.05,]
-length(data.sign)
-# print top ten (by amplitude)
-data.sign[order(abs(data.sign$ir[,1]-data.sign$ir[,2]),decreasing = TRUE),][1:10,]
+sign.res <- data.sign[order(abs(data.sign$ir[,1]-data.sign$ir[,2]),decreasing = TRUE),]
 
-df <- data.frame(data.sign)
-df <- df[complete.cases(df),]
+##basic statistics things
+
+data_for_analysis <- data
+data <- NULL
+data_for_analysis$ir[is.na(data_for_analysis$ir)] <- 0
+
+p <- prcomp(t(data_for_analysis[rowSums(data_for_analysis$ir)>0,]$ir), center = TRUE)
+ggbiplot(p, var.axes = F, groups = n, ellipse = T) + theme_bw() + ggtitle("Inclusion rate, PCA")
+
+p <- prcomp(t(data_for_analysis[rowSums(data_for_analysis$i)>0,]$i), center = TRUE)
+ggbiplot(p, var.axes = F, groups = n, ellipse = T) + theme_bw() + ggtitle("Introns, PCA")
+
+p <- prcomp(t(data_for_analysis[rowSums(data_for_analysis$e)>0,]$e), center = TRUE)
+ggbiplot(p, var.axes = F, groups = n, ellipse = T) + theme_bw() + ggtitle("Exons, PCA")
 
 
-df$gene<- mapIds(org.Mm.eg.db, 
-                  keys=df$seg.gene_id, 
-                  column="GENENAME", 
-                  keytype="ENSEMBL",
-                  multiVals="first")
+pheatmap(cor(data_for_analysis[rowSums(data_for_analysis$ir)>0,]$ir, method = "pearson"),color = col.pan,main = "Inclusion ratio, Spearman corr.")
+pheatmap(cor(data_for_analysis[rowSums(data_for_analysis$i)>0,]$i, method = "pearson"),color = col.pan,main = "Introns, Spearman corr.")
+pheatmap(cor(data_for_analysis[rowSums(data_for_analysis$e)>0,]$e, method = "pearson"),color = col.pan,main = "Exons, Spearman corr.")
 
-write.csv(df, "results/sign_splice.csv")
+df <- NULL
+df <- data.frame(as.character(colMeans(data_for_analysis$e)))
+df <- as.numeric(as.character(df$mean))
+df$sds <- as.character(apply(data_for_analysis$ir, 2, sd))
+df$gr <- n
+names(df) <- c("mean", "SD", "group")
+df$num <- seq(1:length(n))
+ggplot(data=df) + geom_bar(aes(x = df$num, y = df$mean, fill = df$group), stat = "identity") 
 
-dir.create("alt_splice_png")
-setwd("alt_splice_png")
-for (f in df$seg.gene_id){
-  if(is.na(f)){
-    next
-  }  else {
-    png(paste(f,".png",sep = ""))
-    plotAlt(segs = all.alts[which(all.alts$gene_id == paste(f)),]$segs,
-            all.alts[which(all.alts$gene_id == paste(f)),]$ints,
-            col.exn = "red",
-            col.int = "green",
-            col.alt = "blue",
-            col.junc = "green",
-            main = paste(f,"\n",df[which(df$seg.gene_id == f),]$gene))
-    dev.off()
-  }
-}
-
-# check selfonsistency
-setwd("../results")
-plotCorrHM(data$ir)
-plotMDS(data$ir)
-plotMDS(data$ir[data$seg$sites == 'ad',],pch=rep(c(7,19),each=4),col=rep(c('red','blue'),each=5),main='Cassette exons')
 
