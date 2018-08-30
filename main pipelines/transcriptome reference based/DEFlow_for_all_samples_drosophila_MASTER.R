@@ -74,11 +74,11 @@ param <- SnowParam(workers = 2, type = "SOCK")
   distrib <- TRUE
   ### CONSTANTS BLOCK
   
-  pvalue_cutoff <- 0.001
-  fdr_cutoff <- 0.001
-  logfchigh_cutoff <- 1
-  logfclow_cutoff <- -1
-  cpm_cutoff <- 0
+  pvalue_cutoff <- 0.05
+  fdr_cutoff <- 0.05
+  logfchigh_cutoff <- 0
+  logfclow_cutoff <- 0
+  cpm_cutoff <- -100
   gs_size <- 10
   diseases_set <- 50
   go_terms_set <- 50
@@ -90,10 +90,10 @@ param <- SnowParam(workers = 2, type = "SOCK")
   stattest_number <- 1
   
 
-directory <- '~/counts/Dmel.memory.17.05/'
+directory <- '~/counts/AIKAR.dmel.full/'
 setwd(directory)
-gr_control <- c("cont")
-gr_case <- c("F24")
+gr_control <- c("5MM_LARVAE")
+gr_case <- c("10MM_LARVAE")
 
 ### BUILDING A SPECIFIC DESIGN TABLE
 if (logging == TRUE){
@@ -107,12 +107,11 @@ library(dplyr)
 if (analyze_all_samples == TRUE){
         sampleFiles <- grep('counts',list.files(directory),value=TRUE)
         sampleFiles
-        sampleCondition <- c("F24-new", "F24-new", "F24-new",
-                             "F24-old", "F24-old",
-                             "F5-new", "F5-new", "F5-new", 
-                             "F5-old", "F5-old", 
-                             "K-new", "K-new", "K-new", 
-                             "K-old", "K-old")
+        sampleCondition <- c("10_ADULT", "10_ADULT", "10_LARVAE", "10_LARVAE",
+                             "10_LARVAE", "10_LARVAE", "5_ADULT", "5_ADULT", 
+                             "5_ADULT", "5_LARVAE", "5_LARVAE", "5_LARVAE", 
+                             "C_ADULT", "C_ADULT", "C_ADULT", "C_LARVARE", 
+                             "C_LARVARE", "C_LARVARE")
 
         sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
         col <- as.vector(sampleTable$sampleName)
@@ -201,6 +200,8 @@ if (qlm_test == TRUE){
     
     
   }
+
+
 
 pallete = c("#F46D43", "#66C2A5", "#cd8845", "#3288BD", "#a8bf32", "#5E4FA2", "#D53E4F", "#d6d639", "#8ed384", "#9E0142", "#ebba2f")
 density.cols = colorRampPalette(pallete)(dim(y$counts)[2])
@@ -1553,8 +1554,8 @@ if (analyze_all_samples == TRUE){
 cpm$rowsum <- NULL
 
 
-
-        f <- c("FBgn0001217")
+cpm$rowsum <- NULL
+        f <- c("FBgn0031034")
         r <- grep(paste(f), rownames(cpm), ignore.case = TRUE)
         thm <- cpm[r,]
         rownames(thm) <- thm$Symbol
@@ -1581,7 +1582,14 @@ cpm$rowsum <- NULL
         g <- g + ggtitle(paste("Gene official symbol: ", plot.name, "\n", "Gene name:", plot.description, "\n", "Direct GO term:", plot.term)) + 
               theme(plot.title = element_text(hjust = 0.5))
         g
-        ggsave(filename = paste(plot.name, "png", sep = "."), plot = g, height = 20, width = 20, units = "cm")
+#        ggsave(filename = paste(plot.name, "png", sep = "."), plot = g, height = 20, width = 20, units = "cm")
+
+
+
+        
+        
+mm <- read.xlsx("~/counts/Dmel.memory.17.05/results/cont-F24/Results edgeR.xlsx", sheetIndex = 3)
+intersect(rownames(et_annot), mm$gene_id)
 
 
 
