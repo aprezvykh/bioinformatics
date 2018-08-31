@@ -6,10 +6,19 @@ Academy of Sciences, Moscow.
 Languages: Shell(Linux), R.
 Skills: Reference-based trancsriptome differential expression computing, GSEA, Pathway analysis, De-novo transcriptome assembly & annotation, splicing analysis, eucariotic genome assembly & annotation.
 
-Research Interest Areas: Alzheimer's Disease, Amyotrophyc Lateral Sclerosis, Neurodegeneration, Bioinformatics, Hybrid disgenesis
+Publications:
+
+https://www.ncbi.nlm.nih.gov/pubmed/29982879
+https://www.ncbi.nlm.nih.gov/pubmed/29813067
+https://www.ncbi.nlm.nih.gov/pubmed/29476081
+
+
+Research Interest Areas: Alzheimer's Disease, Amyotrophyc Lateral Sclerosis, Neurodegeneration, Bioinformatics, Hybrid disgenesis in
+Drosophila Virilis
 
 Contact information
 
 aprezvykh@yandex.ru\t
 aprezvykh@eimb.ru\t
 rezvykh.ap@phystech.edu\t
+
