@@ -12,7 +12,7 @@ library(gridExtra)
 library(plotrix)
 
 col.pan <- colorpanel(100, "blue", "white", "red")
-setwd("~/SAJR/")
+setwd("~/Documents/intron_retention/")
 data <- readRDS("data.rds")
 data.f <- readRDS("data_filtered.rds")
 all.alts <- readRDS("alts.rds")
