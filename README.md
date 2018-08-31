@@ -8,7 +8,7 @@ Skills: Reference-based trancsriptome differential expression computing, GSEA, P
 
 Publications:
 
-https://www.ncbi.nlm.nih.gov/pubmed/29982879
+https://www.ncbi.nlm.nih.gov/pubmed/29982879 \n
 https://www.ncbi.nlm.nih.gov/pubmed/29813067
 https://www.ncbi.nlm.nih.gov/pubmed/29476081
 
