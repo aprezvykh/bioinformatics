@@ -12,7 +12,7 @@ library(gridExtra)
 library(plotrix)
 
 col.pan <- colorpanel(100, "blue", "white", "red")
-setwd("~/Documents/intron_retention/")
+setwd("~/SAJR/")
 data <- readRDS("data.rds")
 data.f <- readRDS("data_filtered.rds")
 all.alts <- readRDS("alts.rds")
@@ -23,6 +23,28 @@ data_for_analysis <- data
 data <- NULL
 data_for_analysis$ir[is.na(data_for_analysis$ir)] <- 0
 
+samples <- c(seq(1:24))
+
+transgenity <- c("tg", "tg", "tg", "tg", "tg", 
+                 "tg", "tg", "tg", "tg", 
+                 "tg", "tg", "tg", "tg", "tg", 
+                 "wt", "wt", "wt", "wt", "wt", 
+                 "wt", "wt", "wt", "wt", "wt")
+
+age <- c("60d", "60d", "60d", "60d", "60d", 
+         "90d", "90d", "90d", "90d", 
+         "120d", "120d", "120d", "120d", "120d", 
+         "60d", "60d", "60d", "60d", "60d", 
+         "120d", "120d", "120d", "120d", "120d")
+
+groups <- c('tg1', 'tg1', 'tg1', 'tg1', 'tg1', 
+            'tg2', 'tg2', 'tg2', 'tg2', 
+            'tg3', 'tg3', 'tg3', 'tg3', 'tg3', 
+            'wt1', 'wt1', 'wt1', 'wt1', 'wt1', 
+            'wt3', 'wt3', 'wt3', 'wt3', 'wt3')
+
+
+meta <- list(samples=samples,transgenity=transgenity, age = age, groups = groups)
 
 p <- prcomp(t(data_for_analysis[rowSums(data_for_analysis$ir)>0,]$ir), center = TRUE)
 ggbiplot(p, var.axes = F, groups = n, ellipse = T) + theme_bw() + ggtitle("Inclusion rate, PCA")
@@ -111,28 +133,6 @@ rpkm[is.na(rpkm)] <- 0
 pheatmap(cor(rpkm, method = "pearson"), color = col.pan,main = "Inclusion ratio, Spearman corr.")
 
 ###STATISTICAL TESTS
-samples <- c(seq(1:24))
-
-transgenity <- c("tg", "tg", "tg", "tg", "tg", 
-                 "tg", "tg", "tg", "tg", 
-                 "tg", "tg", "tg", "tg", "tg", 
-                 "wt", "wt", "wt", "wt", "wt", 
-                 "wt", "wt", "wt", "wt", "wt")
-
-age <- c("60d", "60d", "60d", "60d", "60d", 
-         "90d", "90d", "90d", "90d", 
-         "120d", "120d", "120d", "120d", "120d", 
-         "60d", "60d", "60d", "60d", "60d", 
-         "120d", "120d", "120d", "120d", "120d")
-
-groups <- c('tg1', 'tg1', 'tg1', 'tg1', 'tg1', 
-            'tg2', 'tg2', 'tg2', 'tg2', 
-            'tg3', 'tg3', 'tg3', 'tg3', 'tg3', 
-            'wt1', 'wt1', 'wt1', 'wt1', 'wt1', 
-            'wt3', 'wt3', 'wt3', 'wt3', 'wt3')
-
-
-meta <- list(samples=samples,transgenity=transgenity, age = age, groups = groups)
 
 data.f.glm = fitSAGLM(data.f,terms(x~transgenity),meta)
 data.f.pv = calcSAPvalue(data.f.glm)
