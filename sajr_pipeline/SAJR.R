@@ -1,9 +1,9 @@
 #!/usr/bin/Rscript
-setwd("~/transcriptomes/reads/intron_retention/sod_moto/sajr/")
+setwd("~/transcriptomes/reads/intron_retention/tdp43/")
 library(SAJR)
 library(edgeR)
 #pdf('output.pdf')
-data = loadSAData(ann.gff='a.gff',c(1,2,3,4))
+data = loadSAData(ann.gff='a.gff',seq(1:8))
 data = setSplSiteTypes(data,'a.gff')
 table(data$seg$sites)
 data.f = data[data$seg$type %in% c('ALT','INT') & data$seg$position %in% c('LAST','INTERNAL','FIRST') & apply(data$i+data$e>=10,1,sum)==2 & apply(data$ir,1,sd,na.rm=TRUE) > 0,]
@@ -17,20 +17,15 @@ par(mfrow=c(1,1))
 plotAllAlts(all.alts, min.cnt = TRUE)
 alt.summary(all.alts)
 
-
-mod = list(f=factor(c('control','control','treatment','treatment')))
+mod = list(f=factor(c('treatment','treatment','treatment','treatment',
+                      'control','control','control','control')))
 data.f.glm = fitSAGLM(data.f,terms(x ~ f),mod,overdisp = F)
 df <- data.frame(data.f)
-# calculate p-value. Since there are no replicates, use binomial distribution
-# newer use 'overdisp = FALSE' in real work.
 data.f.pv = calcSAPvalue(data.f.glm)
 data.f.pv[1:10,]
-#plot histogramm of p-values
 hist(data.f.pv[,2])
-data.f.pv[1:10,]
-#make BH correction
+
 data.f.pv[,2] = p.adjust(data.f.pv[,2],method='BH')
-#choose significant ones:
 data.sign = data.f[data.f.pv[,2] <=0.05,]
 length(data.sign)
 # print top ten (by amplitude)
@@ -52,6 +47,7 @@ dir.create("alt_splice_png")
 setwd("alt_splice_png")
 for (f in df$seg.gene_id){
   if(is.na(f)){
+    print("Cannot draw this alt!")
     next
   }  else {
     png(paste(f,".png",sep = ""))
@@ -66,9 +62,7 @@ for (f in df$seg.gene_id){
   }
 }
 
-# check selfonsistency
-setwd("../results")
 plotCorrHM(data$ir)
-plotMDS(data$ir)
+plotMDS(data$e)
 plotMDS(data$ir[data$seg$sites == 'ad',],pch=rep(c(7,19),each=4),col=rep(c('red','blue'),each=5),main='Cassette exons')
 
