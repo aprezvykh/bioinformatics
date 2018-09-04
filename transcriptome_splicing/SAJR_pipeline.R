@@ -14,13 +14,25 @@ library(GO.db)
 
 col.pan <- colorpanel(100, "blue", "white", "red")
 setwd("~/Documents/intron_retention/")
-data <- readRDS("data.rds")
-data.f <- readRDS("data_filtered.rds")
-all.alts <- readRDS("alts.rds")
-gdata <- readRDS("gdata.rds")
+#data <- readRDS("data.rds")
+#data.f <- readRDS("data_filtered.rds")
+#all.alts <- readRDS("alts.rds")
+#gdata <- readRDS("gdata.rds")
 
 
-#ref <- read.csv("mazin_ref.csv")
+
+###READ 
+
+data = loadSAData(ann.gff='sajr.gff3',seq(1:24))
+data = setSplSiteTypes(data,'sajr.gff3')
+data.f = data[data$seg$type %in% c('ALT','INT') & data$seg$position %in% c('LAST','INTERNAL','FIRST') & apply(data$i+data$e>=10,1,sum)==2 & apply(data$ir,1,sd,na.rm=TRUE) > 0,]
+all.alts = makeAlts(data$seg,'sajr.gff3',remove.exn.ext = F)
+gdata <- loadGData(ann.gff='sajr.gff3',seq(1:24))
+
+saveRDS(data,"sajr_hs2/data.rds")
+saveRDS(data.f,"sajr_hs2/data_filtered.rds")
+saveRDS(all.alts,"sajr_hs2/alts.rds")
+saveRDS(gdata,"sajr_hs2/gdata.rds")
 
 plot_ir <- function(gene,gr){
   sub <- data.f$ir[which(rownames(data.f$ir) == gene),]
@@ -263,7 +275,7 @@ lines(lowess(data.f$seg$age.adj~data.f$seg$age,f = .09), col = "red")
 
 make.stattest.and.annotate(sajr.obj = data.f,
               matrix = meta,
-              stattest.id = "transgenity:age",
+              stattest.id = "transgenity",
               control.id = "wt",
               case.id = "tg",
               psi.cutoff = 0.2,
