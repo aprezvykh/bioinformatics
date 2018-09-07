@@ -19,13 +19,13 @@ tg1tg2 <- read.delim("tg2vstg1.alldiff.txt")
 tg2tg3 <- read.delim("tg3vstg2.alldiff.txt")
 wt1tg1 <- read.delim("tg1vswt1.alldiff.txt")
 wt1wt3 <- read.delim("wt3vswt1.alldiff.txt")
-
+sod_moto <- read.delim("tgvswt.alldiff.txt")
 
 tg1tg2$st <- c("tg1tg2")
 tg2tg3$st <- c("tg2tg3")
 wt1tg1$st <- c("wt1tg1")
 wt1wt3$st <- c("wt1wt3")
-
+sod_moto$st <- c("sod")
 
 reftg1tg2 <- read.xlsx("~/counts/ALS Mice/experimental/results/final results/Tg-1-Tg-2/Results edgeR.xlsx", sheetIndex = 3)
 reftg2tg3 <- read.xlsx("~/counts/ALS Mice/experimental/results/final results/Tg-2-Tg-3/Results edgeR-1.xlsx", sheetIndex = 3)
@@ -42,9 +42,9 @@ moto <- read.csv("~/counts/ALS Mice/motoneuron genes.csv")
 
 names(glia) <- c("n", "gene")
 names(moto) <- c("n", "gene")
-
 glia$tissue <- c("glia")
 moto$tissue <- c("moto")
+
 
 glia$name <- mapIds(org.Mm.eg.db, 
                         keys=as.character(glia$gene), 
@@ -60,7 +60,7 @@ moto$name <- mapIds(org.Mm.eg.db,
 
 
 
-comm <- bind_rows(tg1tg2, tg2tg3, wt1tg1, wt1wt3)
+comm <- bind_rows(tg1tg2, tg2tg3, wt1tg1, wt1wt3,sod_moto)
 exp <- bind_rows(reftg1tg2, reftg2tg3, refwt1tg1, refwt1wt3)
 
 
@@ -100,14 +100,35 @@ ggplot(data=comm, aes(x = delta_PSI, y = -log10(FDR))) +
 microexons.moto.genes <- intersect(comm[which(comm$micro == "micro" & comm$SplicingType == "Cassette"),]$AccID, moto$name)
 microexons.moto.genes
 
+comm$SplicingType
 
-g1 <- ggplot(data=comm[comm$micro == "micro" & comm$SplicingType == "Cassette",]) + geom_boxplot(aes(x = st, y = delta_PSI, fill = st)) + theme_bw() + ggtitle("Microexons only > 27 n.t")
-g2 <- ggplot(data=comm) + geom_boxplot(aes(x = st, y = delta_PSI, fill = st)) + theme_bw() + ggtitle("All splicing events, p < 0.05")
-g3 <- ggplot(data=comm[comm$SplicingType == "Cassette",]) + geom_boxplot(aes(x = st, y = delta_PSI, fill = st)) + theme_bw() + ggtitle("Cassete exons")
-g4 <- ggplot(data=comm[comm$SplicingType == "IR",]) + geom_boxplot(aes(x = st, y = delta_PSI, fill = st)) + theme_bw() + ggtitle("Retained introns")
+g1 <- ggplot(data=comm[comm$micro == "micro" & comm$SplicingType == "Cassette",]) + 
+  geom_boxplot(aes(x = st, y = delta_PSI, fill = st)) + 
+  theme_bw() + 
+  ggtitle("Cassette microexons only > 27 n.t") + 
+  geom_point(aes(x = st, y = delta_PSI, fill = st), position=position_jitterdodge())
+
+g2 <- ggplot(data=comm) + 
+  geom_boxplot(aes(x = st, y = delta_PSI, fill = st)) + theme_bw() + 
+  ggtitle("All splicing events, p < 0.05") +
+  geom_point(aes(x = st, y = delta_PSI, fill = st), position=position_jitterdodge())
+
+g3 <- ggplot(data=comm[comm$SplicingType == "Cassette",]) + 
+  geom_boxplot(aes(x = st, y = delta_PSI, fill = st)) + 
+  theme_bw() + 
+  ggtitle("Cassete exons") +
+  geom_point(aes(x = st, y = delta_PSI, fill = st), position=position_jitterdodge())
+g4 <- ggplot(data=comm[comm$SplicingType == "IR",]) + 
+  geom_boxplot(aes(x = st, y = delta_PSI, fill = st)) + 
+  theme_bw() + 
+  ggtitle("Retained introns") + 
+  geom_point(aes(x = st, y = delta_PSI, fill = st), position=position_jitterdodge())
 
 grid.arrange(g1,g2,g3,g4)
 
+unique(comm$st)
+intersect(comm[comm$st == "sod",]$AccID, comm[comm$st == "wt1tg1",]$AccID)
 
-
-
+df <- data.frame(table(t(comm$AccID)))
+df <- df[order(df$Freq, decreasing = T),]
+head(df)
