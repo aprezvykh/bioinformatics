@@ -14,7 +14,7 @@ library(xlsx)
 library(dplyr)
 library(ggrepel)
 ###commonize
-setwd("~/SAJR/cash/")
+setwd("~/transcriptomes/reads/intron_retention/fus/cash/")
 tg1tg2 <- read.delim("tg2vstg1.alldiff.txt")
 tg2tg3 <- read.delim("tg3vstg2.alldiff.txt")
 wt1tg1 <- read.delim("tg1vswt1.alldiff.txt")
@@ -25,12 +25,14 @@ tg1tg2$st <- c("tg1tg2")
 tg2tg3$st <- c("tg2tg3")
 wt1tg1$st <- c("wt1tg1")
 wt1wt3$st <- c("wt1wt3")
+sod <- read.delim("~/transcriptomes/reads/intron_retention/sod_moto/cash/tgvswt.alldiff.txt")
 
 
 reftg1tg2 <- read.xlsx("~/counts/ALS Mice/experimental/results/final results/Tg-1-Tg-2/Results edgeR.xlsx", sheetIndex = 3)
 reftg2tg3 <- read.xlsx("~/counts/ALS Mice/experimental/results/final results/Tg-2-Tg-3/Results edgeR-1.xlsx", sheetIndex = 3)
 refwt1tg1 <- read.xlsx("~/counts/ALS Mice/experimental/results/final results/Control-1-Tg-1/Results edgeR.xlsx", sheetIndex = 3)
 refwt1wt3 <- read.xlsx("~/counts/ALS Mice/experimental/results/final results/Control-1-Control-3/Results edgeR.xlsx", sheetIndex = 3)
+
 
 reftg1tg2$st <- c("tg1tg2")
 reftg2tg3$st <- c("tg2tg3")
@@ -86,6 +88,9 @@ comm <- parse_coords(comm)
 comm$micro <- ifelse(comm$div < 27, "micro", "normal")
 comm <- comm[,!grepl("^[tg]*[wt]", names(comm))]
 
+sod <- cutoff_sign(sod)
+
+
 pdf("Report.pdf", family = "Helvetica")
 ggplot(data=comm) + geom_boxplot(aes(x = st, y = delta_PSI, fill = SplicingType)) + theme_bw() + ggtitle("All events, p < 0.05")
 ggplot(data=comm[comm$micro == "micro",]) + geom_boxplot(aes(x = st, y = delta_PSI, fill = SplicingType)) + theme_bw() + ggtitle("Micro events, p < 0.05")
@@ -111,3 +116,4 @@ grid.arrange(g1,g2,g3,g4)
 
 
 
+intersect(sod$AccID, comm$AccID[which(comm$st == "wt1wt3")])
