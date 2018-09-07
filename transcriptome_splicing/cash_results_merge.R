@@ -109,41 +109,29 @@ ggplot(data=comm, aes(x = delta_PSI, y = -log10(FDR))) +
 microexons.moto.genes <- intersect(comm[which(comm$micro == "micro" & comm$SplicingType == "Cassette"),]$AccID, moto$name)
 microexons.moto.genes
 
-comm$SplicingType
 
 g1 <- ggplot(data=comm[comm$micro == "micro" & comm$SplicingType == "Cassette",]) + 
   geom_boxplot(aes(x = st, y = delta_PSI, fill = st)) + 
   theme_bw() + 
   ggtitle("Cassette microexons only > 27 n.t") + 
-  geom_point(aes(x = st, y = delta_PSI, fill = st), position=position_jitterdodge())
-
+  geom_point(aes(x = st, y = delta_PSI, fill = st, alpha = FDR), position=position_jitterdodge())
 g2 <- ggplot(data=comm) + 
   geom_boxplot(aes(x = st, y = delta_PSI, fill = st)) + theme_bw() + 
   ggtitle("All splicing events, p < 0.05") +
-  geom_point(aes(x = st, y = delta_PSI, fill = st), position=position_jitterdodge())
+  geom_point(aes(x = st, y = delta_PSI, fill = st, alpha = FDR), position=position_jitterdodge())
 
 g3 <- ggplot(data=comm[comm$SplicingType == "Cassette",]) + 
   geom_boxplot(aes(x = st, y = delta_PSI, fill = st)) + 
   theme_bw() + 
   ggtitle("Cassete exons") +
-  geom_point(aes(x = st, y = delta_PSI, fill = st), position=position_jitterdodge())
+  geom_point(aes(x = st, y = delta_PSI, fill = st, alpha = FDR), position=position_jitterdodge())
 g4 <- ggplot(data=comm[comm$SplicingType == "IR",]) + 
   geom_boxplot(aes(x = st, y = delta_PSI, fill = st)) + 
   theme_bw() + 
   ggtitle("Retained introns") + 
-  geom_point(aes(x = st, y = delta_PSI, fill = st), position=position_jitterdodge())
+  geom_point(aes(x = st, y = delta_PSI, fill = st, alpha = FDR), position=position_jitterdodge())
+
 
 grid.arrange(g1,g2,g3,g4)
 
-unique(comm$st)
-intersect(comm[comm$st == "sod",]$AccID, comm[comm$st == "wt1tg1",]$AccID)
 
-<<<<<<< HEAD
-df <- data.frame(table(t(comm$AccID)))
-df <- df[order(df$Freq, decreasing = T),]
-head(df)
-=======
-
-
-intersect(sod$AccID, comm$AccID[which(comm$st == "wt1wt3")])
->>>>>>> 0706f7bbb7ba2a123cb64faab41352831ec425c4
