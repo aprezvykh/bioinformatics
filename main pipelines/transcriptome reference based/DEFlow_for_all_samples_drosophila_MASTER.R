@@ -61,7 +61,7 @@ param <- SnowParam(workers = 2, type = "SOCK")
 
   heatmaps <- TRUE
   custom_genes_plots <- FALSE
-  analyze_all_samples <- FALSE
+  analyze_all_samples <- TRUE
   disease_association <- FALSE
   kegg_plots <- TRUE
   panther_analysis <- TRUE
@@ -90,7 +90,7 @@ param <- SnowParam(workers = 2, type = "SOCK")
   stattest_number <- 1
   
 
-directory <- '~/counts/AIKAR.dmel.full/'
+directory <- '~/counts/dr_multimap/'
 setwd(directory)
 gr_control <- c("5MM_LARVAE")
 gr_case <- c("10MM_LARVAE")
@@ -107,11 +107,10 @@ library(dplyr)
 if (analyze_all_samples == TRUE){
         sampleFiles <- grep('counts',list.files(directory),value=TRUE)
         sampleFiles
-        sampleCondition <- c("10_ADULT", "10_ADULT", "10_LARVAE", "10_LARVAE",
-                             "10_LARVAE", "10_LARVAE", "5_ADULT", "5_ADULT", 
-                             "5_ADULT", "5_LARVAE", "5_LARVAE", "5_LARVAE", 
-                             "C_ADULT", "C_ADULT", "C_ADULT", "C_LARVARE", 
-                             "C_LARVARE", "C_LARVARE")
+        sampleCondition <- c('K','K',
+                             'N','N',
+                             'F','F',
+                             'M','M')
 
         sampleTable<-data.frame(sampleName=sampleFiles, fileName=sampleFiles, condition=sampleCondition)
         col <- as.vector(sampleTable$sampleName)
@@ -1592,4 +1591,8 @@ mm <- read.xlsx("~/counts/Dmel.memory.17.05/results/cont-F24/Results edgeR.xlsx"
 intersect(rownames(et_annot), mm$gene_id)
 
 
-
+g <- grep("Hsp", cpm$Symbol)
+sub <- cpm[g,]
+write.xlsx(sub,"HSP_genes.xlsx",sheetName = "expression of HSP")
+sub_hm <- sub[,1:8]
+pheatmap(sub_hm)
