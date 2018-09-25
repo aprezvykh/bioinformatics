@@ -13,26 +13,31 @@ library(plotrix)
 library(GO.db)
 
 col.pan <- colorpanel(100, "blue", "white", "red")
-setwd("~/Documents/intron_retention/")
-#data <- readRDS("data.rds")
-#data.f <- readRDS("data_filtered.rds")
-#all.alts <- readRDS("alts.rds")
-#gdata <- readRDS("gdata.rds")
+setwd("~/transcriptomes/reads/intron_retention/merge/sajr_hs2/")
+data <- readRDS("data.rds")
+data.f <- readRDS("data_filtered.rds")
+all.alts <- readRDS("alts.rds")
+gdata <- readRDS("gdata.rds")
 
+spliced <- read.csv("~/transcriptomes/reads/intron_retention/fus/cash/all_significant_events.csv")
 
+spliced$ens <- mapIds(org.Mm.eg.db, 
+                    keys=as.character(spliced$AccID), 
+                    column="ENSEMBL", 
+                    keytype="SYMBOL",
+                    multiVals="first")
 
 ###READ 
+#data = loadSAData(ann.gff='sajr.gff3',seq(1:36))
+#data = setSplSiteTypes(data,'sajr.gff3')
+#data.f = data[data$seg$type %in% c('ALT','INT') & data$seg$position %in% c('LAST','INTERNAL','FIRST') & apply(data$i+data$e>=10,1,sum)==2 & apply(data$ir,1,sd,na.rm=TRUE) > 0,]
+#all.alts = makeAlts(data$seg,'sajr.gff3',remove.exn.ext = F)
+#gdata <- loadGData(ann.gff='sajr.gff3',seq(1:36))
 
-data = loadSAData(ann.gff='sajr.gff3',seq(1:24))
-data = setSplSiteTypes(data,'sajr.gff3')
-data.f = data[data$seg$type %in% c('ALT','INT') & data$seg$position %in% c('LAST','INTERNAL','FIRST') & apply(data$i+data$e>=10,1,sum)==2 & apply(data$ir,1,sd,na.rm=TRUE) > 0,]
-all.alts = makeAlts(data$seg,'sajr.gff3',remove.exn.ext = F)
-gdata <- loadGData(ann.gff='sajr.gff3',seq(1:24))
-
-saveRDS(data,"sajr_hs2/data.rds")
-saveRDS(data.f,"sajr_hs2/data_filtered.rds")
-saveRDS(all.alts,"sajr_hs2/alts.rds")
-saveRDS(gdata,"sajr_hs2/gdata.rds")
+#saveRDS(data,"sajr_hs2/data.rds")
+#saveRDS(data.f,"sajr_hs2/data_filtered.rds")
+#saveRDS(all.alts,"sajr_hs2/alts.rds")
+#saveRDS(gdata,"sajr_hs2/gdata.rds")
 
 plot_ir <- function(gene,gr){
   sub <- data.f$ir[which(rownames(data.f$ir) == gene),]
@@ -190,38 +195,56 @@ data.f$seg$sites <- sub("ad","cassete_exon",data.f$seg$sites)
 data.f$seg$sites <- sub("aa","alternative_acceptor",data.f$seg$sites)
 data.f$seg$sites <- sub("dd","alternative_donor",data.f$seg$sites)
 data.f$seg$sites <- sub("da","retainted_intron",data.f$seg$sites)
-View(data.f$seg)
-###COMMON CORALLATION AND STUFF
-samples <- seq(1:24)
 
-transgenity <- c("tg", "tg", "tg", "tg", "tg", 
+###COMMON CORALLATION AND STUFF
+samples <- seq(1:36)
+
+groups <- c("tdp-wt","tdp-wt","tdp-wt","tdp-wt",
+          "tdp-tg", "tdp-tg", "tdp-tg", "tdp-tg", 
+          "sod-wt", "sod-wt", "sod-tg", "sod-tg",
+          "tg1", "tg1", "tg1", "tg1", "tg1", 
+          "tg2", "tg2", "tg2", "tg2", 
+          "tg3", "tg3", "tg3", "tg3", "tg3", 
+          "wt1", "wt1", "wt1", "wt1", "wt1", 
+          "wt3", "wt3", "wt3", "wt3", "wt3")
+
+tissue <- c("cortex", "cortex", "cortex", "cortex", 
+            "cortex", "cortex", "cortex", "cortex", 
+            "motoneurons", "motoneurons", 
+            "motoneurons", "motoneurons", 
+            "spinal", "spinal", "spinal", "spinal", "spinal", 
+            "spinal", "spinal", "spinal", "spinal", 
+            "spinal", "spinal", "spinal", "spinal", "spinal", 
+            "spinal", "spinal", "spinal", "spinal", "spinal", 
+            "spinal", "spinal", "spinal", "spinal", "spinal")
+
+model <- c("tdp", "tdp", "tdp", "tdp", 
+           "tdp", "tdp", "tdp", "tdp", 
+           "sod", "sod", "sod", "sod", 
+           "fus", "fus", "fus", "fus", "fus", 
+           "fus", "fus", "fus", "fus", 
+           "fus", "fus", "fus", "fus", "fus", 
+           "fus", "fus", "fus", "fus", "fus")
+
+transgenity <- c("wt", "wt", "wt", "wt", 
+                 "tg", "tg", "tg", "tg", 
+                 "wt", "wt", "tg", "tg", 
+                 "tg", "tg", "tg", "tg", "tg", 
                  "tg", "tg", "tg", "tg", 
                  "tg", "tg", "tg", "tg", "tg", 
                  "wt", "wt", "wt", "wt", "wt", 
                  "wt", "wt", "wt", "wt", "wt")
 
-age <- c("60d", "60d", "60d", "60d", "60d", 
-         "90d", "90d", "90d", "90d", 
-         "120d", "120d", "120d", "120d", "120d", 
-         "60d", "60d", "60d", "60d", "60d", 
-         "120d", "120d", "120d", "120d", "120d")
-
-groups <- c('tg1', 'tg1', 'tg1', 'tg1', 'tg1', 
-            'tg2', 'tg2', 'tg2', 'tg2', 
-            'tg3', 'tg3', 'tg3', 'tg3', 'tg3', 
-            'wt1', 'wt1', 'wt1', 'wt1', 'wt1', 
-            'wt3', 'wt3', 'wt3', 'wt3', 'wt3')
+meta <- list(samples = samples, groups = groups, tissue = tissue,
+             model = model, transgenity = transgenity)
 
 
-meta <- list(samples=samples,transgenity=transgenity, age = age, groups = groups)
-
-n <- meta$groups
 data.f$ir[is.na(data.f$ir)] <- 0
 p <- prcomp(t(data.f[rowSums(data.f$ir)>0,]$ir), center = TRUE)
-ggbiplot(p, var.axes = F, groups = meta$groups, ellipse = T) + theme_bw() + ggtitle("Inclusion rate, PCA")
+ggbiplot(p, var.axes = F, groups = meta$tissue, ellipse = T) + theme_bw() + ggtitle("Inclusion rate, PCA")
 
 p <- prcomp(t(data.f[rowSums(data.f$i)>0,]$i), center = TRUE)
-ggbiplot(p, var.axes = F, groups = n, ellipse = T) + theme_bw() + ggtitle("Inclusion reads, PCA")
+ggbiplot(p, var.axes = F, groups = , ellipse = T) + theme_bw() + ggtitle("Inclusion reads, PCA")
 
 p <- prcomp(t(data.f[rowSums(data.f$e)>0,]$e), center = TRUE)
 ggbiplot(p, var.axes = F, groups = n, ellipse = T) + theme_bw() + ggtitle("Exclusion reads, PCA")
@@ -232,45 +255,43 @@ pheatmap(cor(data.f[rowSums(data.f$i)>0,]$i, method = "pearson"),color = col.pan
 pheatmap(cor(data.f[rowSums(data.f$e)>0,]$e, method = "pearson"),color = col.pan,main = "Exclusion reads, Spearman corr.")
 
 df <- data.frame(colMeans(data.f$i), colMeans(data.f$e))
-df$gr <- n
+df$gr <- meta$groups
 names(df) <- c("i", "e", "groups")
 ggplot(data=df) + geom_point(aes(x = i, y = e, fill = groups, color = groups)) + theme_bw()
 
 ###Counts
-p <- prcomp(t(gdata$cnts), center = TRUE)
-ggbiplot(p, var.axes = F, groups = n, ellipse = T) + theme_bw() + ggtitle("Counts, PCA")
-pheatmap(cor(gdata$cnts[rowSds(gdata$cnts)>1,], method = "pearson"), color = col.pan,main = "Inclusion ratio, Spearman corr.")
-
 rpkm <- calcRPKM(data,gdata,F)
-nrow(rpkm$rpkm)
 rpkm <- rpkm[rowSums(rpkm$rpkm)>0,]$rpkm
 rpkm[is.na(rpkm)] <- 0
 pheatmap(cor(rpkm, method = "pearson"), color = col.pan,main = "Inclusion ratio, Spearman corr.")
 
-###STATISTICAL TESTS
 
+rpkm_sub <- rpkm[order(rowSds(rpkm), decreasing = T),][1:100,]
+colnames(rpkm_sub) <- meta$tissue
+fh <- t(scale(t(rpkm_sub)))
+pheatmap(fh, col = col.pan,show_rownames = F)
+
+
+
+###GLM
 glm.function <- terms(x ~ transgenity*age)
 data.f.glm = fitSAGLM(data.f,glm.function,meta)
 data.f.pv = calcSAPvalue(data.f.glm)
-
 data.f$seg <- cbind(data.f.pv, data.f$seg)
-View(data.f$seg)
 
 ###pvalue.adjustment
 data.f$seg$transgenity.adj <- p.adjust(data.f$seg$transgenity, method = "BH")
 data.f$seg$age.adj <- p.adjust(data.f$seg$age, method = "BH")
 data.f$seg$`transgenity:age.adj` <- p.adjust(data.f$seg$`transgenity:age`, method = "BH")
-
-
 rn <- rownames(data.frame(data.f[which(data.f$seg$age.adj < 0.05),]))
 
 #pval adjusted plots
 
-plot(data.f$seg$transgenity,data.f$seg$transgenity.adj,xlab = "raw",ylab = "adjusted,BH",pch = ".")
-lines(lowess(data.f$seg$transgenity.adj~data.f$seg$transgenity,f = .09), col = "red")
+#plot(data.f$seg$transgenity,data.f$seg$transgenity.adj,xlab = "raw",ylab = "adjusted,BH",pch = ".")
+#lines(lowess(data.f$seg$transgenity.adj~data.f$seg$transgenity,f = .09), col = "red")
 
-plot(data.f$seg$age,data.f$seg$age.adj,xlab = "raw",ylab = "adjusted,BH",pch = ".")
-lines(lowess(data.f$seg$age.adj~data.f$seg$age,f = .09), col = "red")
+#plot(data.f$seg$age,data.f$seg$age.adj,xlab = "raw",ylab = "adjusted,BH",pch = ".")
+#lines(lowess(data.f$seg$age.adj~data.f$seg$age,f = .09), col = "red")
 
 
 make.stattest.and.annotate(sajr.obj = data.f,
@@ -282,6 +303,30 @@ make.stattest.and.annotate(sajr.obj = data.f,
               pval.cutoff = 0.05)
 
 
-get_corr_per_group(data,gdata,meta$transgenity)
-plot_ir("ENSMUSG00000024766.s10", meta$groups)
+get_corr_per_group(data,gdata,meta$groups)
+plot_ir("ENSMUSG00000036721.s2", meta$tissue)
+plot_boxplots(data.f, meta$model)
+
 View(data.f$seg)
+
+###FISHER STATTEST
+cnt <- meta$samples[grep("tg1",meta$groups)]
+case <- meta$samples[grep("tg2",meta$groups)]
+samples <- cnt
+samples <- append(case,samples)
+
+tt.data <- data.f
+tt.data$ir <- data.f$ir[,samples]
+tt.data$i <- data.f$i[,samples]
+tt.data$e <- data.f$e[,samples]
+
+
+dpsi <- data.frame(rowMeans(data.f$ir[,cnt])-rowMeans(data.f$ir[,case]))
+disp.cnt <- rowSds(data.f$ir[,cnt ])
+
+#mod = list(f=factor(c(meta$groups[samples])))
+#glm = fitSAGLM(tt.data,terms(x ~ f),mod)
+#data.f.pv = calcSAPvalue(glm,overdisp = T)
+#data.f.pv[,2] <- p.adjust(data.f.pv[,2], method = "BH")
+
+

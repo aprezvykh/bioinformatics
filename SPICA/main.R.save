@@ -1,0 +1,51 @@
+library(ballgown)
+library(DEXSeq)
+library(SAJR)
+library(gplots)
+col.pan <- colorpanel(100, "blue", "white", "red")
+setwd("~/transcriptomes/SPICA/")
+
+data <- readRDS("data/all_merged_data.rds")
+
+gene <- "Ltbp4"
+ens_id <- unique(data$cash[grep(paste("\\b", gene, "\\b", sep = ""), data$cash$AccID),]$ens)
+
+hts_expr <- data$htseq$counts[grep(ens_id, rownames(data$htseq$counts)),]
+sajr_expr <- data$sajr.expr$cnts[grep(ens_id, rownames(data$sajr.expr$cnts)),]
+sajr_ir <- data$sajr.rawdata$ir[grep(ens_id, rownames(data$sajr.rawdata$ir)),]
+
+g <- data$ballgownres$res.trans[grep(paste("\\b", gene, "\\b", sep = ""),data$ballgownres$res.trans$geneNames),]$id
+exons_expr <- data$ballgownres$exons[g,]
+introns_expr <- data$ballgownres$introns[g,]
+
+dexseq_exon <- data$dexseq_exon_fc[grep(ens_id, rownames(data$dexseq_exon_fc)),]
+dexseq_introns_only <- data$dexseq_intron_fc[grep("i", rownames(data$dexseq_intron_fc)),]
+dexseq_intron <- dexseq_introns_only[grep(ens_id, rownames(dexseq_introns_only)),]
+
+
+###dexseq_sub part
+dx_sub_e = data$dexseq_exon[geneIDs(data$dexseq_exon) %in% ens_id,]
+dx_sub_i = data$dexseq_introm[geneIDs(data$dexseq_introm) %in% ens_id,]
+
+dx_sub_e <- estimateSizeFactors(dx_sub_e)
+dx_sub_e <- estimateDispersions(dx_sub_e)
+
+formulaFullModel = ~ files + transgenity + transgenity:exon + files:exon
+formulaReducedModel = ~ files + exon
+
+dx_sub_e = testForDEU(dx_sub_e,
+                 fullModel = formulaFullModel,
+                 reducedModel = formulaReducedModel)
+
+dx_sub_e = estimateExonFoldChanges(dx_sub_e,fitExpToVar="transgenity")
+dxr_e = DEXSeqResults(dx_sub_e)
+gene_transcripts <- unique(unlist(dxr_e$transcripts, recursive = T))
+
+
+
+
+
+
+
+
+

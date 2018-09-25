@@ -3,7 +3,7 @@ library("dplyr")
 library("limma") 
 library("org.Dm.eg.db") 
 library(KEGG.db) 
-dir <- "~/transcriptomes/reads/intron_retention/fus/ballgown/" 
+dir <- "~/transcriptomes/reads/intron_retention/merge/ballgown/" 
 setwd(dir) 
 
 topSplice <- function(fit, coef=ncol(fit), test="simes", number=10L, FDR=1, sort.by="p"){
@@ -379,34 +379,52 @@ PlotTranscripts.mod <- function (gene, gown, samples = NULL, colorby = "transcri
 
 samples <- list.files(dir)
 
-all <- rep("all", 24)
+groups <- c("tdp-wt","tdp-wt","tdp-wt","tdp-wt",
+            "tdp-tg", "tdp-tg", "tdp-tg", "tdp-tg", 
+            "sod-wt", "sod-wt", "sod-tg", "sod-tg",
+            "tg1", "tg1", "tg1", "tg1", "tg1", 
+            "tg2", "tg2", "tg2", "tg2", 
+            "tg3", "tg3", "tg3", "tg3", "tg3", 
+            "wt1", "wt1", "wt1", "wt1", "wt1", 
+            "wt3", "wt3", "wt3", "wt3", "wt3")
 
-transgenity <- c("tg", "tg", "tg", "tg", "tg", 
+tissue <- c("cortex", "cortex", "cortex", "cortex", 
+            "cortex", "cortex", "cortex", "cortex", 
+            "motoneurons", "motoneurons", 
+            "motoneurons", "motoneurons", 
+            "spinal", "spinal", "spinal", "spinal", "spinal", 
+            "spinal", "spinal", "spinal", "spinal", 
+            "spinal", "spinal", "spinal", "spinal", "spinal", 
+            "spinal", "spinal", "spinal", "spinal", "spinal", 
+            "spinal", "spinal", "spinal", "spinal", "spinal")
+
+model <- c("tdp", "tdp", "tdp", "tdp", 
+           "tdp", "tdp", "tdp", "tdp", 
+           "sod", "sod", "sod", "sod", 
+           "fus", "fus", "fus", "fus", "fus", 
+           "fus", "fus", "fus", "fus", 
+           "fus", "fus", "fus", "fus", "fus", 
+           "fus", "fus", "fus", "fus", "fus",
+           "fus", "fus", "fus", "fus", "fus")
+
+transgenity <- c("wt", "wt", "wt", "wt", 
+                 "tg", "tg", "tg", "tg", 
+                 "wt", "wt", "tg", "tg", 
+                 "tg", "tg", "tg", "tg", "tg", 
                  "tg", "tg", "tg", "tg", 
                  "tg", "tg", "tg", "tg", "tg", 
                  "wt", "wt", "wt", "wt", "wt", 
                  "wt", "wt", "wt", "wt", "wt")
 
-age <- c("60d", "60d", "60d", "60d", "60d", 
-         "90d", "90d", "90d", "90d", 
-         "120d", "120d", "120d", "120d", "120d", 
-         "60d", "60d", "60d", "60d", "60d", 
-         "120d", "120d", "120d", "120d", "120d")
-
-groups <- c('tg1', 'tg1', 'tg1', 'tg1', 'tg1', 
-            'tg2', 'tg2', 'tg2', 'tg2', 
-            'tg3', 'tg3', 'tg3', 'tg3', 'tg3', 
-            'wt1', 'wt1', 'wt1', 'wt1', 'wt1', 
-            'wt3', 'wt3', 'wt3', 'wt3', 'wt3')
-
-
-meta <- list(samples=samples,transgenity=transgenity, age = age, groups = groups, all = all)
-
-meta <- as.data.frame(meta)
+meta <- data.frame(samples = samples, groups = groups, tissue = tissue,
+             model = model, transgenity = transgenity)
 
 data <- ballgown(dataDir = dir, samplePattern = "s", pData = meta,samples = list.files(dir)) 
 
+#saveRDS(data, "~/transcriptomes/SPICA/data/ballgown/data.rds")
+
 results_transcripts = stattest(data, feature="transcript", getFC=TRUE, meas="FPKM", covariate = "transgenity") 
+
 results_genes = stattest(data, feature="gene", getFC=TRUE, meas="FPKM", covariate = "transgenity") 
 
 results_transcripts = data.frame(geneNames=ballgown::geneNames(data), 
@@ -416,6 +434,7 @@ indices <- match(results_genes$id, texpr(data, 'all')$gene_id)
 gene_names_for_result <- texpr(data, 'all')$gene_name[indices] 
 results_genes <- data.frame(geneNames=gene_names_for_result, results_genes) 
 
+
 fpkm <- texpr(data, meas = "FPKM") 
 exons <- eexpr(data, meas = "rcount") 
 introns <- iexpr(data, meas = "rcount")
@@ -424,8 +443,11 @@ transcript_id_by_exon = indexes(data)$e2t$t_id[match(unique(indexes(data)$e2t$e_
 transcript_id_by_gene = indexes(data)$t2g$t_id #transcript/gene mapping 
 geneID = indexes(data)$t2g$g_id[match(transcript_id_by_exon, transcript_id_by_gene)] 
 
+
 pheatmap(cor(introns[rowSums(introns)>0,]))
 pheatmap(cor(exons[rowSums(exons)>0,]))
+pheatmap(cor(fpkm[rowSums(fpkm)>0,]))
+
 
 
 design <- model.matrix(~meta$groups) 
@@ -437,12 +459,16 @@ head(ts)
 plotSplice(fit,FDR = 0.05,coef = ncol(fit$design),geneid = geneID,genecolname = 1)
 
 
+pdf("SAS.pdf")
+grep_and_plot_fpkm("Hnrnph1", "groups")
+dev.off()
 
-
-grep_and_plot_fpkm("Hnrnph1", "transgenity")
 grep_and_plot_transcripts("Hnrnph1",15,FALSE)
 dev.off()
-pheatmap(get_gene_transcripts("Hnrnph1"))
+
+pheatmap(get_gene_transcripts("Tuba4a"))
+
+
 plot_fpkm(54735, meta$groups)
 plot_introns(1483, meta$groups)
 i <- get_gene_transcripts("Rpl35a")[,0]
@@ -458,3 +484,12 @@ ggbiplot(p, groups = meta$groups, var.axes = F,ellipse = T) + theme_bw() + ggtit
 
 p <- prcomp(t(fpkm), center = TRUE)
 ggbiplot(p, groups = meta$groups, var.axes = F,ellipse = T) + theme_bw() + ggtitle("FPKM, PCA")
+
+
+
+data.fus = subset(data, "model == fus", genomesubset=FALSE)
+
+
+meta$model
+####subsetting for stattest
+
