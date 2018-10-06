@@ -8,9 +8,9 @@ Skills: Reference-based trancsriptome differential expression computing, GSEA, P
 
 Publications:
 
-https://www.ncbi.nlm.nih.gov/pubmed/29982879\t
-https://www.ncbi.nlm.nih.gov/pubmed/29813067\t
-https://www.ncbi.nlm.nih.gov/pubmed/29476081\t
+https://www.ncbi.nlm.nih.gov/pubmed/29982879
+https://www.ncbi.nlm.nih.gov/pubmed/29813067
+https://www.ncbi.nlm.nih.gov/pubmed/29476081
 
 
 Research Interest Areas: Alzheimer's Disease, Amyotrophyc Lateral Sclerosis, Neurodegeneration, Bioinformatics, Hybrid disgenesis in
@@ -18,7 +18,7 @@ Drosophila Virilis
 
 Contact information
 
-aprezvykh@yandex.ru\t
-aprezvykh@eimb.ru\t
-rezvykh.ap@phystech.edu\t
+aprezvykh@yandex.ru
+aprezvykh@eimb.ru
+rezvykh.ap@phystech.edu
 
