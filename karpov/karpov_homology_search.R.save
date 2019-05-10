@@ -1,0 +1,69 @@
+source("https://bioconductor.org/biocLite.R")
+biocLite("org.Sc.sgd.db")
+library("org.Sc.sgd.db")
+
+library("tm")
+library("SnowballC")
+library("wordcloud")
+library("RColorBrewer")
+
+fa <- read.fasta("~/Karpov.sac/Saccharomyces_cerevisiae.R64-1-1.dna.toplevel.fa",as.string = T)
+gtf <- data.frame(import("~/Karpov.sac/Saccharomyces_cerevisiae.R64-1-1.93.gtf"))
+
+chr.ids <- names(fa)
+as.character(gregexpr("ggttagg",fa$I,ignore.case = T)[[1]])[1]
+
+df <- read.delim("~/Karpov.sac/genes/genes.blast")
+names(df) <- c("qseqid",
+               "sseqid",
+               "pident",
+               "length",
+               "mismatch",
+               "gapopen", 
+               "qstart", 
+               "qend", 
+               "sstart", 
+               "send", 
+               "evalue", 
+               "bitscore")
+
+dfnu <- df[df$qseqid != df$sseqid,]
+dfnu <- dfnu[dfnu$pident > 98,]
+dfnu <- dfnu[dfnu$length > 500,]
+
+dfnu <- dfnu[order(dfnu$bitscore, decreasing = T),]
+
+as.character(unique(dfnu$qseqid))
+
+dfnu$qseqid.genename <- mapIds(org.Sc.sgd.db, 
+                               keys=as.character(dfnu$qseqid), 
+                               column="DESCRIPTION", 
+                               keytype="ENSEMBL",
+                               multiVals="first")
+
+ch <- unique(dfnu$qseqid.genename)
+text <- paste(ch, collapse = " ")
+docs <- Corpus(VectorSource(text))
+toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+docs <- tm_map(docs, toSpace, "/")
+docs <- tm_map(docs, toSpace, "@")
+docs <- tm_map(docs, toSpace, "\\|")
+docs <- tm_map(docs, content_transformer(tolower))
+docs <- tm_map(docs, removeNumbers)
+docs <- tm_map(docs, removeWords, stopwords("english"))
+docs <- tm_map(docs, removeWords, c("blabla1", "blabla2")) 
+docs <- tm_map(docs, removePunctuation)
+docs <- tm_map(docs, stripWhitespace)
+
+dtm <- TermDocumentMatrix(docs)
+m <- as.matrix(dtm)
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+
+set.seed(1234)
+png("karpov_wordcloud.png")
+wordcloud(words = d$word, freq = d$freq, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+
+dev.off()

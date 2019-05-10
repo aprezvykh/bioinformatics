@@ -1,5 +1,4 @@
 #!/usr/bin/Rscript
-
 while(TRUE){
     v <- vector()
     cols <- as.numeric(system("tput cols", intern = TRUE))
